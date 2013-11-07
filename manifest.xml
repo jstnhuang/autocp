@@ -1,0 +1,14 @@
+<package>
+  <description brief="Automatic Camera Placement">
+    Automatically places the camera.
+  </description>
+  <author>Justin Huang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org</url>
+  <depend package="rviz"/>
+  <depend package="view_controller_msgs"/>
+  <export>
+    <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+</package>

@@ -1,0 +1,9 @@
+<library path="lib/libautocp">
+  <class name="autocp/AutoCP"
+         type="autocp::AutoCPDisplay"
+         base_class_type="rviz::Display">
+    <description>
+      Display for automatic camera placement.
+    </description>
+  </class>
+</library>
