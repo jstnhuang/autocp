@@ -15,12 +15,13 @@ class RosTopicProperty;
 
 namespace autocp {
 class AutoCPDisplay: public rviz::Display {
- Q_OBJECT
+  Q_OBJECT
+
  public:
   AutoCPDisplay();
   virtual ~AutoCPDisplay();
 
-  protected:
+ protected:
   virtual void onInitialize();
 
  private Q_SLOTS:
@@ -42,6 +43,6 @@ class AutoCPDisplay: public rviz::Display {
   ros::Subscriber sub_;
   rviz::RosTopicProperty* topic_prop_;
 };
-}
+} // namespace autocp
 
-#endif
+#endif // AUTOCP_DISPLAY_H

@@ -67,7 +67,7 @@ void AutoCPDisplay::setCameraPlacement(
   view_controller_msgs::CameraPlacement& camera_placement
 ) {
   camera_placement.target_frame = "<Fixed Frame>";
-  
+
   camera_placement.time_from_start = time_from_start;
 
   camera_placement.eye.header.stamp = ros::Time(0);
@@ -89,7 +89,7 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement.up.vector.y = 0.0;
   camera_placement.up.vector.z = 1.0;
 }
-}
+} // namespace autocp
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(autocp::AutoCPDisplay, rviz::Display)
