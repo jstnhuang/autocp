@@ -8,6 +8,7 @@
   <url>http://ros.org</url>
   <depend package="rviz"/>
   <depend package="view_controller_msgs"/>
+  <depend package="pr2_controllers_msgs"/>
   <export>
     <rviz plugin="${prefix}/plugin_description.xml"/>
   </export>

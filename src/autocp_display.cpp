@@ -1,21 +1,14 @@
-#include <tf/transform_listener.h>
-
-#include <cmath>
-#include <geometry_msgs/Vector3Stamped.h>
-#include <geometry_msgs/PointStamped.h>
+#include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
-#include <rviz/visualization_manager.h>
 #include <rviz/properties/property.h>
 #include <rviz/properties/ros_topic_property.h>
-#include <rviz/properties/float_property.h>
-#include <rviz/frame_manager.h>
 #include <view_controller_msgs/CameraPlacement.h>
 
 #include "autocp_display.h"
 
 namespace autocp {
 
-AutoCPDisplay::AutoCPDisplay(): root_nh_(""), camera_radians_(0.0) {
+AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   topic_prop_ = new rviz::RosTopicProperty(
     "Command topic",
     "/rviz/camera_placement",
@@ -26,83 +19,76 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), camera_radians_(0.0) {
     this,
     SLOT(updateTopic())
   );
-
-  rpm_prop_ = new rviz::FloatProperty(
-    "Rotations per minute",
-    6.0,
-    "Number of rotations per minute.",
-    this,
-    SLOT(updateRpm())
-  );
-
-  fps_prop_ = new rviz::FloatProperty(
-    "Updates per second",
-    60.0,
-    "Number of updates to perform per second.",
-    this,
-    SLOT(updateRpm())
-  );
 }
 
 AutoCPDisplay::~AutoCPDisplay() {
 }
 
 void AutoCPDisplay::onInitialize() {
-  MFDClass::onInitialize();
+  Display::onInitialize();
   updateTopic();
-  float fps = fps_prop_->getFloat();
-  timer_ = root_nh_.createTimer(
-    ros::Duration(1 / fps),
-    &AutoCPDisplay::updateCamera,
+    sub_ = root_nh_.subscribe(
+    "head_traj_controller/point_head_action/goal",
+    5,
+    &AutoCPDisplay::targetPointCallback,
     this
   );
 }
 
+void AutoCPDisplay::targetPointCallback(
+  const pr2_controllers_msgs::PointHeadActionGoal& action_goal
+) {
+  view_controller_msgs::CameraPlacement camera_placement;
+  setCameraPlacement(
+    3,
+    3,
+    0.8,
+    action_goal.goal.target.point.x,
+    action_goal.goal.target.point.y,
+    action_goal.goal.target.point.z,
+    action_goal.goal.min_duration,
+    camera_placement
+  );
+
+  pub_.publish(camera_placement);
+}
+
 void AutoCPDisplay::updateTopic() {
-  MFDClass::updateTopic();
   pub_ = root_nh_.advertise<view_controller_msgs::CameraPlacement>(
     topic_prop_->getStdString(),
     5
   );
 }
 
-void AutoCPDisplay::updateRpm() {
-}
-
-void AutoCPDisplay::processMessage(const sensor_msgs::Imu::ConstPtr& msg) {
-}
-
-void AutoCPDisplay::updateCamera(const ros::TimerEvent& e) {
-  view_controller_msgs::CameraPlacement cp;
-  cp.target_frame = "<Fixed Frame>";
-  float rpm = rpm_prop_->getFloat();
-  float fps = fps_prop_->getFloat();
-  camera_radians_ += (rpm * 2 * 3.14) / (60 * fps);
+void AutoCPDisplay::setCameraPlacement(
+  float eye_x, float eye_y, float eye_z,
+  float focus_x, float focus_y, float focus_z,
+  ros::Duration time_from_start,
+  view_controller_msgs::CameraPlacement& camera_placement
+) {
+  camera_placement.target_frame = "<Fixed Frame>";
   
-  cp.time_from_start = ros::Duration(1 / fps);
+  camera_placement.time_from_start = time_from_start;
 
-  cp.eye.header.stamp = ros::Time(0);
-  cp.eye.header.frame_id = "torso_lift_link";
-  cp.focus.header.stamp = ros::Time(0);
-  cp.focus.header.frame_id = "torso_lift_link";
-  cp.up.header.stamp = ros::Time(0);
-  cp.up.header.frame_id = "torso_lift_link";
+  camera_placement.eye.header.stamp = ros::Time(0);
+  camera_placement.eye.header.frame_id = "torso_lift_link";
+  camera_placement.focus.header.stamp = ros::Time(0);
+  camera_placement.focus.header.frame_id = "torso_lift_link";
+  camera_placement.up.header.stamp = ros::Time(0);
+  camera_placement.up.header.frame_id = "torso_lift_link";
 
-  cp.eye.point.x = 3 * sin(camera_radians_);
-  cp.eye.point.y = 3 * cos(camera_radians_);
-  cp.eye.point.z = 0.8;
+  camera_placement.eye.point.x = eye_x;
+  camera_placement.eye.point.y = eye_y;
+  camera_placement.eye.point.z = eye_z;
 
-  cp.focus.point.x = 0.35;
-  cp.focus.point.y = 0.0;
-  cp.focus.point.z = 0.8;
+  camera_placement.focus.point.x = focus_x;
+  camera_placement.focus.point.y = focus_y;
+  camera_placement.focus.point.z = focus_z;
 
-  cp.up.vector.x = 0.0;
-  cp.up.vector.y = 0.0;
-  cp.up.vector.z = 1.0;
-
-  pub_.publish(cp);
+  camera_placement.up.vector.x = 0.0;
+  camera_placement.up.vector.y = 0.0;
+  camera_placement.up.vector.z = 1.0;
 }
-
 }
 
 #include <pluginlib/class_list_macros.h>

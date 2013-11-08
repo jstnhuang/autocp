@@ -1,10 +1,9 @@
 #ifndef AUTOCP_DISPLAY_H
 #define AUTOCP_DISPLAY_H
 
+#include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
-#include <rviz/message_filter_display.h>
-#include <sensor_msgs/Imu.h>
 #include <view_controller_msgs/CameraPlacement.h>
 
 namespace rviz {
@@ -15,7 +14,7 @@ class RosTopicProperty;
 }
 
 namespace autocp {
-class AutoCPDisplay: public rviz::MessageFilterDisplay<sensor_msgs::Imu> {
+class AutoCPDisplay: public rviz::Display {
  Q_OBJECT
  public:
   AutoCPDisplay();
@@ -30,14 +29,18 @@ class AutoCPDisplay: public rviz::MessageFilterDisplay<sensor_msgs::Imu> {
 
  private:
   ros::NodeHandle root_nh_;
-  void updateCamera(const ros::TimerEvent&);
-  void processMessage(const sensor_msgs::Imu::ConstPtr& msg);
+  void setCameraPlacement(
+    float eye_x, float eye_y, float eye_z,
+    float focus_x, float focus_y, float focus_z,
+    ros::Duration time_from_start,
+    view_controller_msgs::CameraPlacement& cp
+  );
+  void targetPointCallback(
+    const pr2_controllers_msgs::PointHeadActionGoal& goal
+  );
   ros::Publisher pub_;
+  ros::Subscriber sub_;
   rviz::RosTopicProperty* topic_prop_;
-  rviz::FloatProperty* rpm_prop_;
-  rviz::FloatProperty* fps_prop_;
-  ros::Timer timer_;
-  float camera_radians_;
 };
 }
 
