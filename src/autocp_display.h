@@ -1,3 +1,13 @@
+/**
+ * Automatic Camera Placement
+ * 
+ * Automatically places the camera in Rviz depending on the following factors:
+ * - Interactive marker visibility.
+ * - Orthogonality to an interactive marker axis.
+ * - Where the robot is looking / what the robot sees.
+ * - Gripper visibility.
+ * - Closeness to the current camera position.
+ */
 #ifndef AUTOCP_DISPLAY_H
 #define AUTOCP_DISPLAY_H
 
@@ -26,22 +36,25 @@ class AutoCPDisplay: public rviz::Display {
 
  private Q_SLOTS:
   void updateTopic();
-  void updateRpm();
 
  private:
   ros::NodeHandle root_nh_;
+
+  // Camera placement..
+  ros::Publisher pub_;
+  rviz::RosTopicProperty* topic_prop_;
   void setCameraPlacement(
     float eye_x, float eye_y, float eye_z,
     float focus_x, float focus_y, float focus_z,
     ros::Duration time_from_start,
     view_controller_msgs::CameraPlacement& cp
   );
-  void targetPointCallback(
+
+  // Point head factor.
+  ros::Subscriber point_head_sub_;
+  void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal
   );
-  ros::Publisher pub_;
-  ros::Subscriber sub_;
-  rviz::RosTopicProperty* topic_prop_;
 };
 } // namespace autocp
 
