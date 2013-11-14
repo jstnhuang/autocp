@@ -1,14 +1,3 @@
-#include <geometry_msgs/Point.h>
-#include <OGRE/OgreVector3.h>
-#include <pr2_controllers_msgs/PointHeadAction.h>
-#include <ros/ros.h>
-#include <rviz/display.h>
-#include <rviz/render_panel.h>
-#include <rviz/visualization_manager.h>
-#include <rviz/properties/property.h>
-#include <rviz/properties/ros_topic_property.h>
-#include <view_controller_msgs/CameraPlacement.h>
-
 #include "autocp_display.h"
 
 namespace autocp {
@@ -100,18 +89,26 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  * Ties are broken based on which is closest to the current camera position.
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-  Ogre::Vector3 candidate_position(3, 3, 3);
-  Ogre::Vector3 point_head_position(point_head_focus_.x, point_head_focus_.y, point_head_focus_.z);
-  Ogre::Camera candidate ("candidate", scene_manager_);
-  candidate.setPosition(candidate_position);
-  candidate.lookAt(point_head_position);
+//  Ogre::Vector3 candidate_position(3, 3, 3);
+//  Ogre::Vector3 point_head_position(point_head_focus_.x, point_head_focus_.y, point_head_focus_.z);
+//  Ogre::Camera candidate ("candidate", scene_manager_);
+//  candidate.setPosition(candidate_position);
+//  candidate.lookAt(point_head_position);
+//
+//  bool visible = candidate.isVisible(point_head_position);
+//  if (visible) {
+//    ROS_INFO("Visible");
+//  } else {
+//    ROS_INFO("Not visible");
+//  }
 
-  bool visible = candidate.isVisible(point_head_position);
-  if (visible) {
-    ROS_INFO("Visible");
-  } else {
-    ROS_INFO("Not visible");
-  }
+  tf_listener_.waitForTransform("/base_link", "/l_wrist_roll_link", ros::Time(0), ros::Duration(5));
+  tf::StampedTransform transform;
+  tf_listener_.lookupTransform("/base_link", "/l_wrist_roll_link", ros::Time(0), transform);
+  tf::Vector3 origin = transform.getOrigin();
+  ROS_INFO("x: %d, y: %d, z: %d", origin.x(), origin.y(), origin.z());
+//<< ", y: " << origin.y() << ", z: " << origin.z());
+
   location->x = 3;
   location->y = 3;
   location->z = 3;

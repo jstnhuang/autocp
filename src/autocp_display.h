@@ -15,6 +15,9 @@
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
+#include <rviz/properties/property.h>
+#include <rviz/properties/ros_topic_property.h>
+#include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 
 namespace rviz {
@@ -40,6 +43,7 @@ class AutoCPDisplay: public rviz::Display {
 
  private:
   ros::NodeHandle root_nh_;
+  tf::TransformListener tf_listener_;
 
   // Camera placement.
   ros::Publisher camera_placement_publisher_;
