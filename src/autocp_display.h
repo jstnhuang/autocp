@@ -11,6 +11,7 @@
 #ifndef AUTOCP_DISPLAY_H
 #define AUTOCP_DISPLAY_H
 
+#include <geometry_msgs/Point.h>
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
@@ -40,14 +41,14 @@ class AutoCPDisplay: public rviz::Display {
  private:
   ros::NodeHandle root_nh_;
 
-  // Camera placement..
+  // Camera placement.
   ros::Publisher pub_;
   rviz::RosTopicProperty* topic_prop_;
   void setCameraPlacement(
-    float eye_x, float eye_y, float eye_z,
-    float focus_x, float focus_y, float focus_z,
+    geometry_msgs::Point location,
+    geometry_msgs::Point focus,
     ros::Duration time_from_start,
-    view_controller_msgs::CameraPlacement& cp
+    view_controller_msgs::CameraPlacement* cp
   );
 
   // Point head factor.

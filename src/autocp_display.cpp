@@ -1,3 +1,4 @@
+#include <geometry_msgs/Point.h>
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/properties/property.h>
@@ -45,33 +46,33 @@ void AutoCPDisplay::updateTopic() {
 
 // Utility method to set the camera placement.
 void AutoCPDisplay::setCameraPlacement(
-  float eye_x, float eye_y, float eye_z,
-  float focus_x, float focus_y, float focus_z,
+  geometry_msgs::Point location,
+  geometry_msgs::Point focus,
   ros::Duration time_from_start,
-  view_controller_msgs::CameraPlacement& camera_placement
+  view_controller_msgs::CameraPlacement* camera_placement
 ) {
-  camera_placement.target_frame = "<Fixed Frame>";
+  camera_placement->target_frame = "<Fixed Frame>";
 
-  camera_placement.time_from_start = time_from_start;
+  camera_placement->time_from_start = time_from_start;
 
-  camera_placement.eye.header.stamp = ros::Time(0);
-  camera_placement.eye.header.frame_id = "torso_lift_link";
-  camera_placement.focus.header.stamp = ros::Time(0);
-  camera_placement.focus.header.frame_id = "torso_lift_link";
-  camera_placement.up.header.stamp = ros::Time(0);
-  camera_placement.up.header.frame_id = "torso_lift_link";
+  camera_placement->eye.header.stamp = ros::Time(0);
+  camera_placement->eye.header.frame_id = "torso_lift_link";
+  camera_placement->focus.header.stamp = ros::Time(0);
+  camera_placement->focus.header.frame_id = "torso_lift_link";
+  camera_placement->up.header.stamp = ros::Time(0);
+  camera_placement->up.header.frame_id = "torso_lift_link";
 
-  camera_placement.eye.point.x = eye_x;
-  camera_placement.eye.point.y = eye_y;
-  camera_placement.eye.point.z = eye_z;
+  camera_placement->eye.point.x = location.x;
+  camera_placement->eye.point.y = location.y;
+  camera_placement->eye.point.z = location.z;
 
-  camera_placement.focus.point.x = focus_x;
-  camera_placement.focus.point.y = focus_y;
-  camera_placement.focus.point.z = focus_z;
+  camera_placement->focus.point.x = focus.x;
+  camera_placement->focus.point.y = focus.y;
+  camera_placement->focus.point.z = focus.z;
 
-  camera_placement.up.vector.x = 0.0;
-  camera_placement.up.vector.y = 0.0;
-  camera_placement.up.vector.z = 1.0;
+  camera_placement->up.vector.x = 0.0;
+  camera_placement->up.vector.y = 0.0;
+  camera_placement->up.vector.z = 1.0;
 }
 
 // Factor based on where the robot's looking.
@@ -79,15 +80,16 @@ void AutoCPDisplay::pointHeadCallback(
   const pr2_controllers_msgs::PointHeadActionGoal& action_goal
 ) {
   view_controller_msgs::CameraPlacement camera_placement;
+  geometry_msgs::Point focus;
+  focus.x = 3;
+  focus.y = 3;
+  focus.z = 0.8;
+
   setCameraPlacement(
-    3,
-    3,
-    0.8,
-    action_goal.goal.target.point.x,
-    action_goal.goal.target.point.y,
-    action_goal.goal.target.point.z,
+    focus,
+    action_goal.goal.target.point,
     action_goal.goal.min_duration,
-    camera_placement
+    &camera_placement
   );
 
   pub_.publish(camera_placement);
