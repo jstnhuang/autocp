@@ -42,17 +42,26 @@ class AutoCPDisplay: public rviz::Display {
   ros::NodeHandle root_nh_;
 
   // Camera placement.
-  ros::Publisher pub_;
+  ros::Publisher camera_placement_publisher_;
+  ros::Subscriber camera_placement_subscriber_;
+  view_controller_msgs::CameraPlacement camera_placement_;
+  void cameraPlacementCallback(
+    const view_controller_msgs::CameraPlacement& camera_placement
+  );
   rviz::RosTopicProperty* topic_prop_;
+  void chooseCameraPlacement();
+  void chooseCameraFocus(geometry_msgs::Point* focus);
+  void chooseCameraLocation(geometry_msgs::Point* location);
   void setCameraPlacement(
-    geometry_msgs::Point location,
-    geometry_msgs::Point focus,
-    ros::Duration time_from_start,
-    view_controller_msgs::CameraPlacement* cp
+    const geometry_msgs::Point& location,
+    const geometry_msgs::Point& focus,
+    const ros::Duration& time_from_start,
+    view_controller_msgs::CameraPlacement* camera_placement
   );
 
   // Point head factor.
-  ros::Subscriber point_head_sub_;
+  ros::Subscriber point_head_subcriber_;
+  geometry_msgs::Point point_head_focus_;
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal
   );
