@@ -37,6 +37,7 @@ class AutoCPDisplay: public rviz::Display {
 
  protected:
   virtual void onInitialize();
+  virtual void update(float wall_dt, float ros_dt);
 
  private Q_SLOTS:
   void updateTopic();
@@ -45,15 +46,25 @@ class AutoCPDisplay: public rviz::Display {
   ros::NodeHandle root_nh_;
   tf::TransformListener tf_listener_;
 
-  // Camera placement.
-  ros::Publisher camera_placement_publisher_;
-  ros::Subscriber camera_placement_subscriber_;
-  view_controller_msgs::CameraPlacement camera_placement_;
-  void cameraPlacementCallback(
-    const view_controller_msgs::CameraPlacement& camera_placement
+  // Sensing.
+  void sense();
+  void getTransformOrigin(std::string frame, geometry_msgs::Point* origin);
+
+  // Point head factor.
+  ros::Subscriber point_head_subcriber_;
+  geometry_msgs::Point head_focus_point_;
+  void pointHeadCallback(
+    const pr2_controllers_msgs::PointHeadActionGoal& goal
   );
+
+  // Gripper factors.
+  geometry_msgs::Point left_gripper_origin_;
+  geometry_msgs::Point right_gripper_origin_;
+
+  // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
-  void chooseCameraPlacement();
+  ros::Publisher camera_placement_publisher_;
+  void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(geometry_msgs::Point* focus);
   void chooseCameraLocation(geometry_msgs::Point* location);
   void setCameraPlacement(
@@ -61,13 +72,6 @@ class AutoCPDisplay: public rviz::Display {
     const geometry_msgs::Point& focus,
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement
-  );
-
-  // Point head factor.
-  ros::Subscriber point_head_subcriber_;
-  geometry_msgs::Point point_head_focus_;
-  void pointHeadCallback(
-    const pr2_controllers_msgs::PointHeadActionGoal& goal
   );
 };
 } // namespace autocp

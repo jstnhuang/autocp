@@ -1,7 +1,9 @@
 #include "autocp_display.h"
 
 namespace autocp {
-
+/**
+ * Constructor. Hooks up the display properties.
+ */
 AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   topic_prop_ = new rviz::RosTopicProperty(
     "Command topic",
@@ -15,14 +17,17 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   );
 }
 
+/**
+ * Destructor.
+ */
 AutoCPDisplay::~AutoCPDisplay() {
 }
 
 /**
- * Attach subscribers.
+ * Initialization. Attaches callbacks to subscribers.
  */
 void AutoCPDisplay::onInitialize() {
-  Display::onInitialize();
+  Display:: onInitialize();
   updateTopic();
 
   point_head_subcriber_ = root_nh_.subscribe(
@@ -31,35 +36,66 @@ void AutoCPDisplay::onInitialize() {
     &AutoCPDisplay::pointHeadCallback,
     this
   );
-
-  camera_placement_subscriber_ = root_nh_.subscribe(
-    "/rviz/camera_placement",
-    5,
-    &AutoCPDisplay::cameraPlacementCallback,
-    this
-  );
 }
 
-// Topic property.
+/**
+ * Main loop that alternates between sensing and placing the camera.
+ */
+void AutoCPDisplay::update(float wall_dt, float ros_dt) {
+  sense();
+  chooseCameraPlacement(ros_dt);  
+}
+
+/**
+ * Set the topic to publish camera placement commands to.
+ */
 void AutoCPDisplay::updateTopic() {
   camera_placement_publisher_ =
     root_nh_.advertise<view_controller_msgs::CameraPlacement>(
       topic_prop_->getStdString(),
       5
-    );
+    ); }
+
+/**
+ * Update the points of interest.
+ */
+void AutoCPDisplay::sense() {
+  getTransformOrigin("/l_wrist_roll_link", &left_gripper_origin_);
+  getTransformOrigin("/r_wrist_roll_link", &right_gripper_origin_);
 }
 
-void AutoCPDisplay::cameraPlacementCallback(
-  const view_controller_msgs::CameraPlacement& camera_placement
+/**
+ * Get the origin of the given transform.
+ */
+void AutoCPDisplay::getTransformOrigin(
+  std::string frame,
+  geometry_msgs::Point* origin
 ) {
-  camera_placement_ = camera_placement;
+  ros::Duration timeout(5);
+  tf_listener_.waitForTransform("/base_link", frame, ros::Time(0), timeout);
+  tf::StampedTransform transform;
+  tf_listener_.lookupTransform("/base_link", frame, ros::Time(0), transform);
+  tf::Vector3 transform_origin = transform.getOrigin();
+
+  origin->x = transform_origin.x();
+  origin->y = transform_origin.y();
+  origin->z = transform_origin.z();
+}
+
+/**
+ * Get the target point for the head.
+ */
+void AutoCPDisplay::pointHeadCallback(
+  const pr2_controllers_msgs::PointHeadActionGoal& action_goal
+) {
+  head_focus_point_ = action_goal.goal.target.point;
 }
 
 /**
  * Get the final focus point and location for the camera, then push the camera
  * placement.
  */
-void AutoCPDisplay::chooseCameraPlacement() {
+void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   geometry_msgs::Point focus;
   chooseCameraFocus(&focus);
 
@@ -67,7 +103,11 @@ void AutoCPDisplay::chooseCameraPlacement() {
   chooseCameraLocation(&location);
 
   view_controller_msgs::CameraPlacement camera_placement;
-  setCameraPlacement(location, focus, ros::Duration(1.0), &camera_placement);
+  setCameraPlacement(
+    location, focus,
+    ros::Duration(time_delta),
+    &camera_placement
+  );
   
   camera_placement_publisher_.publish(camera_placement);
 }
@@ -77,9 +117,29 @@ void AutoCPDisplay::chooseCameraPlacement() {
  * of the current focus points.
  */
 void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
-  focus->x = point_head_focus_.x;
-  focus->y = point_head_focus_.y;
-  focus->z = point_head_focus_.z;
+  geometry_msgs::Point* points[] {
+    &left_gripper_origin_,
+    &right_gripper_origin_,
+    &head_focus_point_
+  };
+  int num_points = 3;
+
+  float mean_x = 0;
+  float mean_y = 0;
+  float mean_z = 0;
+  for (int i = 0; i < num_points; i++) {
+    geometry_msgs::Point* point = points[i];
+    mean_x += point->x;
+    mean_y += point->y;
+    mean_z += point->z;
+  }       
+  mean_x /= num_points;
+  mean_y /= num_points;
+  mean_z /= num_points;
+
+  focus->x = mean_x;
+  focus->y = mean_y;
+  focus->z = mean_z;
 }
 
 /**
@@ -89,29 +149,20 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  * Ties are broken based on which is closest to the current camera position.
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-//  Ogre::Vector3 candidate_position(3, 3, 3);
-//  Ogre::Vector3 point_head_position(point_head_focus_.x, point_head_focus_.y, point_head_focus_.z);
-//  Ogre::Camera candidate ("candidate", scene_manager_);
-//  candidate.setPosition(candidate_position);
-//  candidate.lookAt(point_head_position);
-//
-//  bool visible = candidate.isVisible(point_head_position);
-//  if (visible) {
-//    ROS_INFO("Visible");
-//  } else {
-//    ROS_INFO("Not visible");
-//  }
-
-  tf_listener_.waitForTransform("/base_link", "/l_wrist_roll_link", ros::Time(0), ros::Duration(5));
-  tf::StampedTransform transform;
-  tf_listener_.lookupTransform("/base_link", "/l_wrist_roll_link", ros::Time(0), transform);
-  tf::Vector3 origin = transform.getOrigin();
-  ROS_INFO("x: %d, y: %d, z: %d", origin.x(), origin.y(), origin.z());
-//<< ", y: " << origin.y() << ", z: " << origin.z());
-
+  //Ogre::Vector3 candidate_position(3, 3, 3);
+  //Ogre::Vector3 point_head_position(point_head_focus_.x, point_head_focus_.y, point_head_focus_.z);
+  //Ogre::Camera candidate ("candidate", scene_manager_);
+  //candidate.setPosition(candidate_position);
+  //candidate.lookAt(point_head_position);
+  //bool visible = candidate.isVisible(point_head_position);
+  //if (visible) {
+  //  ROS_INFO("Visible");
+  //} else {
+  //  ROS_INFO("Not visible");
+  //}
   location->x = 3;
   location->y = 3;
-  location->z = 3;
+  location->z = 2;
 }
 
 /**
@@ -128,11 +179,11 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->time_from_start = time_from_start;
 
   camera_placement->eye.header.stamp = ros::Time(0);
-  camera_placement->eye.header.frame_id = "torso_lift_link";
+  camera_placement->eye.header.frame_id = "base_link";
   camera_placement->focus.header.stamp = ros::Time(0);
-  camera_placement->focus.header.frame_id = "torso_lift_link";
+  camera_placement->focus.header.frame_id = "base_link";
   camera_placement->up.header.stamp = ros::Time(0);
-  camera_placement->up.header.frame_id = "torso_lift_link";
+  camera_placement->up.header.frame_id = "base_link";
 
   camera_placement->eye.point.x = location.x;
   camera_placement->eye.point.y = location.y;
@@ -146,15 +197,6 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.vector.y = 0.0;
   camera_placement->up.vector.z = 1.0;
 }
-
-// Factor based on where the robot's looking.
-void AutoCPDisplay::pointHeadCallback(
-  const pr2_controllers_msgs::PointHeadActionGoal& action_goal
-) {
-  point_head_focus_ = action_goal.goal.target.point;
-  chooseCameraPlacement();
-}
-
 } // namespace autocp
 
 #include <pluginlib/class_list_macros.h>
