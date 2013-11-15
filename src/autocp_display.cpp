@@ -1,4 +1,5 @@
 #include "autocp_display.h"
+#include <string>
 
 namespace autocp {
 /**
@@ -43,7 +44,7 @@ void AutoCPDisplay::onInitialize() {
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   sense();
-  chooseCameraPlacement(ros_dt);  
+  chooseCameraPlacement(ros_dt);
 }
 
 /**
@@ -54,7 +55,8 @@ void AutoCPDisplay::updateTopic() {
     root_nh_.advertise<view_controller_msgs::CameraPlacement>(
       topic_prop_->getStdString(),
       5
-    ); }
+    );
+}
 
 /**
  * Update the points of interest.
@@ -108,7 +110,7 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     ros::Duration(time_delta),
     &camera_placement
   );
-  
+
   camera_placement_publisher_.publish(camera_placement);
 }
 
@@ -132,7 +134,7 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
     mean_x += point->x;
     mean_y += point->y;
     mean_z += point->z;
-  }       
+  }
   mean_x /= num_points;
   mean_y /= num_points;
   mean_z /= num_points;
@@ -197,7 +199,7 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.vector.y = 0.0;
   camera_placement->up.vector.z = 1.0;
 }
-} // namespace autocp
+}  // namespace autocp
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(autocp::AutoCPDisplay, rviz::Display)

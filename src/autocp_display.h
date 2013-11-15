@@ -15,10 +15,13 @@
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
+#include <rviz/display_context.h>
 #include <rviz/properties/property.h>
 #include <rviz/properties/ros_topic_property.h>
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
+
+#include <string>
 
 namespace rviz {
 class ColorProperty;
@@ -74,6 +77,6 @@ class AutoCPDisplay: public rviz::Display {
     view_controller_msgs::CameraPlacement* camera_placement
   );
 };
-} // namespace autocp
+}  // namespace autocp
 
-#endif // AUTOCP_DISPLAY_H
+#endif  // AUTOCP_DISPLAY_H
