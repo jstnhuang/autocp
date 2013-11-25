@@ -18,16 +18,15 @@
 #include <rviz/display_context.h>
 #include <rviz/properties/property.h>
 #include <rviz/properties/ros_topic_property.h>
+#include <rviz/visualization_manager.h>
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 
 #include <string>
 
 namespace rviz {
-class ColorProperty;
-class FloatProperty;
-class IntProperty;
 class RosTopicProperty;
+class VisualizationManager;
 }
 
 namespace autocp {
@@ -48,13 +47,16 @@ class AutoCPDisplay: public rviz::Display {
  private:
   ros::NodeHandle root_nh_;
   tf::TransformListener tf_listener_;
+  rviz::VisualizationManager* vm_;
+
+  double distance(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2);
 
   // Sensing.
   void sense();
   void getTransformOrigin(std::string frame, geometry_msgs::Point* origin);
 
   // Point head factor.
-  ros::Subscriber point_head_subcriber_;
+  ros::Subscriber point_head_subscriber_;
   geometry_msgs::Point head_focus_point_;
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal
@@ -67,6 +69,7 @@ class AutoCPDisplay: public rviz::Display {
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
+  geometry_msgs::Point* last_position_;
   void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(geometry_msgs::Point* focus);
   void chooseCameraLocation(geometry_msgs::Point* location);

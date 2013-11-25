@@ -1,5 +1,9 @@
 #include "autocp_display.h"
 #include <string>
+#include <math.h>
+#include <OGRE/OgreCamera.h>
+#include <rviz/visualization_manager.h>
+#include <rviz/render_panel.h>
 
 namespace autocp {
 /**
@@ -16,6 +20,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateTopic())
   );
+  last_position_ = 0;
 }
 
 /**
@@ -31,12 +36,14 @@ void AutoCPDisplay::onInitialize() {
   Display:: onInitialize();
   updateTopic();
 
-  point_head_subcriber_ = root_nh_.subscribe(
+  point_head_subscriber_ = root_nh_.subscribe(
     "head_traj_controller/point_head_action/goal",
     5,
     &AutoCPDisplay::pointHeadCallback,
     this
   );
+
+  vm_ = static_cast<rviz::VisualizationManager*>(context_);
 }
 
 /**
@@ -111,7 +118,32 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     &camera_placement
   );
 
-  camera_placement_publisher_.publish(camera_placement);
+  Ogre::Camera candidate ("candidate", scene_manager_);
+  Ogre::Vector3 candidate_position(3, 3, 3);
+  Ogre::Vector3 focus_position(focus.x, focus.y, focus.z);
+  candidate.setPosition(candidate_position);
+  candidate.lookAt(focus_position);
+  Ogre::Quaternion orientation = candidate.getOrientation();
+
+  vm_->getRenderPanel()->getCamera()->setPosition(Ogre::Vector3(3, 3, 3));
+  vm_->getRenderPanel()->getCamera()->setOrientation(orientation);
+  vm_->getSceneManager()->getCurrentViewport()->update();
+//  Ogre::Vector3 position = vm->getRenderPanel()->getCamera()->getPosition();
+//  vm->getRenderPanel()->getCamera()->setPosition(position);
+//  ROS_INFO("%f, %f, %f", position.x, position.y, position.z);
+
+//    camera_placement_publisher_.publish(camera_placement);
+//    ROS_INFO("Moving to %f, %f, %f", location.x, location.y, location.z);
+}
+
+double AutoCPDisplay::distance(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2) {
+  double x_distance = point1.x - point2.x;
+  double y_distance = point1.y - point2.y;
+  double z_distance = point1.z - point2.z;
+  double x_2 = x_distance * x_distance;
+  double y_2 = y_distance * y_distance;
+  double z_2 = z_distance * z_distance;
+  return sqrt(x_2 + y_2 + z_2);
 }
 
 /**
@@ -153,18 +185,25 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   //Ogre::Vector3 candidate_position(3, 3, 3);
   //Ogre::Vector3 point_head_position(point_head_focus_.x, point_head_focus_.y, point_head_focus_.z);
-  //Ogre::Camera candidate ("candidate", scene_manager_);
-  //candidate.setPosition(candidate_position);
-  //candidate.lookAt(point_head_position);
   //bool visible = candidate.isVisible(point_head_position);
   //if (visible) {
   //  ROS_INFO("Visible");
   //} else {
   //  ROS_INFO("Not visible");
   //}
-  location->x = 3;
-  location->y = 3;
-  location->z = 2;
+  //location = &current_camera_location_;
+  Ogre::Vector3 position = vm_->getRenderPanel()->getCamera()->getPosition();
+  location->x = position.x;
+  location->y = position.y;
+  location->z = position.z;
+  ROS_INFO("current camera location: %f, %f, %f",
+    position.x,
+    position.y,
+    position.z
+  );
+  //location->x = 3;
+  //location->y = 3;
+  //location->z = 2;
 }
 
 /**
@@ -180,11 +219,11 @@ void AutoCPDisplay::setCameraPlacement(
 
   camera_placement->time_from_start = time_from_start;
 
-  camera_placement->eye.header.stamp = ros::Time(0);
+  camera_placement->eye.header.stamp = ros::Time::now();
   camera_placement->eye.header.frame_id = "base_link";
-  camera_placement->focus.header.stamp = ros::Time(0);
+  camera_placement->focus.header.stamp = ros::Time::now();
   camera_placement->focus.header.frame_id = "base_link";
-  camera_placement->up.header.stamp = ros::Time(0);
+  camera_placement->up.header.stamp = ros::Time::now();
   camera_placement->up.header.frame_id = "base_link";
 
   camera_placement->eye.point.x = location.x;
