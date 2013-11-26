@@ -49,8 +49,6 @@ class AutoCPDisplay: public rviz::Display {
   tf::TransformListener tf_listener_;
   rviz::VisualizationManager* vm_;
 
-  double distance(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2);
-
   // Sensing.
   void sense();
   void getTransformOrigin(std::string frame, geometry_msgs::Point* origin);

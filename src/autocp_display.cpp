@@ -43,6 +43,7 @@ void AutoCPDisplay::onInitialize() {
     this
   );
 
+  // TODO(jstn): Just in case it becomes useful.
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
 }
 
@@ -118,32 +119,7 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     &camera_placement
   );
 
-  Ogre::Camera candidate ("candidate", scene_manager_);
-  Ogre::Vector3 candidate_position(3, 3, 3);
-  Ogre::Vector3 focus_position(focus.x, focus.y, focus.z);
-  candidate.setPosition(candidate_position);
-  candidate.lookAt(focus_position);
-  Ogre::Quaternion orientation = candidate.getOrientation();
-
-  vm_->getRenderPanel()->getCamera()->setPosition(Ogre::Vector3(3, 3, 3));
-  vm_->getRenderPanel()->getCamera()->setOrientation(orientation);
-  vm_->getSceneManager()->getCurrentViewport()->update();
-//  Ogre::Vector3 position = vm->getRenderPanel()->getCamera()->getPosition();
-//  vm->getRenderPanel()->getCamera()->setPosition(position);
-//  ROS_INFO("%f, %f, %f", position.x, position.y, position.z);
-
-//    camera_placement_publisher_.publish(camera_placement);
-//    ROS_INFO("Moving to %f, %f, %f", location.x, location.y, location.z);
-}
-
-double AutoCPDisplay::distance(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2) {
-  double x_distance = point1.x - point2.x;
-  double y_distance = point1.y - point2.y;
-  double z_distance = point1.z - point2.z;
-  double x_2 = x_distance * x_distance;
-  double y_2 = y_distance * y_distance;
-  double z_2 = z_distance * z_distance;
-  return sqrt(x_2 + y_2 + z_2);
+  camera_placement_publisher_.publish(camera_placement);
 }
 
 /**
@@ -183,27 +159,10 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  * Ties are broken based on which is closest to the current camera position.
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-  //Ogre::Vector3 candidate_position(3, 3, 3);
-  //Ogre::Vector3 point_head_position(point_head_focus_.x, point_head_focus_.y, point_head_focus_.z);
-  //bool visible = candidate.isVisible(point_head_position);
-  //if (visible) {
-  //  ROS_INFO("Visible");
-  //} else {
-  //  ROS_INFO("Not visible");
-  //}
-  //location = &current_camera_location_;
   Ogre::Vector3 position = vm_->getRenderPanel()->getCamera()->getPosition();
-  location->x = position.x;
-  location->y = position.y;
-  location->z = position.z;
-  ROS_INFO("current camera location: %f, %f, %f",
-    position.x,
-    position.y,
-    position.z
-  );
-  //location->x = 3;
-  //location->y = 3;
-  //location->z = 2;
+  location->x = round(2*position.x)/2;
+  location->y = round(2*position.y)/2;
+  location->z = round(2*position.z)/2;
 }
 
 /**
