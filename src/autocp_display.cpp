@@ -82,9 +82,11 @@ void AutoCPDisplay::getTransformOrigin(
   geometry_msgs::Point* origin
 ) {
   ros::Duration timeout(5);
-  tf_listener_.waitForTransform("/base_link", frame, ros::Time(0), timeout);
+  tf_listener_.waitForTransform(
+    fixed_frame_.toStdString(), frame, ros::Time(0), timeout);
   tf::StampedTransform transform;
-  tf_listener_.lookupTransform("/base_link", frame, ros::Time(0), transform);
+  tf_listener_.lookupTransform(
+    fixed_frame_.toStdString(), frame, ros::Time(0), transform);
   tf::Vector3 transform_origin = transform.getOrigin();
 
   origin->x = transform_origin.x();
@@ -119,6 +121,36 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     &camera_placement
   );
 
+<<<<<<< Updated upstream
+=======
+  rviz::M_Picked results;
+  Ogre::Viewport* viewport = scene_manager_->getCurrentViewport();
+  // Pick exactly 1 pixel
+  context_->getSelectionManager()->pick(viewport,
+                                        300, 300,
+                                        301, 301,
+                                        results, true);
+
+  rviz::InteractiveObjectPtr new_focused_object;
+
+  // look for a valid handle in the result.
+  rviz::M_Picked::iterator result_it = results.begin();
+  if (result_it == results.end()) {
+//    ROS_INFO("no iterator");
+  }
+  if(result_it != results.end()) {
+    rviz::Picked pick = result_it->second;
+    rviz::SelectionHandler* handler = context_->getSelectionManager()->getHandler(pick.handle);
+    ROS_INFO("pixel count: %d", pick.pixel_count);
+    if (pick.pixel_count > 0 && handler) {
+      rviz::InteractiveObjectPtr object = handler->getInteractiveObject().lock();
+      if(object && object->isInteractive()) {
+        new_focused_object = object;
+      }
+    }
+  }
+
+>>>>>>> Stashed changes
   camera_placement_publisher_.publish(camera_placement);
 }
 
@@ -160,9 +192,9 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   Ogre::Vector3 position = vm_->getRenderPanel()->getCamera()->getPosition();
-  location->x = round(2*position.x)/2;
-  location->y = round(2*position.y)/2;
-  location->z = round(2*position.z)/2;
+  location->x = position.x;
+  location->y = position.y;
+  location->z = position.z;
 }
 
 /**
@@ -179,11 +211,11 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->time_from_start = time_from_start;
 
   camera_placement->eye.header.stamp = ros::Time::now();
-  camera_placement->eye.header.frame_id = "base_link";
+  camera_placement->eye.header.frame_id = "<Fixed Frame>";
   camera_placement->focus.header.stamp = ros::Time::now();
-  camera_placement->focus.header.frame_id = "base_link";
+  camera_placement->focus.header.frame_id = "<Fixed Frame>";
   camera_placement->up.header.stamp = ros::Time::now();
-  camera_placement->up.header.frame_id = "base_link";
+  camera_placement->up.header.frame_id = "<Fixed Frame>";
 
   camera_placement->eye.point.x = location.x;
   camera_placement->eye.point.y = location.y;
