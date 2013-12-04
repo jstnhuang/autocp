@@ -121,36 +121,6 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     &camera_placement
   );
 
-<<<<<<< Updated upstream
-=======
-  rviz::M_Picked results;
-  Ogre::Viewport* viewport = scene_manager_->getCurrentViewport();
-  // Pick exactly 1 pixel
-  context_->getSelectionManager()->pick(viewport,
-                                        300, 300,
-                                        301, 301,
-                                        results, true);
-
-  rviz::InteractiveObjectPtr new_focused_object;
-
-  // look for a valid handle in the result.
-  rviz::M_Picked::iterator result_it = results.begin();
-  if (result_it == results.end()) {
-//    ROS_INFO("no iterator");
-  }
-  if(result_it != results.end()) {
-    rviz::Picked pick = result_it->second;
-    rviz::SelectionHandler* handler = context_->getSelectionManager()->getHandler(pick.handle);
-    ROS_INFO("pixel count: %d", pick.pixel_count);
-    if (pick.pixel_count > 0 && handler) {
-      rviz::InteractiveObjectPtr object = handler->getInteractiveObject().lock();
-      if(object && object->isInteractive()) {
-        new_focused_object = object;
-      }
-    }
-  }
-
->>>>>>> Stashed changes
   camera_placement_publisher_.publish(camera_placement);
 }
 
