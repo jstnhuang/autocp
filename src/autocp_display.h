@@ -21,8 +21,11 @@
 #include <rviz/visualization_manager.h>
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
+#include <visualization_msgs/InteractiveMarker.h>
+#include <visualization_msgs/InteractiveMarkerInit.h>
 
 #include <string>
+#include <vector>
 
 namespace rviz {
 class RosTopicProperty;
@@ -63,6 +66,11 @@ class AutoCPDisplay: public rviz::Display {
   // Gripper factors.
   geometry_msgs::Point left_gripper_origin_;
   geometry_msgs::Point right_gripper_origin_;
+
+  // Interactive marker factors.
+  ros::Subscriber marker_subscriber_;
+  std::vector<visualization_msgs::InteractiveMarker> markers_;
+  void markerCallback(const visualization_msgs::InteractiveMarkerInit& init);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;

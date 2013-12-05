@@ -43,6 +43,13 @@ void AutoCPDisplay::onInitialize() {
     this
   );
 
+  marker_subscriber_ = root_nh_.subscribe(
+    "interactive_manipulation/update_full",
+    5,
+    &AutoCPDisplay::markerCallback,
+    this
+  );
+
   // TODO(jstn): Just in case it becomes useful.
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
 }
@@ -101,6 +108,18 @@ void AutoCPDisplay::pointHeadCallback(
   const pr2_controllers_msgs::PointHeadActionGoal& action_goal
 ) {
   head_focus_point_ = action_goal.goal.target.point;
+}
+
+/**
+ * Get interactive marker locations.
+ */
+void AutoCPDisplay::markerCallback(const visualization_msgs::InteractiveMarkerInit& init) {
+  markers_ = init.markers;
+  ROS_INFO("here");
+  for (int i = 0; i < markers_.size(); i++) {
+    visualization_msgs::InteractiveMarker marker = markers_[i];
+    ROS_INFO(static_cast<std::string>(marker.name).c_str());
+  }
 }
 
 /**
