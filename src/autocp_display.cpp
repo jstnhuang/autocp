@@ -63,7 +63,7 @@ void AutoCPDisplay::onInitialize() {
   );
 
   marker_subscriber_ = root_nh_.subscribe(
-    "interactive_manipulation/update_full",
+    "interactive_manipulation/update",
     5,
     &AutoCPDisplay::markerCallback,
     this
@@ -152,11 +152,9 @@ void AutoCPDisplay::updateWeights() {
 /**
  * Get interactive marker locations.
  */
-void AutoCPDisplay::markerCallback(const visualization_msgs::InteractiveMarkerInit& init) {
-  markers_ = init.markers;
-  ROS_INFO("here");
-  for (int i = 0; i < markers_.size(); i++) {
-    visualization_msgs::InteractiveMarker marker = markers_[i];
+void AutoCPDisplay::markerCallback(const visualization_msgs::InteractiveMarkerUpdate& init) {
+  for (int i = 0; i < init.markers.size(); i++) {
+    visualization_msgs::InteractiveMarker marker = init.markers[i];
     ROS_INFO(static_cast<std::string>(marker.name).c_str());
   }
 }

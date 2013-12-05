@@ -23,7 +23,7 @@
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
-#include <visualization_msgs/InteractiveMarkerInit.h>
+#include <visualization_msgs/InteractiveMarkerUpdate.h>
 
 #include <string>
 #include <vector>
@@ -76,7 +76,7 @@ class AutoCPDisplay: public rviz::Display {
   // Interactive marker factors.
   ros::Subscriber marker_subscriber_;
   std::vector<visualization_msgs::InteractiveMarker> markers_;
-  void markerCallback(const visualization_msgs::InteractiveMarkerInit& init);
+  void markerCallback(const visualization_msgs::InteractiveMarkerUpdate& init);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
