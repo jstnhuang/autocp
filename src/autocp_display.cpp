@@ -260,6 +260,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       float x_diff = position.x - marker_x;
       float y_diff = position.y - marker_y;
       float horizontal_distance = sqrt(x_diff * x_diff + y_diff * y_diff);
+      // TODO(jstn): this should be position.y < marker.y
       if (position.y < 0) {
         horizontal_distance *= -1;
       }
@@ -270,6 +271,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       float x_diff = position.x - marker_x;
       float y_diff = position.y - marker_y;
       float horizontal_distance = sqrt(x_diff * x_diff + y_diff * y_diff);
+      // TODO(jstn): ditto
       if (position.x < 0) {
         horizontal_distance *= -1;
       }
