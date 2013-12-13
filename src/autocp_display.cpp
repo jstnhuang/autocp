@@ -1,4 +1,5 @@
 #include "autocp_display.h"
+#include <vector>
 #include <string>
 #include <math.h>
 #include <OGRE/OgreCamera.h>
@@ -20,7 +21,25 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateTopic())
   );
-  last_position_ = 0;
+  gripper_weight_property_ = new rviz::FloatProperty(
+    "Gripper weight",
+    1.0,
+    "How much weight to assign to the grippers' locations.",
+    this,
+    SLOT(updateWeights())
+  );
+  gripper_weight_property_->setMin(0.1);
+  gripper_weight_property_->setMax(10);
+  point_head_weight_property_ = new rviz::FloatProperty(
+    "Head focus point weight",
+    1.0,
+    "How much weight to assign to the location the robot is looking.",
+    this,
+    SLOT(updateWeights())
+  );
+  point_head_weight_property_->setMin(0.1);
+  point_head_weight_property_->setMax(10);
+  updateWeights();
 }
 
 /**
@@ -104,6 +123,26 @@ void AutoCPDisplay::pointHeadCallback(
 }
 
 /**
+ * Update the weight vector, and normalize so that the max is 1.
+ */
+void AutoCPDisplay::updateWeights() {
+  weights_ = {
+    point_head_weight_property_->getFloat(),
+    gripper_weight_property_->getFloat(),
+    gripper_weight_property_->getFloat()
+  };
+  float max = 0;
+  for (float weight : weights_) {
+    if (weight > max) {
+      max = weight;
+    }
+  }
+  for (int i = 0; i < weights_.size(); i++) {
+    weights_[i] = weights_[i] / max;
+  }
+}
+
+/**
  * Get the final focus point and location for the camera, then push the camera
  * placement.
  */
@@ -125,25 +164,26 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
 }
 
 /**
- * Choose a final focus point for the camera. The final focus point is the mean
- * of the current focus points.
+ * Choose a final focus point for the camera. The final focus point is the
+ * weighted mean of the current focus points.
  */
 void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
-  geometry_msgs::Point* points[] {
+  std::vector<geometry_msgs::Point*> points = {
+    &head_focus_point_,
     &left_gripper_origin_,
-    &right_gripper_origin_,
-    &head_focus_point_
+    &right_gripper_origin_
   };
-  int num_points = 3;
 
   float mean_x = 0;
   float mean_y = 0;
   float mean_z = 0;
+  int num_points = points.size();
   for (int i = 0; i < num_points; i++) {
     geometry_msgs::Point* point = points[i];
-    mean_x += point->x;
-    mean_y += point->y;
-    mean_z += point->z;
+    float weight = weights_[i];
+    mean_x += weight * point->x;
+    mean_y += weight * point->y;
+    mean_z += weight * point->z;
   }
   mean_x /= num_points;
   mean_y /= num_points;

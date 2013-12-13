@@ -18,14 +18,17 @@
 #include <rviz/display_context.h>
 #include <rviz/properties/property.h>
 #include <rviz/properties/ros_topic_property.h>
+#include <rviz/properties/float_property.h>
 #include <rviz/visualization_manager.h>
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 
 #include <string>
+#include <vector>
 
 namespace rviz {
 class RosTopicProperty;
+class FloatProperty;
 class VisualizationManager;
 }
 
@@ -43,11 +46,13 @@ class AutoCPDisplay: public rviz::Display {
 
  private Q_SLOTS:
   void updateTopic();
+  void updateWeights();
 
  private:
   ros::NodeHandle root_nh_;
   tf::TransformListener tf_listener_;
   rviz::VisualizationManager* vm_;
+  std::vector<float> weights_;
 
   // Sensing.
   void sense();
@@ -59,10 +64,12 @@ class AutoCPDisplay: public rviz::Display {
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal
   );
+  rviz::FloatProperty* point_head_weight_property_;
 
   // Gripper factors.
   geometry_msgs::Point left_gripper_origin_;
   geometry_msgs::Point right_gripper_origin_;
+  rviz::FloatProperty* gripper_weight_property_;
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
