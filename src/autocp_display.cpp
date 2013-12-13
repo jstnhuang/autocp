@@ -69,7 +69,6 @@ void AutoCPDisplay::onInitialize() {
     this
   );
 
-  // TODO(jstn): Just in case it becomes useful.
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
 }
 
