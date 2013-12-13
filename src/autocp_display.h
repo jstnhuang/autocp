@@ -23,8 +23,9 @@
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
-#include <visualization_msgs/InteractiveMarkerUpdate.h>
+#include <visualization_msgs/InteractiveMarkerFeedback.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,42 @@ class VisualizationManager;
 }
 
 namespace autocp {
+enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
+
+struct ClickedControl {
+  std::string marker;
+  Control6Dof control;
+  geometry_msgs::Pose pose;
+
+  ClickedControl(std::string marker, Control6Dof control,
+    geometry_msgs::Pose pose
+  ) {
+    this->marker = marker;
+    this->control = control;
+    this->pose = pose;
+  }
+  ~ClickedControl() {
+  }
+};
+
+const static std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
+  {"_u3", Control6Dof::X},
+  {"_u5", Control6Dof::Y},
+  {"_u1", Control6Dof::Z},
+  {"_u4", Control6Dof::PITCH},
+  {"_u2", Control6Dof::ROLL},
+  {"_u0", Control6Dof::YAW},
+};
+
+const static std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
+  {"_u0", Control6Dof::X},
+  {"_u4", Control6Dof::Y},
+  {"_u2", Control6Dof::Z},
+  {"_u3", Control6Dof::PITCH},
+  {"", Control6Dof::ROLL},
+  {"_u1", Control6Dof::YAW},
+};
+
 class AutoCPDisplay: public rviz::Display {
   Q_OBJECT
 
@@ -75,8 +112,10 @@ class AutoCPDisplay: public rviz::Display {
 
   // Interactive marker factors.
   ros::Subscriber marker_subscriber_;
-  std::vector<visualization_msgs::InteractiveMarker> markers_;
-  void markerCallback(const visualization_msgs::InteractiveMarkerUpdate& init);
+  void markerCallback(
+    const visualization_msgs::InteractiveMarkerFeedback& feedback
+  );
+  ClickedControl* current_control_;
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
