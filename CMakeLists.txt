@@ -5,6 +5,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 set(ROS_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_CXX_FLAGS "-std=c++0x")
 rosbuild_init()
 
 ## This plugin includes Qt widgets, so we must include Qt like so:
