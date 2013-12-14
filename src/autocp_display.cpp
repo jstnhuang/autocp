@@ -249,51 +249,55 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   Ogre::Vector3 position = vm_->getRenderPanel()->getCamera()->getPosition();
-  // TODO(jstn): keep distance from the marker the same as we move around.
-  // TODO(jstn): implement location shifting for pitch/row/yaw.
   // TODO(jstn): clean this up
   if (current_control_ != NULL) {
     float marker_x = current_control_->pose.position.x;
     float marker_y = current_control_->pose.position.y;
     float marker_z = current_control_->pose.position.z;
+    float x_diff = position.x - marker_x;
+    float y_diff = position.y - marker_y;
+    float z_diff = position.z - marker_z;
     if (current_control_->control == Control6Dof::X) {
-      float x_diff = position.x - marker_x;
-      float y_diff = position.y - marker_y;
       float horizontal_distance = sqrt(x_diff * x_diff + y_diff * y_diff);
-      // TODO(jstn): this should be position.y < marker.y
-      if (position.y < 0) {
+      if (position.y < marker_y) {
         horizontal_distance *= -1;
       }
       location->x = marker_x;
       location->y = marker_y + horizontal_distance;
       location->z = position.z;
     } else if (current_control_->control == Control6Dof::Y) {
-      float x_diff = position.x - marker_x;
-      float y_diff = position.y - marker_y;
       float horizontal_distance = sqrt(x_diff * x_diff + y_diff * y_diff);
-      // TODO(jstn): ditto
-      if (position.x < 0) {
+      if (position.x < marker_x) {
         horizontal_distance *= -1;
       }
       location->x = marker_x + horizontal_distance;
       location->y = marker_y;
       location->z = position.z;
     } else if (current_control_->control == Control6Dof::Z) {
-      location->x = position.x;
-      location->y = position.y;
+      float horizontal_distance = x_diff * x_diff + y_diff * y_diff;
+      float distance = horizontal_distance + z_diff * z_diff;
+      float constant = sqrt(distance / horizontal_distance);
+      location->x = constant * position.x;
+      location->y = constant * position.y;
       location->z = marker_z;;
     } else if (current_control_->control == Control6Dof::PITCH) {
-      location->x = position.x;
-      location->y = position.y;
-      location->z = position.z;
+      float distance = x_diff * x_diff + y_diff * y_diff + z_diff * z_diff;
+      float constant = sqrt(distance / (y_diff * y_diff));
+      location->x = marker_x;
+      location->y = constant * position.y;
+      location->z = marker_z;
     } else if (current_control_->control == Control6Dof::ROLL) {
-      location->x = position.x;
-      location->y = position.y;
-      location->z = position.z;
+      float distance = x_diff * x_diff + y_diff * y_diff + z_diff * z_diff;
+      float constant = sqrt(distance / (x_diff * x_diff));
+      location->x = constant * position.x;
+      location->y = marker_y;
+      location->z = marker_z;
     } else if (current_control_->control == Control6Dof::YAW) {
-      location->x = position.x;
-      location->y = position.y;
-      location->z = position.z;
+      float distance = x_diff * x_diff + y_diff * y_diff + z_diff * z_diff;
+      float constant = sqrt(distance / (z_diff * z_diff));
+      location->x = marker_x;
+      location->y = marker_y;
+      location->z = constant * position.z;
     } else {
       ROS_INFO("Unknown control was used.");
       location->x = position.x;
