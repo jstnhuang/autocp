@@ -249,7 +249,15 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   Ogre::Vector3 position = vm_->getRenderPanel()->getCamera()->getPosition();
-  // TODO(jstn): clean this up
+
+  // Each axis on the 6 dof marker has a plane orthogonal to it. We project the
+  // camera onto the plane, and scale the remaining components so that the
+  // distance to the marker is unchanged. Each ring defines a line orthogonal to
+  // it, so we similarly project the camera onto that line, and scale the
+  // last component so that the distance from the marker remains the same. The
+  // formula for the scaling constant is 
+  // sqrt((squared length of deleted components) / (squared length of remaining 
+  // components) + 1)
   if (current_control_ != NULL) {
     float marker_x = current_control_->pose.position.x;
     float marker_y = current_control_->pose.position.y;
@@ -257,53 +265,59 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     float x_diff = position.x - marker_x;
     float y_diff = position.y - marker_y;
     float z_diff = position.z - marker_z;
+    float squared_x = x_diff * x_diff;
+    float squared_y = y_diff * y_diff;
+    float squared_z = z_diff * z_diff;
+
+    float projected_x = x_diff;
+    float projected_y = y_diff;
+    float projected_z = z_diff;
+    float deleted_distance = 0;
+    float remaining_distance = 0;
+
     if (current_control_->control == Control6Dof::X) {
-      float horizontal_distance = sqrt(x_diff * x_diff + y_diff * y_diff);
-      if (position.y < marker_y) {
-        horizontal_distance *= -1;
-      }
-      location->x = marker_x;
-      location->y = marker_y + horizontal_distance;
-      location->z = position.z;
+      deleted_distance = squared_x;
+      remaining_distance = squared_y + squared_z;
+      projected_x = 0;
+      // Special case for X/Y to prevent the camera from flipping around when
+      // it's directly overhead the marker.
+      projected_y = setMinimumMagnitude(projected_y, 1);
     } else if (current_control_->control == Control6Dof::Y) {
-      float horizontal_distance = sqrt(x_diff * x_diff + y_diff * y_diff);
-      if (position.x < marker_x) {
-        horizontal_distance *= -1;
-      }
-      location->x = marker_x + horizontal_distance;
-      location->y = marker_y;
-      location->z = position.z;
+      deleted_distance = squared_y;
+      remaining_distance = squared_x + squared_z;
+      projected_y = 0;
+      projected_x = setMinimumMagnitude(projected_x, 1);
     } else if (current_control_->control == Control6Dof::Z) {
-      float horizontal_distance = x_diff * x_diff + y_diff * y_diff;
-      float distance = horizontal_distance + z_diff * z_diff;
-      float constant = sqrt(distance / horizontal_distance);
-      location->x = constant * position.x;
-      location->y = constant * position.y;
-      location->z = marker_z;;
+      deleted_distance = squared_z;
+      remaining_distance = squared_x + squared_y;
+      projected_z = 0;
     } else if (current_control_->control == Control6Dof::PITCH) {
-      float distance = x_diff * x_diff + y_diff * y_diff + z_diff * z_diff;
-      float constant = sqrt(distance / (y_diff * y_diff));
-      location->x = marker_x;
-      location->y = constant * position.y;
-      location->z = marker_z;
+      deleted_distance = squared_x + squared_z;
+      remaining_distance = squared_y;
+      projected_x = 0;
+      projected_z = 0;
     } else if (current_control_->control == Control6Dof::ROLL) {
-      float distance = x_diff * x_diff + y_diff * y_diff + z_diff * z_diff;
-      float constant = sqrt(distance / (x_diff * x_diff));
-      location->x = constant * position.x;
-      location->y = marker_y;
-      location->z = marker_z;
+      deleted_distance = squared_y + squared_z;
+      remaining_distance = squared_x;
+      projected_y = 0;
+      projected_z = 0;
     } else if (current_control_->control == Control6Dof::YAW) {
-      float distance = x_diff * x_diff + y_diff * y_diff + z_diff * z_diff;
-      float constant = sqrt(distance / (z_diff * z_diff));
-      location->x = marker_x;
-      location->y = marker_y;
-      location->z = constant * position.z;
+      deleted_distance = squared_x + squared_y;
+      remaining_distance = squared_z;
+      projected_x = 0;
+      projected_y = 0;
     } else {
       ROS_INFO("Unknown control was used.");
-      location->x = position.x;
-      location->y = position.y;
-      location->z = position.z;
+      deleted_distance = 0;
+      remaining_distance = 1; // Just to make scaler = 1.
+      return;
     }
+
+    float scaler = sqrt(deleted_distance / remaining_distance + 1);
+    location->x = marker_x + projected_x * scaler;
+    location->y = marker_y + projected_y * scaler;
+    location->z = marker_z + projected_z * scaler;
+
     delete current_control_;
     current_control_ = NULL;
   } else {

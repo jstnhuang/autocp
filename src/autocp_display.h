@@ -25,6 +25,7 @@
 #include <visualization_msgs/InteractiveMarker.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 
+#include <math.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -130,6 +131,19 @@ class AutoCPDisplay: public rviz::Display {
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement
   );
+  
+  // Utilities
+  inline float setMinimumMagnitude(float num, float magnitude) {
+    if (abs(num) < magnitude) {
+      if (num < 0) {
+        num = -magnitude;
+      } else {
+        num = magnitude;
+      }
+    } else {
+      return num;
+    }
+  }
 };
 }  // namespace autocp
 
