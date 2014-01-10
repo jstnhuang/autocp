@@ -22,7 +22,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     SLOT(updateTopic())
   );
   gripper_weight_property_ = new rviz::FloatProperty(
-    "Gripper weight",
+    "Gripper focus weight",
     1.0,
     "How much weight to assign to the grippers' locations.",
     this,
@@ -41,6 +41,42 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   point_head_weight_property_->setMax(10);
   updateWeights();
   current_control_ = NULL;
+
+  l_gripper_cp_enabled_ = new rviz::BoolProperty(
+    "Move camera with left gripper",
+    true,
+    "Whether or not to move the camera when using the left gripper.",
+    this,
+    SLOT(updateCameraOptions())
+  );
+  r_gripper_cp_enabled_ = new rviz::BoolProperty(
+    "Move camera with right gripper",
+    true,
+    "Whether or not to move the camera when using the right gripper.",
+    this,
+    SLOT(updateCameraOptions())
+  );
+  point_head_cp_enabled_ = new rviz::BoolProperty(
+    "Move camera with head target point",
+    true,
+    "Whether or not to move the camera when using the head target point.",
+    this,
+    SLOT(updateCameraOptions())
+  );
+  l_posture_cp_enabled_ = new rviz::BoolProperty(
+    "Move camera with left shoulder control",
+    true,
+    "Whether or not to move the camera when using the left shoulder control.",
+    this,
+    SLOT(updateCameraOptions())
+  );
+  r_posture_cp_enabled_ = new rviz::BoolProperty(
+    "Move camera with right shoulder control",
+    true,
+    "Whether or not to move the camera when using the right shoulder control.",
+    this,
+    SLOT(updateCameraOptions())
+  );
 }
 
 /**
@@ -90,6 +126,13 @@ void AutoCPDisplay::updateTopic() {
       topic_prop_->getStdString(),
       5
     );
+}
+
+/**
+ * No-op for camera options.
+ */
+void AutoCPDisplay::updateCameraOptions() {
+  return;
 }
 
 /**
@@ -163,14 +206,22 @@ void AutoCPDisplay::markerCallback(
   std::string control_name = static_cast<std::string>(feedback.control_name);
 
   Control6Dof control;
+  // TODO(jstn): finish boolean flags.
   try {
-    if (marker_name == "point_head_goal") {
+    if (marker_name == "head_point_goal" && point_head_cp_enabled_->getBool()) {
       control = POINT_HEAD_CONTROLS.at(control_name);
-    } else if (
-      marker_name == "r_gripper_control"
-      || marker_name == "l_gripper_control"
-    ) {
+    } else if (marker_name == "l_gripper_control"
+      && l_gripper_cp_enabled_->getBool()) {
       control = GRIPPER_CONTROLS.at(control_name);
+    } else if (marker_name == "r_gripper_control"
+      && r_gripper_cp_enabled_->getBool()) {
+      control = GRIPPER_CONTROLS.at(control_name);
+    } else if (marker_name == "l_posture_control"
+      && l_posture_cp_enabled_->getBool()) {
+      control = Control6Dof::ROLL;
+    } else if (marker_name == "r_posture_control"
+      && r_posture_cp_enabled_->getBool()) {
+      control = Control6Dof::ROLL;
     } else {
       ROS_INFO("Unknown marker %s", marker_name.c_str());
       return;
@@ -258,6 +309,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   // formula for the scaling constant is 
   // sqrt((squared length of deleted components) / (squared length of remaining 
   // components) + 1)
+  // TODO(jstn): Make camera always have positive z?
   if (current_control_ != NULL) {
     float marker_x = current_control_->pose.position.x;
     float marker_y = current_control_->pose.position.y;
@@ -281,12 +333,12 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       projected_x = 0;
       // Special case for X/Y to prevent the camera from flipping around when
       // it's directly overhead the marker.
-      projected_y = setMinimumMagnitude(projected_y, 1);
+      projected_y = setMinimumMagnitude(projected_y, 0.5);
     } else if (current_control_->control == Control6Dof::Y) {
       deleted_distance = squared_y;
       remaining_distance = squared_x + squared_z;
       projected_y = 0;
-      projected_x = setMinimumMagnitude(projected_x, 1);
+      projected_x = setMinimumMagnitude(projected_x, 0.5);
     } else if (current_control_->control == Control6Dof::Z) {
       deleted_distance = squared_z;
       remaining_distance = squared_x + squared_y;
@@ -309,7 +361,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     } else {
       ROS_INFO("Unknown control was used.");
       deleted_distance = 0;
-      remaining_distance = 1; // Just to make scaler = 1.
+      remaining_distance = 1;  // Just to make scaler = 1.
       return;
     }
 

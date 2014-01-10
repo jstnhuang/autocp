@@ -18,6 +18,7 @@
 #include <rviz/display_context.h>
 #include <rviz/properties/property.h>
 #include <rviz/properties/ros_topic_property.h>
+#include <rviz/properties/bool_property.h>
 #include <rviz/properties/float_property.h>
 #include <rviz/visualization_manager.h>
 #include <tf/transform_listener.h>
@@ -33,6 +34,7 @@
 namespace rviz {
 class RosTopicProperty;
 class FloatProperty;
+class BoolProperty;
 class VisualizationManager;
 }
 
@@ -55,13 +57,15 @@ struct ClickedControl {
   }
 };
 
+// Maps built by observing /pr2_marker_control_transparent/feedback
+// TODO(jstn): Are these fixed or do they depend on other factors?
 const static std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
-  {"_u3", Control6Dof::X},
+  {"_u1", Control6Dof::X},
   {"_u5", Control6Dof::Y},
-  {"_u1", Control6Dof::Z},
+  {"_u3", Control6Dof::Z},
   {"_u4", Control6Dof::PITCH},
-  {"_u2", Control6Dof::ROLL},
-  {"_u0", Control6Dof::YAW},
+  {"_u0", Control6Dof::ROLL},
+  {"_u2", Control6Dof::YAW},
 };
 
 const static std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
@@ -87,6 +91,7 @@ class AutoCPDisplay: public rviz::Display {
  private Q_SLOTS:
   void updateTopic();
   void updateWeights();
+  void updateCameraOptions();
 
  private:
   ros::NodeHandle root_nh_;
@@ -117,6 +122,11 @@ class AutoCPDisplay: public rviz::Display {
     const visualization_msgs::InteractiveMarkerFeedback& feedback
   );
   ClickedControl* current_control_;
+  rviz::BoolProperty* l_gripper_cp_enabled_;
+  rviz::BoolProperty* r_gripper_cp_enabled_;
+  rviz::BoolProperty* point_head_cp_enabled_;
+  rviz::BoolProperty* l_posture_cp_enabled_;
+  rviz::BoolProperty* r_posture_cp_enabled_;
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
@@ -140,9 +150,8 @@ class AutoCPDisplay: public rviz::Display {
       } else {
         num = magnitude;
       }
-    } else {
-      return num;
     }
+    return num;
   }
 };
 }  // namespace autocp
