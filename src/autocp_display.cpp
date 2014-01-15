@@ -333,12 +333,12 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       projected_x = 0;
       // Special case for X/Y to prevent the camera from flipping around when
       // it's directly overhead the marker.
-      projected_y = setMinimumMagnitude(projected_y, 0.5);
+      projected_y = setMinimumMagnitude(projected_y, 0.01 * remaining_distance);
     } else if (current_control_->control == Control6Dof::Y) {
       deleted_distance = squared_y;
       remaining_distance = squared_x + squared_z;
       projected_y = 0;
-      projected_x = setMinimumMagnitude(projected_x, 0.5);
+      projected_x = setMinimumMagnitude(projected_x, 0.01 * remaining_distance);
     } else if (current_control_->control == Control6Dof::Z) {
       deleted_distance = squared_z;
       remaining_distance = squared_x + squared_y;
