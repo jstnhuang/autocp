@@ -2,8 +2,6 @@
 #include <string>
 #include <vector>
 
-// TODO(jstn): style
-
 namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
