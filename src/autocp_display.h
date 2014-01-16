@@ -12,6 +12,8 @@
 #define AUTOCP_DISPLAY_H
 
 #include <geometry_msgs/Point.h>
+#include <OGRE/OgreCamera.h>
+#include <OGRE/OgreViewport.h>
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
@@ -20,6 +22,8 @@
 #include <rviz/properties/ros_topic_property.h>
 #include <rviz/properties/bool_property.h>
 #include <rviz/properties/float_property.h>
+#include <rviz/render_panel.h>
+#include <rviz/selection/selection_manager.h>
 #include <rviz/visualization_manager.h>
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
@@ -98,6 +102,8 @@ class AutoCPDisplay: public rviz::Display {
   tf::TransformListener tf_listener_;
   rviz::VisualizationManager* vm_;
   std::vector<float> weights_;
+  Ogre::Camera* camera_;
+  Ogre::Viewport* viewport_;
 
   // Sensing.
   void sense();
@@ -128,6 +134,13 @@ class AutoCPDisplay: public rviz::Display {
   rviz::BoolProperty* l_posture_cp_enabled_;
   rviz::BoolProperty* r_posture_cp_enabled_;
 
+  // Visibility factors.
+  rviz::FloatProperty* occlusion_threshold_property_;
+  void projectWorldToViewport(const geometry_msgs::Point& point, int* screen_x,
+    int* screen_y);
+  float computeOcclusion(const geometry_msgs::Point& point);
+  bool isOccluded(const geometry_msgs::Point& point);
+
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
@@ -141,7 +154,7 @@ class AutoCPDisplay: public rviz::Display {
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement
   );
-  
+
   // Utilities
   inline float setMinimumMagnitude(float num, float magnitude) {
     if (abs(num) < magnitude) {
@@ -152,6 +165,10 @@ class AutoCPDisplay: public rviz::Display {
       }
     }
     return num;
+  }
+
+  inline float squared_distance(float x, float y, float z) {
+    return x*x + y*y + z*z;
   }
 };
 }  // namespace autocp

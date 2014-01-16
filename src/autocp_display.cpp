@@ -1,10 +1,11 @@
 #include "autocp_display.h"
-#include <vector>
-#include <string>
-#include <math.h>
-#include <OGRE/OgreCamera.h>
-#include <rviz/visualization_manager.h>
-#include <rviz/render_panel.h>
+
+// TODO(jstn): style
+
+// TODO(jstn): make it so that interacting with a control makes the camera focus
+// on just that control.
+
+// TODO(jstn): debug weighting.
 
 namespace autocp {
 /**
@@ -21,6 +22,16 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateTopic())
   );
+  occlusion_threshold_property_ = new rviz::FloatProperty(
+    "Occlusion threshold",
+    0.25,
+    "Objects in the world may block your view of a marker. The occlusion threshold is the maximum distance, in meters, an object can be in front of a marker before the object is considered to be blocking (occluding) your view of the marker.",
+    this,
+    SLOT(updateCameraOptions())
+  );
+  occlusion_threshold_property_->setMin(0.01);
+  occlusion_threshold_property_->setMax(10);
+
   gripper_weight_property_ = new rviz::FloatProperty(
     "Gripper focus weight",
     1.0,
@@ -39,6 +50,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   );
   point_head_weight_property_->setMin(0.1);
   point_head_weight_property_->setMax(10);
+
   updateWeights();
   current_control_ = NULL;
 
@@ -107,6 +119,8 @@ void AutoCPDisplay::onInitialize() {
   );
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
+  camera_ = vm_->getRenderPanel()->getCamera();
+  viewport_ = camera_->getViewport();
 }
 
 /**
@@ -141,7 +155,8 @@ void AutoCPDisplay::updateCameraOptions() {
 void AutoCPDisplay::sense() {
   getTransformOrigin("/l_wrist_roll_link", &left_gripper_origin_);
   getTransformOrigin("/r_wrist_roll_link", &right_gripper_origin_);
-} 
+}
+
 /**
  * Get the origin of the given transform.
  */
@@ -206,7 +221,6 @@ void AutoCPDisplay::markerCallback(
   std::string control_name = static_cast<std::string>(feedback.control_name);
 
   Control6Dof control;
-  // TODO(jstn): finish boolean flags.
   try {
     if (marker_name == "head_point_goal" && point_head_cp_enabled_->getBool()) {
       control = POINT_HEAD_CONTROLS.at(control_name);
@@ -294,12 +308,74 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
 }
 
 /**
+ * Returns the x, y coordinates on the viewport of the given point. The origin
+ * is in the top left corner.
+ */
+void AutoCPDisplay::projectWorldToViewport(
+    const geometry_msgs::Point& point,
+    int* screen_x,
+    int* screen_y) {
+
+  // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
+  // is in the bottom left corner.
+  Ogre::Vector4 point4 (point.x, point.y, point.z, 1);
+  Ogre::Vector4 projected =
+    camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
+  projected = projected / projected.w;
+
+  *screen_x = viewport_->getActualWidth() * (projected.x + 1) / 2;
+  *screen_y = viewport_->getActualHeight() * (1 - projected.y) / 2;
+}
+
+/**
+ * Compute the distance between the given point and the closest visible point on
+ * the ray pointed towards that point. Returns -1 on error.
+ */
+float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point) {
+  int screen_x;
+  int screen_y;
+  projectWorldToViewport(point, &screen_x, &screen_y);
+  
+  Ogre::Vector3 occluding_point;
+  bool success = context_->getSelectionManager()->get3DPoint(
+    viewport_,
+    (int) round(screen_x),
+    (int) round(screen_y),
+    occluding_point);
+  if (success) {
+    return squared_distance(
+      occluding_point.x - point.x,
+      occluding_point.y - point.y,
+      occluding_point.z - point.z);
+  } else {
+    return -1;
+  }
+}
+
+/**
+ * Returns true if the given point is occluded according to the occlusion
+ * threshold property.
+ */
+bool AutoCPDisplay::isOccluded(const geometry_msgs::Point& point) {
+  float threshold = occlusion_threshold_property_->getFloat();
+  float occlusion = computeOcclusion(point);
+  ROS_INFO("%f", sqrt(occlusion));
+  return occlusion > threshold * threshold;
+}
+
+/**
  * Choose a location for the camera. If an interactive marker is being used,
  * move to a position orthogonal to the control. Otherwise, don't change the
  * location.
+ * 
+ * (0, 0) on the screen is the upper left.
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-  Ogre::Vector3 position = vm_->getRenderPanel()->getCamera()->getPosition();
+  Ogre::Vector3 position = camera_->getPosition();
+
+  if (isOccluded(left_gripper_origin_)) {
+    ROS_INFO("left gripper is occluded");
+  }
 
   // Each axis on the 6 dof marker has a plane orthogonal to it. We project the
   // camera onto the plane, and scale the remaining components so that the
