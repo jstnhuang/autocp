@@ -2,11 +2,6 @@
 
 // TODO(jstn): style
 
-// TODO(jstn): make it so that interacting with a control makes the camera focus
-// on just that control.
-
-// TODO(jstn): debug weighting.
-
 namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
@@ -29,7 +24,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateCameraOptions())
   );
-  occlusion_threshold_property_->setMin(0.01);
+  occlusion_threshold_property_->setMin(0.001);
   occlusion_threshold_property_->setMax(10);
 
   gripper_weight_property_ = new rviz::FloatProperty(
@@ -39,8 +34,8 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateWeights())
   );
-  gripper_weight_property_->setMin(0.1);
-  gripper_weight_property_->setMax(10);
+  gripper_weight_property_->setMin(0);
+  gripper_weight_property_->setMax(100);
   point_head_weight_property_ = new rviz::FloatProperty(
     "Head focus point weight",
     1.0,
@@ -48,8 +43,8 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateWeights())
   );
-  point_head_weight_property_->setMin(0.1);
-  point_head_weight_property_->setMax(10);
+  point_head_weight_property_->setMin(0);
+  point_head_weight_property_->setMax(100);
 
   updateWeights();
   current_control_ = NULL;
@@ -295,6 +290,15 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
     mean_y += weight * point->y;
     mean_z += weight * point->z;
   }
+
+  // Add bias for current control.
+  // TODO(jstn): refactor?
+  if (current_control_ != NULL) {
+    mean_x += 1 * current_control_->pose.position.x;
+    mean_y += 1 * current_control_->pose.position.y;
+    mean_z += 1 * current_control_->pose.position.z;
+    num_points += 1;
+  }  
   mean_x /= num_points;
   mean_y /= num_points;
   mean_z /= num_points;
@@ -313,14 +317,12 @@ void AutoCPDisplay::projectWorldToViewport(
     const Ogre::Camera& camera,
     int* screen_x,
     int* screen_y) {
-  //ROS_ERROR("projectWorldToViewport");
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
   Ogre::Vector4 point4 (point.x, point.y, point.z, 1);
   Ogre::Vector4 projected =
     camera.getProjectionMatrix() * camera.getViewMatrix() * point4;
   projected = projected / projected.w;
-  //ROS_ERROR("computed projection");
 
   // Using the current viewport.
   *screen_x = (int) round(viewport_->getActualWidth() * (projected.x + 1) / 2);
@@ -333,19 +335,16 @@ void AutoCPDisplay::projectWorldToViewport(
  */
 float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point,
     const Ogre::Camera& camera) {
-  //ROS_ERROR("computeOcclusion");
   int screen_x;
   int screen_y;
   projectWorldToViewport(point, camera, &screen_x, &screen_y);
   
-  //ROS_ERROR("finished projection %d %d %p", screen_x, screen_y, viewport_);
   Ogre::Vector3 occluding_point;
   bool success = context_->getSelectionManager()->get3DPoint(
     viewport_, // Using the current viewport.
     screen_x,
     screen_y,
     occluding_point);
-  //ROS_ERROR("computed 3d point");
   if (success) {
     return squared_distance(
       occluding_point.x - point.x,
@@ -373,13 +372,11 @@ bool AutoCPDisplay::isOccluded(const geometry_msgs::Point& point) {
 bool AutoCPDisplay::isOccludedFrom(const geometry_msgs::Point& point,
     const geometry_msgs::Point& camera_position,
     const geometry_msgs::Point& focus) {
-  //ROS_ERROR("isOccludedFrom");
   Ogre::Camera camera("temp", context_->getSceneManager());
   camera.setPosition(camera_position.x, camera_position.y, camera_position.z);
   camera.lookAt(focus.x, focus.y, focus.z);
   float threshold = occlusion_threshold_property_->getFloat();
   float occlusion = computeOcclusion(point, camera);
-  //ROS_ERROR("done");
   return occlusion > threshold * threshold;
 }
 
