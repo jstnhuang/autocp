@@ -104,6 +104,8 @@ class AutoCPDisplay: public rviz::Display {
   std::vector<float> weights_;
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
+  geometry_msgs::Point camera_position_;
+  geometry_msgs::Point camera_focus_;
 
   // Sensing.
   void sense();
@@ -136,10 +138,16 @@ class AutoCPDisplay: public rviz::Display {
 
   // Visibility factors.
   rviz::FloatProperty* occlusion_threshold_property_;
-  void projectWorldToViewport(const geometry_msgs::Point& point, int* screen_x,
+  void projectWorldToViewport(const geometry_msgs::Point& point,
+    const Ogre::Camera& camera,
+    int* screen_x,
     int* screen_y);
-  float computeOcclusion(const geometry_msgs::Point& point);
+  float computeOcclusion(const geometry_msgs::Point& point,
+    const Ogre::Camera& camera);
   bool isOccluded(const geometry_msgs::Point& point);
+  bool isOccludedFrom(const geometry_msgs::Point& point,
+    const geometry_msgs::Point& camera_position,
+    const geometry_msgs::Point& focus);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
@@ -147,6 +155,7 @@ class AutoCPDisplay: public rviz::Display {
   geometry_msgs::Point* last_position_;
   void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(geometry_msgs::Point* focus);
+  void computeOrthogonalPosition(geometry_msgs::Point* location);
   void chooseCameraLocation(geometry_msgs::Point* location);
   void setCameraPlacement(
     const geometry_msgs::Point& location,

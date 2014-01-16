@@ -260,15 +260,12 @@ void AutoCPDisplay::markerCallback(
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  geometry_msgs::Point focus;
-  chooseCameraFocus(&focus);
-
-  geometry_msgs::Point location;
-  chooseCameraLocation(&location);
+  chooseCameraFocus(&camera_focus_);
+  chooseCameraLocation(&camera_position_);
 
   view_controller_msgs::CameraPlacement camera_placement;
   setCameraPlacement(
-    location, focus,
+    camera_position_, camera_focus_,
     ros::Duration(time_delta),
     &camera_placement
   );
@@ -313,35 +310,42 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 void AutoCPDisplay::projectWorldToViewport(
     const geometry_msgs::Point& point,
+    const Ogre::Camera& camera,
     int* screen_x,
     int* screen_y) {
-
+  //ROS_ERROR("projectWorldToViewport");
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
   Ogre::Vector4 point4 (point.x, point.y, point.z, 1);
   Ogre::Vector4 projected =
-    camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
+    camera.getProjectionMatrix() * camera.getViewMatrix() * point4;
   projected = projected / projected.w;
+  //ROS_ERROR("computed projection");
 
-  *screen_x = viewport_->getActualWidth() * (projected.x + 1) / 2;
-  *screen_y = viewport_->getActualHeight() * (1 - projected.y) / 2;
+  // Using the current viewport.
+  *screen_x = (int) round(viewport_->getActualWidth() * (projected.x + 1) / 2);
+  *screen_y = (int) round(viewport_->getActualHeight() * (1 - projected.y) / 2);
 }
 
 /**
  * Compute the distance between the given point and the closest visible point on
  * the ray pointed towards that point. Returns -1 on error.
  */
-float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point) {
+float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point,
+    const Ogre::Camera& camera) {
+  //ROS_ERROR("computeOcclusion");
   int screen_x;
   int screen_y;
-  projectWorldToViewport(point, &screen_x, &screen_y);
+  projectWorldToViewport(point, camera, &screen_x, &screen_y);
   
+  //ROS_ERROR("finished projection %d %d %p", screen_x, screen_y, viewport_);
   Ogre::Vector3 occluding_point;
   bool success = context_->getSelectionManager()->get3DPoint(
-    viewport_,
-    (int) round(screen_x),
-    (int) round(screen_y),
+    viewport_, // Using the current viewport.
+    screen_x,
+    screen_y,
     occluding_point);
+  //ROS_ERROR("computed 3d point");
   if (success) {
     return squared_distance(
       occluding_point.x - point.x,
@@ -353,30 +357,33 @@ float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point) {
 }
 
 /**
- * Returns true if the given point is occluded according to the occlusion
- * threshold property.
+ * Returns true if the given point is occluded from the current camera,
+ * according to the occlusion threshold property.
  */
 bool AutoCPDisplay::isOccluded(const geometry_msgs::Point& point) {
   float threshold = occlusion_threshold_property_->getFloat();
-  float occlusion = computeOcclusion(point);
-  ROS_INFO("%f", sqrt(occlusion));
+  float occlusion = computeOcclusion(point, *camera_);
   return occlusion > threshold * threshold;
 }
 
 /**
- * Choose a location for the camera. If an interactive marker is being used,
- * move to a position orthogonal to the control. Otherwise, don't change the
- * location.
- * 
- * (0, 0) on the screen is the upper left.
+ * Returns true if the given point is occluded from the given camera pose,
+ * according to the occlusion threshold property.
  */
-void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-  Ogre::Vector3 position = camera_->getPosition();
+bool AutoCPDisplay::isOccludedFrom(const geometry_msgs::Point& point,
+    const geometry_msgs::Point& camera_position,
+    const geometry_msgs::Point& focus) {
+  //ROS_ERROR("isOccludedFrom");
+  Ogre::Camera camera("temp", context_->getSceneManager());
+  camera.setPosition(camera_position.x, camera_position.y, camera_position.z);
+  camera.lookAt(focus.x, focus.y, focus.z);
+  float threshold = occlusion_threshold_property_->getFloat();
+  float occlusion = computeOcclusion(point, camera);
+  //ROS_ERROR("done");
+  return occlusion > threshold * threshold;
+}
 
-  if (isOccluded(left_gripper_origin_)) {
-    ROS_INFO("left gripper is occluded");
-  }
-
+void AutoCPDisplay::computeOrthogonalPosition(geometry_msgs::Point* location) {
   // Each axis on the 6 dof marker has a plane orthogonal to it. We project the
   // camera onto the plane, and scale the remaining components so that the
   // distance to the marker is unchanged. Each ring defines a line orthogonal to
@@ -385,7 +392,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   // formula for the scaling constant is 
   // sqrt((squared length of deleted components) / (squared length of remaining 
   // components) + 1)
-  // TODO(jstn): Make camera always have positive z?
+  Ogre::Vector3 position = camera_->getPosition();
   if (current_control_ != NULL) {
     float marker_x = current_control_->pose.position.x;
     float marker_y = current_control_->pose.position.y;
@@ -445,7 +452,45 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     location->x = marker_x + projected_x * scaler;
     location->y = marker_y + projected_y * scaler;
     location->z = marker_z + projected_z * scaler;
+  } else {
+    location->x = position.x;
+    location->y = position.y;
+    location->z = position.z;
+  }
+}
 
+/**
+ * Choose a location for the camera. If an interactive marker is being used,
+ * move to a position orthogonal to the control. Otherwise, don't change the
+ * location.
+ * 
+ * (0, 0) on the screen is the upper left.
+ *
+ * TODO(jstn): in general: maybe try some kind of balance between:
+ * - Not moving too much
+ * - Being able to see the active marker
+ * - Being able to see the other markers
+ * with weights
+ */
+void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
+  Ogre::Vector3 position = camera_->getPosition();
+  if (current_control_ != NULL) {
+    computeOrthogonalPosition(location);
+    for (int tries=10; tries > 0; tries--) {
+      geometry_msgs::Point position = current_control_->pose.position;
+      if (isOccludedFrom(position, *location, camera_focus_)) {
+        if (current_control_->control == Control6Dof::X
+            || current_control_->control == Control6Dof::Y
+            || current_control_->control == Control6Dof::Z) {
+          // TODO(jstn): fill this in
+        } else {
+          // TODO(jstn): fill this in
+        }
+      } else {
+        break;
+      }
+    } 
+  
     delete current_control_;
     current_control_ = NULL;
   } else {
