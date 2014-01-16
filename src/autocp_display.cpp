@@ -1,4 +1,6 @@
 #include "autocp_display.h"
+#include <string>
+#include <vector>
 
 // TODO(jstn): style
 
@@ -11,19 +13,19 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     "Command topic",
     "/rviz/camera_placement",
     QString::fromStdString(
-      ros::message_traits::datatype<view_controller_msgs::CameraPlacement>()
-    ),
+      ros::message_traits::datatype<view_controller_msgs::CameraPlacement>()),
     "Topic on which to send out camera placement messages.",
     this,
-    SLOT(updateTopic())
-  );
+    SLOT(updateTopic()));
   occlusion_threshold_property_ = new rviz::FloatProperty(
     "Occlusion threshold",
     0.25,
-    "Objects in the world may block your view of a marker. The occlusion threshold is the maximum distance, in meters, an object can be in front of a marker before the object is considered to be blocking (occluding) your view of the marker.",
+    "Objects in the world may block your view of a marker. The occlusion"
+    " threshold is the maximum distance, in meters, an object can be in front"
+    " of a marker before the object is considered to be blocking (occluding)"
+    " your view of the marker.",
     this,
-    SLOT(updateCameraOptions())
-  );
+    SLOT(updateCameraOptions()));
   occlusion_threshold_property_->setMin(0.001);
   occlusion_threshold_property_->setMax(10);
 
@@ -32,8 +34,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     1.0,
     "How much weight to assign to the grippers' locations.",
     this,
-    SLOT(updateWeights())
-  );
+    SLOT(updateWeights()));
   gripper_weight_property_->setMin(0);
   gripper_weight_property_->setMax(100);
   point_head_weight_property_ = new rviz::FloatProperty(
@@ -41,8 +42,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     1.0,
     "How much weight to assign to the location the robot is looking.",
     this,
-    SLOT(updateWeights())
-  );
+    SLOT(updateWeights()));
   point_head_weight_property_->setMin(0);
   point_head_weight_property_->setMax(100);
 
@@ -54,36 +54,31 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     true,
     "Whether or not to move the camera when using the left gripper.",
     this,
-    SLOT(updateCameraOptions())
-  );
+    SLOT(updateCameraOptions()));
   r_gripper_cp_enabled_ = new rviz::BoolProperty(
     "Move camera with right gripper",
     true,
     "Whether or not to move the camera when using the right gripper.",
     this,
-    SLOT(updateCameraOptions())
-  );
+    SLOT(updateCameraOptions()));
   point_head_cp_enabled_ = new rviz::BoolProperty(
     "Move camera with head target point",
     true,
     "Whether or not to move the camera when using the head target point.",
     this,
-    SLOT(updateCameraOptions())
-  );
+    SLOT(updateCameraOptions()));
   l_posture_cp_enabled_ = new rviz::BoolProperty(
     "Move camera with left shoulder control",
     true,
     "Whether or not to move the camera when using the left shoulder control.",
     this,
-    SLOT(updateCameraOptions())
-  );
+    SLOT(updateCameraOptions()));
   r_posture_cp_enabled_ = new rviz::BoolProperty(
     "Move camera with right shoulder control",
     true,
     "Whether or not to move the camera when using the right shoulder control.",
     this,
-    SLOT(updateCameraOptions())
-  );
+    SLOT(updateCameraOptions()));
 }
 
 /**
@@ -103,15 +98,13 @@ void AutoCPDisplay::onInitialize() {
     "head_traj_controller/point_head_action/goal",
     5,
     &AutoCPDisplay::pointHeadCallback,
-    this
-  );
+    this);
 
   marker_subscriber_ = root_nh_.subscribe(
     "/pr2_marker_control_transparent/feedback",
     5,
     &AutoCPDisplay::markerCallback,
-    this
-  );
+    this);
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   camera_ = vm_->getRenderPanel()->getCamera();
@@ -133,8 +126,7 @@ void AutoCPDisplay::updateTopic() {
   camera_placement_publisher_ =
     root_nh_.advertise<view_controller_msgs::CameraPlacement>(
       topic_prop_->getStdString(),
-      5
-    );
+      5);
 }
 
 /**
@@ -208,8 +200,7 @@ void AutoCPDisplay::markerCallback(
   const visualization_msgs::InteractiveMarkerFeedback& feedback
 ) {
   if (feedback.event_type
-    != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE
-  ) {
+      != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
     return;
   }
   std::string marker_name = static_cast<std::string>(feedback.marker_name);
@@ -245,8 +236,7 @@ void AutoCPDisplay::markerCallback(
     ROS_INFO(
       "Unknown control %s for marker %s",
       control_name.c_str(),
-      marker_name.c_str()
-    );
+      marker_name.c_str());
   }
 }
 
@@ -262,8 +252,7 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   setCameraPlacement(
     camera_position_, camera_focus_,
     ros::Duration(time_delta),
-    &camera_placement
-  );
+    &camera_placement);
 
   camera_placement_publisher_.publish(camera_placement);
 }
@@ -298,7 +287,7 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
     mean_y += 1 * current_control_->pose.position.y;
     mean_z += 1 * current_control_->pose.position.z;
     num_points += 1;
-  }  
+  }
   mean_x /= num_points;
   mean_y /= num_points;
   mean_z /= num_points;
@@ -319,14 +308,16 @@ void AutoCPDisplay::projectWorldToViewport(
     int* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
-  Ogre::Vector4 point4 (point.x, point.y, point.z, 1);
+  Ogre::Vector4 point4(point.x, point.y, point.z, 1);
   Ogre::Vector4 projected =
     camera.getProjectionMatrix() * camera.getViewMatrix() * point4;
   projected = projected / projected.w;
 
   // Using the current viewport.
-  *screen_x = (int) round(viewport_->getActualWidth() * (projected.x + 1) / 2);
-  *screen_y = (int) round(viewport_->getActualHeight() * (1 - projected.y) / 2);
+  *screen_x = static_cast<int>(
+    round(viewport_->getActualWidth() * (projected.x + 1) / 2));
+  *screen_y = static_cast<int>(
+    round(viewport_->getActualHeight() * (1 - projected.y) / 2));
 }
 
 /**
@@ -338,10 +329,10 @@ float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point,
   int screen_x;
   int screen_y;
   projectWorldToViewport(point, camera, &screen_x, &screen_y);
-  
+
   Ogre::Vector3 occluding_point;
   bool success = context_->getSelectionManager()->get3DPoint(
-    viewport_, // Using the current viewport.
+    viewport_,  // Using the current viewport.
     screen_x,
     screen_y,
     occluding_point);
@@ -386,8 +377,8 @@ void AutoCPDisplay::computeOrthogonalPosition(geometry_msgs::Point* location) {
   // distance to the marker is unchanged. Each ring defines a line orthogonal to
   // it, so we similarly project the camera onto that line, and scale the
   // last component so that the distance from the marker remains the same. The
-  // formula for the scaling constant is 
-  // sqrt((squared length of deleted components) / (squared length of remaining 
+  // formula for the scaling constant is
+  // sqrt((squared length of deleted components) / (squared length of remaining
   // components) + 1)
   Ogre::Vector3 position = camera_->getPosition();
   if (current_control_ != NULL) {
@@ -473,7 +464,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   Ogre::Vector3 position = camera_->getPosition();
   if (current_control_ != NULL) {
     computeOrthogonalPosition(location);
-    for (int tries=10; tries > 0; tries--) {
+    for (int tries = 10; tries > 0; tries--) {
       geometry_msgs::Point position = current_control_->pose.position;
       if (isOccludedFrom(position, *location, camera_focus_)) {
         if (current_control_->control == Control6Dof::X
@@ -486,8 +477,8 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       } else {
         break;
       }
-    } 
-  
+    }
+
     delete current_control_;
     current_control_ = NULL;
   } else {

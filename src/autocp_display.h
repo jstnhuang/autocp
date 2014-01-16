@@ -63,7 +63,7 @@ struct ClickedControl {
 
 // Maps built by observing /pr2_marker_control_transparent/feedback
 // TODO(jstn): Are these fixed or do they depend on other factors?
-const static std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
+static const  std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
   {"_u1", Control6Dof::X},
   {"_u5", Control6Dof::Y},
   {"_u3", Control6Dof::Z},
@@ -72,7 +72,7 @@ const static std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
   {"_u2", Control6Dof::YAW},
 };
 
-const static std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
+static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
   {"_u0", Control6Dof::X},
   {"_u4", Control6Dof::Y},
   {"_u2", Control6Dof::Z},
@@ -115,8 +115,7 @@ class AutoCPDisplay: public rviz::Display {
   ros::Subscriber point_head_subscriber_;
   geometry_msgs::Point head_focus_point_;
   void pointHeadCallback(
-    const pr2_controllers_msgs::PointHeadActionGoal& goal
-  );
+    const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* point_head_weight_property_;
 
   // Gripper factors.
@@ -127,8 +126,7 @@ class AutoCPDisplay: public rviz::Display {
   // Interactive marker factors.
   ros::Subscriber marker_subscriber_;
   void markerCallback(
-    const visualization_msgs::InteractiveMarkerFeedback& feedback
-  );
+    const visualization_msgs::InteractiveMarkerFeedback& feedback);
   ClickedControl* current_control_;
   rviz::BoolProperty* l_gripper_cp_enabled_;
   rviz::BoolProperty* r_gripper_cp_enabled_;
@@ -161,8 +159,7 @@ class AutoCPDisplay: public rviz::Display {
     const geometry_msgs::Point& location,
     const geometry_msgs::Point& focus,
     const ros::Duration& time_from_start,
-    view_controller_msgs::CameraPlacement* camera_placement
-  );
+    view_controller_msgs::CameraPlacement* camera_placement);
 
   // Utilities
   inline float setMinimumMagnitude(float num, float magnitude) {
