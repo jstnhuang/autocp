@@ -34,13 +34,7 @@
 #include <map>
 #include <string>
 #include <vector>
-
-namespace rviz {
-class RosTopicProperty;
-class FloatProperty;
-class BoolProperty;
-class VisualizationManager;
-}
+#include <random>
 
 namespace autocp {
 enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
@@ -49,13 +43,16 @@ struct ClickedControl {
   std::string marker;
   Control6Dof control;
   geometry_msgs::Pose pose;
+  // Position of the object the marker is controlling.
+  geometry_msgs::Point world_position;
 
   ClickedControl(std::string marker, Control6Dof control,
-    geometry_msgs::Pose pose
+    geometry_msgs::Pose pose, geometry_msgs::Point world_position
   ) {
     this->marker = marker;
     this->control = control;
     this->pose = pose;
+    this->world_position = world_position;
   }
   ~ClickedControl() {
   }
@@ -134,16 +131,25 @@ class AutoCPDisplay: public rviz::Display {
   rviz::BoolProperty* l_posture_cp_enabled_;
   rviz::BoolProperty* r_posture_cp_enabled_;
 
+  // Weights
+  rviz::FloatProperty* stay_in_place_weight_;
+  rviz::FloatProperty* be_orthogonal_weight_;
+  rviz::FloatProperty* stay_visible_weight_;
+  std::default_random_engine generator_;
+  std::normal_distribution<double> distribution_;
+
   // Visibility factors.
-  rviz::FloatProperty* occlusion_threshold_property_;
-  void projectWorldToViewport(const geometry_msgs::Point& point,
-    const Ogre::Camera& camera,
+  void projectWorldToViewport(
+    const geometry_msgs::Point& point,
     int* screen_x,
     int* screen_y);
-  float computeOcclusion(const geometry_msgs::Point& point,
-    const Ogre::Camera& camera);
-  bool isOccluded(const geometry_msgs::Point& point);
-  bool isOccludedFrom(const geometry_msgs::Point& point,
+  float occlusionDistance(const geometry_msgs::Point& point);
+  float occlusionDistanceFrom(
+    const geometry_msgs::Point& point,
+    const geometry_msgs::Point& camera_position,
+    const geometry_msgs::Point& focus);
+  bool isOccludedFrom(
+    const geometry_msgs::Point& point,
     const geometry_msgs::Point& camera_position,
     const geometry_msgs::Point& focus);
 
@@ -151,31 +157,22 @@ class AutoCPDisplay: public rviz::Display {
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
   geometry_msgs::Point* last_position_;
+  geometry_msgs::Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(geometry_msgs::Point* focus);
-  void computeOrthogonalPosition(geometry_msgs::Point* location);
+  geometry_msgs::Point computeOrthogonalPosition(const ClickedControl& control);
+  geometry_msgs::Vector3 computeControlProjection(
+    const ClickedControl& control,
+    const geometry_msgs::Vector3& vector);
+  float computeLocationScore(const geometry_msgs::Point& location);
   void chooseCameraLocation(geometry_msgs::Point* location);
   void setCameraPlacement(
     const geometry_msgs::Point& location,
     const geometry_msgs::Point& focus,
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement);
-
-  // Utilities
-  inline float setMinimumMagnitude(float num, float magnitude) {
-    if (abs(num) < magnitude) {
-      if (num < 0) {
-        num = -magnitude;
-      } else {
-        num = magnitude;
-      }
-    }
-    return num;
-  }
-
-  inline float squared_distance(float x, float y, float z) {
-    return x*x + y*y + z*z;
-  }
+  geometry_msgs::Vector3 getRandomPerturbation(
+    const geometry_msgs::Vector3& vector);
 };
 }  // namespace autocp
 

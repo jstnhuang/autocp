@@ -1,12 +1,14 @@
 #include "autocp_display.h"
+#include "utils.h"
 #include <string>
 #include <vector>
+#include <random>
 
 namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
  */
-AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
+AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
   topic_prop_ = new rviz::RosTopicProperty(
     "Command topic",
     "/rviz/camera_placement",
@@ -15,18 +17,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     "Topic on which to send out camera placement messages.",
     this,
     SLOT(updateTopic()));
-  occlusion_threshold_property_ = new rviz::FloatProperty(
-    "Occlusion threshold",
-    0.25,
-    "Objects in the world may block your view of a marker. The occlusion"
-    " threshold is the maximum distance, in meters, an object can be in front"
-    " of a marker before the object is considered to be blocking (occluding)"
-    " your view of the marker.",
-    this,
-    SLOT(updateCameraOptions()));
-  occlusion_threshold_property_->setMin(0.001);
-  occlusion_threshold_property_->setMax(10);
-
+  
   gripper_weight_property_ = new rviz::FloatProperty(
     "Gripper focus weight",
     1.0,
@@ -43,6 +34,32 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     SLOT(updateWeights()));
   point_head_weight_property_->setMin(0);
   point_head_weight_property_->setMax(100);
+
+  // Weights on location.
+  stay_in_place_weight_ = new rviz::FloatProperty(
+    "Movement moderation weight",
+    0.01,
+    "How much weight to points close to the current location.",
+    this,
+    SLOT(updateWeights()));
+  stay_in_place_weight_->setMin(0);
+  stay_in_place_weight_->setMax(1);
+  be_orthogonal_weight_ = new rviz::FloatProperty(
+    "Marker orthogonality weight",
+    0.5,
+    "How much weight to assign to points orthogonal to the current marker.",
+    this,
+    SLOT(updateWeights()));
+  be_orthogonal_weight_->setMin(0);
+  be_orthogonal_weight_->setMax(1);
+  stay_visible_weight_ = new rviz::FloatProperty(
+    "Marker visibility weight",
+    0.49,
+    "How much weight to assign to points where the current marker is visible.",
+    this,
+    SLOT(updateWeights()));
+  stay_visible_weight_->setMin(0);
+  stay_visible_weight_->setMax(1);
 
   updateWeights();
   current_control_ = NULL;
@@ -107,6 +124,7 @@ void AutoCPDisplay::onInitialize() {
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
+  generator_.seed(std::time(0));
 }
 
 /**
@@ -173,6 +191,7 @@ void AutoCPDisplay::pointHeadCallback(
 
 /**
  * Update the weight vector, and normalize so that the max is 1.
+ * TODO(jstn): normalize location weights. Rename weights_ to be focus_weights_.
  */
 void AutoCPDisplay::updateWeights() {
   weights_ = {
@@ -205,15 +224,18 @@ void AutoCPDisplay::markerCallback(
   std::string control_name = static_cast<std::string>(feedback.control_name);
 
   Control6Dof control;
+  geometry_msgs::Point world_position = feedback.pose.position;
   try {
     if (marker_name == "head_point_goal" && point_head_cp_enabled_->getBool()) {
       control = POINT_HEAD_CONTROLS.at(control_name);
     } else if (marker_name == "l_gripper_control"
       && l_gripper_cp_enabled_->getBool()) {
       control = GRIPPER_CONTROLS.at(control_name);
+      world_position = left_gripper_origin_;
     } else if (marker_name == "r_gripper_control"
       && r_gripper_cp_enabled_->getBool()) {
       control = GRIPPER_CONTROLS.at(control_name);
+      world_position = right_gripper_origin_;
     } else if (marker_name == "l_posture_control"
       && l_posture_cp_enabled_->getBool()) {
       control = Control6Dof::ROLL;
@@ -228,7 +250,8 @@ void AutoCPDisplay::markerCallback(
     current_control_ = new ClickedControl {
       marker_name,
       control,
-      feedback.pose
+      feedback.pose,
+      world_position
     };
   } catch (std::out_of_range e) {
     ROS_INFO(
@@ -280,12 +303,13 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
 
   // Add bias for current control.
   // TODO(jstn): refactor?
-  if (current_control_ != NULL) {
-    mean_x += 1 * current_control_->pose.position.x;
-    mean_y += 1 * current_control_->pose.position.y;
-    mean_z += 1 * current_control_->pose.position.z;
-    num_points += 1;
-  }
+//  if (current_control_ != NULL) {
+//    mean_x += 1 * current_control_->pose.position.x;
+//    mean_y += 1 * current_control_->pose.position.y;
+//    mean_z += 1 * current_control_->pose.position.z;
+//    num_points += 1;
+//  }
+
   mean_x /= num_points;
   mean_y /= num_points;
   mean_z /= num_points;
@@ -301,14 +325,13 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 void AutoCPDisplay::projectWorldToViewport(
     const geometry_msgs::Point& point,
-    const Ogre::Camera& camera,
     int* screen_x,
     int* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
   Ogre::Vector4 point4(point.x, point.y, point.z, 1);
   Ogre::Vector4 projected =
-    camera.getProjectionMatrix() * camera.getViewMatrix() * point4;
+    camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
   projected = projected / projected.w;
 
   // Using the current viewport.
@@ -319,170 +342,173 @@ void AutoCPDisplay::projectWorldToViewport(
 }
 
 /**
- * Compute the distance between the given point and the closest visible point on
- * the ray pointed towards that point. Returns -1 on error.
+ * Compute the distance between the given point and the closest visible point on * the ray pointed towards that point.
  */
-float AutoCPDisplay::computeOcclusion(const geometry_msgs::Point& point,
-    const Ogre::Camera& camera) {
+float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point) {
   int screen_x;
   int screen_y;
-  projectWorldToViewport(point, camera, &screen_x, &screen_y);
-
-  Ogre::Vector3 occluding_point;
+  projectWorldToViewport(point, &screen_x, &screen_y);
+  Ogre::Vector3 occluding_vector;
   bool success = context_->getSelectionManager()->get3DPoint(
-    viewport_,  // Using the current viewport.
+    viewport_,
     screen_x,
     screen_y,
-    occluding_point);
+    occluding_vector);
+  geometry_msgs::Point occluding_point = toPoint(occluding_vector);
   if (success) {
-    return squared_distance(
-      occluding_point.x - point.x,
-      occluding_point.y - point.y,
-      occluding_point.z - point.z);
+    return distance(occluding_point, point);
   } else {
+    return 0;
+  }
+}
+
+/**
+ * Computes the amount of occlusion from the given point, given the desired
+ * camera position and camera focus. Returns the distance in meters.
+ */
+float AutoCPDisplay::occlusionDistanceFrom(
+    const geometry_msgs::Point& point,
+    const geometry_msgs::Point& camera_position,
+    const geometry_msgs::Point& camera_focus) {
+  Ogre::Vector3 old_position = camera_->getPosition();
+  Ogre::Vector3 old_direction = camera_->getDirection();
+  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
+  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
+  float occlusion = occlusionDistance(point);
+  camera_->setPosition(old_position);
+  camera_->setDirection(old_direction);
+  return occlusion;
+}
+
+/**
+ * Compute the projection of the vector onto the orthogonal plane or line
+ * defined by the current control.
+ */
+geometry_msgs::Vector3 AutoCPDisplay::computeControlProjection(
+    const ClickedControl& control,
+    const geometry_msgs::Vector3& vector) {
+  geometry_msgs::Vector3 projection;
+  projection.x = vector.x;
+  projection.y = vector.y;
+  projection.z = vector.z;
+  if (current_control_->control == Control6Dof::X) {
+    projection.x = 0;
+  } else if (current_control_->control == Control6Dof::Y) {
+    projection.y = 0;
+  } else if (current_control_->control == Control6Dof::Z) {
+    projection.z = 0;
+  } else if (current_control_->control == Control6Dof::PITCH) {
+    projection.x = 0;
+    projection.z = 0;
+  } else if (current_control_->control == Control6Dof::ROLL) {
+    projection.y = 0;
+    projection.z = 0;
+  } else if (current_control_->control == Control6Dof::YAW) {
+    projection.x = 0;
+    projection.y = 0;
+  } else {
+    ROS_ERROR("Tried to compute orthogonal projection of an unknown control.");
+    return projection;
+  }
+  return projection;
+}
+
+/**
+ * Returns the current camera position.
+ */
+geometry_msgs::Point AutoCPDisplay::getCameraPosition() {
+  Ogre::Vector3 camera_position = camera_->getPosition();
+  return toPoint(camera_position);
+}
+
+/**
+ * Computes a score for the location.
+ */
+float AutoCPDisplay::computeLocationScore(
+    const geometry_msgs::Point& location) {
+  if (current_control_ == NULL) {
     return -1;
   }
+  geometry_msgs::Point control_location = current_control_->world_position;
+
+  // Occlusion score.
+  float occlusion_distance = occlusionDistanceFrom(control_location,
+    location, camera_focus_);
+  float occlusion = logisticDistance(occlusion_distance);
+  float occlusion_score = 1 - occlusion;
+
+  // Distance score.
+  geometry_msgs::Point camera_position = getCameraPosition();
+  float distance_score =
+    1 - logisticDistance(distance(camera_position, location));
+
+  // Orthogonality score.
+  geometry_msgs::Vector3 location_vector = vectorBetween(
+    control_location, location);
+  geometry_msgs::Vector3 projection = computeControlProjection(
+    *current_control_,
+    location_vector);
+  float ortho_score = fabs(cosineAngle(location_vector, projection));
+
+  return (
+    stay_in_place_weight_->getFloat() * distance_score
+    + be_orthogonal_weight_->getFloat() * ortho_score
+    + stay_visible_weight_->getFloat() * occlusion_score);
 }
 
 /**
- * Returns true if the given point is occluded from the current camera,
- * according to the occlusion threshold property.
+ * Randomly perturb the given vector while maintaining the length.
  */
-bool AutoCPDisplay::isOccluded(const geometry_msgs::Point& point) {
-  float threshold = occlusion_threshold_property_->getFloat();
-  float occlusion = computeOcclusion(point, *camera_);
-  return occlusion > threshold * threshold;
+geometry_msgs::Vector3 AutoCPDisplay::getRandomPerturbation(
+    const geometry_msgs::Vector3& vector) {
+  float x_diff = static_cast<float>(distribution_(generator_));
+  float y_diff = static_cast<float>(distribution_(generator_));
+  float z_diff = static_cast<float>(distribution_(generator_));
+  geometry_msgs::Vector3 result;
+  result.x = vector.x + x_diff;
+  result.y = vector.y + y_diff;
+  result.z = vector.z + z_diff;
+  result = setLength(result, length(vector));
+  return result;
 }
 
 /**
- * Returns true if the given point is occluded from the given camera pose,
- * according to the occlusion threshold property.
- */
-bool AutoCPDisplay::isOccludedFrom(const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& focus) {
-  Ogre::Camera camera("temp", context_->getSceneManager());
-  camera.setPosition(camera_position.x, camera_position.y, camera_position.z);
-  camera.lookAt(focus.x, focus.y, focus.z);
-  float threshold = occlusion_threshold_property_->getFloat();
-  float occlusion = computeOcclusion(point, camera);
-  return occlusion > threshold * threshold;
-}
-
-void AutoCPDisplay::computeOrthogonalPosition(geometry_msgs::Point* location) {
-  // Each axis on the 6 dof marker has a plane orthogonal to it. We project the
-  // camera onto the plane, and scale the remaining components so that the
-  // distance to the marker is unchanged. Each ring defines a line orthogonal to
-  // it, so we similarly project the camera onto that line, and scale the
-  // last component so that the distance from the marker remains the same. The
-  // formula for the scaling constant is
-  // sqrt((squared length of deleted components) / (squared length of remaining
-  // components) + 1)
-  Ogre::Vector3 position = camera_->getPosition();
-  if (current_control_ != NULL) {
-    float marker_x = current_control_->pose.position.x;
-    float marker_y = current_control_->pose.position.y;
-    float marker_z = current_control_->pose.position.z;
-    float x_diff = position.x - marker_x;
-    float y_diff = position.y - marker_y;
-    float z_diff = position.z - marker_z;
-    float squared_x = x_diff * x_diff;
-    float squared_y = y_diff * y_diff;
-    float squared_z = z_diff * z_diff;
-
-    float projected_x = x_diff;
-    float projected_y = y_diff;
-    float projected_z = z_diff;
-    float deleted_distance = 0;
-    float remaining_distance = 0;
-
-    if (current_control_->control == Control6Dof::X) {
-      deleted_distance = squared_x;
-      remaining_distance = squared_y + squared_z;
-      projected_x = 0;
-      // Special case for X/Y to prevent the camera from flipping around when
-      // it's directly overhead the marker.
-      projected_y = setMinimumMagnitude(projected_y, 0.01 * remaining_distance);
-    } else if (current_control_->control == Control6Dof::Y) {
-      deleted_distance = squared_y;
-      remaining_distance = squared_x + squared_z;
-      projected_y = 0;
-      projected_x = setMinimumMagnitude(projected_x, 0.01 * remaining_distance);
-    } else if (current_control_->control == Control6Dof::Z) {
-      deleted_distance = squared_z;
-      remaining_distance = squared_x + squared_y;
-      projected_z = 0;
-    } else if (current_control_->control == Control6Dof::PITCH) {
-      deleted_distance = squared_x + squared_z;
-      remaining_distance = squared_y;
-      projected_x = 0;
-      projected_z = 0;
-    } else if (current_control_->control == Control6Dof::ROLL) {
-      deleted_distance = squared_y + squared_z;
-      remaining_distance = squared_x;
-      projected_y = 0;
-      projected_z = 0;
-    } else if (current_control_->control == Control6Dof::YAW) {
-      deleted_distance = squared_x + squared_y;
-      remaining_distance = squared_z;
-      projected_x = 0;
-      projected_y = 0;
-    } else {
-      ROS_INFO("Unknown control was used.");
-      deleted_distance = 0;
-      remaining_distance = 1;  // Just to make scaler = 1.
-      return;
-    }
-
-    float scaler = sqrt(deleted_distance / remaining_distance + 1);
-    location->x = marker_x + projected_x * scaler;
-    location->y = marker_y + projected_y * scaler;
-    location->z = marker_z + projected_z * scaler;
-  } else {
-    location->x = position.x;
-    location->y = position.y;
-    location->z = position.z;
-  }
-}
-
-/**
- * Choose a location for the camera. If an interactive marker is being used,
- * move to a position orthogonal to the control. Otherwise, don't change the
- * location.
- * 
- * (0, 0) on the screen is the upper left.
- *
- * TODO(jstn): in general: maybe try some kind of balance between:
+ * Choose a location for the camera. Balances between:
  * - Not moving too much
+ * - Being orthogonal to the active marker
  * - Being able to see the active marker
- * - Being able to see the other markers
- * with weights
  */
 void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-  Ogre::Vector3 position = camera_->getPosition();
+  geometry_msgs::Point camera_position = getCameraPosition();
   if (current_control_ != NULL) {
-    computeOrthogonalPosition(location);
+    geometry_msgs::Point control_position = current_control_->world_position;
+    float best_score = computeLocationScore(camera_position);
+    geometry_msgs::Point best_location = camera_position;
+    geometry_msgs::Vector3 vector = vectorBetween(
+      control_position, camera_position);
+
+    // Strategy: add random perturbations, normalize distance.
     for (int tries = 10; tries > 0; tries--) {
-      geometry_msgs::Point position = current_control_->pose.position;
-      if (isOccludedFrom(position, *location, camera_focus_)) {
-        if (current_control_->control == Control6Dof::X
-            || current_control_->control == Control6Dof::Y
-            || current_control_->control == Control6Dof::Z) {
-          // TODO(jstn): fill this in
-        } else {
-          // TODO(jstn): fill this in
-        }
-      } else {
-        break;
+      geometry_msgs::Vector3 test_vector = getRandomPerturbation(vector);
+      geometry_msgs::Point test_point = add(control_position, test_vector);
+      float score = computeLocationScore(test_point);
+      if (score > best_score) {
+        best_score = score;
+        best_location.x = test_point.x;
+        best_location.y = test_point.y;
+        best_location.z = test_point.z;
       }
     }
+    location->x = best_location.x;
+    location->y = best_location.y;
+    location->z = best_location.z;
 
     delete current_control_;
     current_control_ = NULL;
   } else {
-    location->x = position.x;
-    location->y = position.y;
-    location->z = position.z;
+    location->x = camera_position.x;
+    location->y = camera_position.y;
+    location->z = camera_position.z;
   }
 }
 
