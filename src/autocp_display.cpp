@@ -60,6 +60,14 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
     SLOT(updateWeights()));
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
+  movement_time_ = new rviz::FloatProperty(
+    "Movement timer",
+    2,
+    "How many seconds to wait to move the camera again.",
+    this,
+    SLOT(updateMovementTime()));
+  movement_time_->setMin(0);
+  movement_time_->setMax(30);
 
   updateWeights();
   current_control_ = NULL;
@@ -132,7 +140,13 @@ void AutoCPDisplay::onInitialize() {
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   sense();
-  chooseCameraPlacement(ros_dt);
+  if (time_until_move_ < 0) {
+    chooseCameraPlacement(ros_dt);
+    updateMovementTime();
+  } else {
+    time_until_move_ -= wall_dt;
+    ROS_INFO("wall dt: %f", wall_dt);
+  }
 }
 
 /**
@@ -208,6 +222,10 @@ void AutoCPDisplay::updateWeights() {
   for (unsigned i = 0; i < weights_.size(); i++) {
     weights_[i] = weights_[i] / max;
   }
+}
+
+void AutoCPDisplay::updateMovementTime() {
+  time_until_move_ = movement_time_->getFloat();
 }
 
 /**

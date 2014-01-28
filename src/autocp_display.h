@@ -93,6 +93,7 @@ class AutoCPDisplay: public rviz::Display {
   void updateTopic();
   void updateWeights();
   void updateCameraOptions();
+  void updateMovementTime();
 
  private:
   ros::NodeHandle root_nh_;
@@ -130,6 +131,10 @@ class AutoCPDisplay: public rviz::Display {
   rviz::BoolProperty* point_head_cp_enabled_;
   rviz::BoolProperty* l_posture_cp_enabled_;
   rviz::BoolProperty* r_posture_cp_enabled_;
+
+  // Smoothness factors.
+  float time_until_move_;
+  rviz::FloatProperty* movement_time_;
 
   // Weights
   rviz::FloatProperty* stay_in_place_weight_;
