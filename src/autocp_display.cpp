@@ -342,15 +342,6 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
     mean_z += weight * point->z;
   }
 
-  // Add bias for current control.
-  // TODO(jstn): refactor?
-//  if (current_control_ != NULL) {
-//    mean_x += 1 * current_control_->pose.position.x;
-//    mean_y += 1 * current_control_->pose.position.y;
-//    mean_z += 1 * current_control_->pose.position.z;
-//    num_points += 1;
-//  }
-
   mean_x /= num_points;
   mean_y /= num_points;
   mean_z /= num_points;
