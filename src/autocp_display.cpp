@@ -8,7 +8,7 @@ namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
  */
-AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
+AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
   topic_prop_ = new rviz::RosTopicProperty(
     "Command topic",
     "/rviz/camera_placement",
@@ -62,7 +62,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
   stay_visible_weight_->setMax(1);
   movement_time_ = new rviz::FloatProperty(
     "Movement timer",
-    2,
+    1,
     "How many seconds to wait to move the camera again.",
     this,
     SLOT(updateMovementTime()));
@@ -70,6 +70,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
   movement_time_->setMax(30);
 
   updateWeights();
+  updateMovementTime();
   current_control_ = NULL;
 
   l_gripper_cp_enabled_ = new rviz::BoolProperty(
@@ -133,19 +134,19 @@ void AutoCPDisplay::onInitialize() {
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
   generator_.seed(std::time(0));
+  is_moving_ = false;
 }
 
 /**
  * Main loop that alternates between sensing and placing the camera.
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
+  time_until_move_ -= wall_dt;
+  time_until_move_complete_ -= wall_dt;
   sense();
+  chooseCameraPlacement(wall_dt);
   if (time_until_move_ < 0) {
-    chooseCameraPlacement(ros_dt);
     updateMovementTime();
-  } else {
-    time_until_move_ -= wall_dt;
-    ROS_INFO("wall dt: %f", wall_dt);
   }
 }
 
@@ -285,12 +286,34 @@ void AutoCPDisplay::markerCallback(
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
-  chooseCameraLocation(&camera_position_);
+
+  geometry_msgs::Point updated_position;
+  float placement_time = time_delta;
+
+  if (is_moving_) {
+    if (current_control_ != NULL) {
+      updated_position = camera_position_;
+    } else {
+      updated_position = getCameraPosition();
+    }
+    if (time_until_move_complete_ < 0) {
+      is_moving_ = false;
+    }
+  } else {
+    updated_position = getCameraPosition();
+    placement_time = time_delta;
+    if (time_until_move_ < 0) {
+      bool new_position_found = chooseCameraLocation(&camera_position_);
+      time_until_move_complete_ = movement_time_->getFloat();
+      is_moving_ = true;
+    }
+
+  }
 
   view_controller_msgs::CameraPlacement camera_placement;
   setCameraPlacement(
-    camera_position_, camera_focus_,
-    ros::Duration(time_delta),
+    updated_position, camera_focus_,
+    ros::Duration(placement_time),
     &camera_placement);
 
   camera_placement_publisher_.publish(camera_placement);
@@ -495,8 +518,9 @@ geometry_msgs::Vector3 AutoCPDisplay::getRandomPerturbation(
  * - Not moving too much
  * - Being orthogonal to the active marker
  * - Being able to see the active marker
+ * Returns true if a new location was found.
  */
-void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
+bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point camera_position = getCameraPosition();
   if (current_control_ != NULL) {
     geometry_msgs::Point control_position = current_control_->world_position;
@@ -506,6 +530,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       control_position, camera_position);
 
     // Strategy: add random perturbations, normalize distance.
+    bool new_location_found = false;
     for (int tries = 10; tries > 0; tries--) {
       geometry_msgs::Vector3 test_vector = getRandomPerturbation(vector);
       geometry_msgs::Point test_point = add(control_position, test_vector);
@@ -515,6 +540,7 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
         best_location.x = test_point.x;
         best_location.y = test_point.y;
         best_location.z = test_point.z;
+        new_location_found = true;
       }
     }
     location->x = best_location.x;
@@ -523,10 +549,12 @@ void AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
 
     delete current_control_;
     current_control_ = NULL;
+    return new_location_found;
   } else {
     location->x = camera_position.x;
     location->y = camera_position.y;
     location->z = camera_position.z;
+    return false;
   }
 }
 

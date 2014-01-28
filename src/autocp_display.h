@@ -134,6 +134,8 @@ class AutoCPDisplay: public rviz::Display {
 
   // Smoothness factors.
   float time_until_move_;
+  float time_until_move_complete_;
+  bool is_moving_;
   rviz::FloatProperty* movement_time_;
 
   // Weights
@@ -170,7 +172,7 @@ class AutoCPDisplay: public rviz::Display {
     const ClickedControl& control,
     const geometry_msgs::Vector3& vector);
   float computeLocationScore(const geometry_msgs::Point& location);
-  void chooseCameraLocation(geometry_msgs::Point* location);
+  bool chooseCameraLocation(geometry_msgs::Point* location);
   void setCameraPlacement(
     const geometry_msgs::Point& location,
     const geometry_msgs::Point& focus,
