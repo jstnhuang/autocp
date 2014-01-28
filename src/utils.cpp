@@ -102,6 +102,13 @@ geometry_msgs::Vector3 setLength(
 }
 
 /**
+ * Returns the sign of x.
+ */
+float sign(float x) {
+  return (x > 0) - (x < 0);
+}
+
+/**
  * Convert an Ogre Vector3 to a Point.
  */
 geometry_msgs::Point toPoint(const Ogre::Vector3& v) {

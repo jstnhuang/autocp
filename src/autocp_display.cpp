@@ -515,6 +515,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point camera_position = getCameraPosition();
   if (current_control_ != NULL) {
     geometry_msgs::Point control_position = current_control_->world_position;
+    float z_sign = sign(camera_position.z - control_position.z);
     float best_score = computeLocationScore(camera_position);
     geometry_msgs::Point best_location = camera_position;
     geometry_msgs::Vector3 vector = vectorBetween(
@@ -525,6 +526,13 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     for (int tries = 10; tries > 0; tries--) {
       geometry_msgs::Vector3 test_vector = getRandomPerturbation(vector);
       geometry_msgs::Point test_point = add(control_position, test_vector);
+
+      // Don't go below the marker if we started out above and vice versa.
+      float test_sign = sign(test_point.z - control_position.z);
+      if (test_sign != z_sign) {
+        continue;
+      }
+      
       float score = computeLocationScore(test_point);
       if (score > best_score) {
         best_score = score;
