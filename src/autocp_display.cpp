@@ -38,7 +38,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
-    0.01,
+    0.15,
     "How much weight to points close to the current location.",
     this,
     SLOT(updateWeights()));
@@ -46,7 +46,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
   stay_in_place_weight_->setMax(1);
   be_orthogonal_weight_ = new rviz::FloatProperty(
     "Marker orthogonality weight",
-    0.5,
+    0.25,
     "How much weight to assign to points orthogonal to the current marker.",
     this,
     SLOT(updateWeights()));
@@ -54,7 +54,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 0.25) {
   be_orthogonal_weight_->setMax(1);
   stay_visible_weight_ = new rviz::FloatProperty(
     "Marker visibility weight",
-    0.49,
+    0.6,
     "How much weight to assign to points where the current marker is visible.",
     this,
     SLOT(updateWeights()));
