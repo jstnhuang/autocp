@@ -7,10 +7,10 @@
 #include <math.h>
 
 namespace autocp {
-geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v);
 geometry_msgs::Point add(
   const geometry_msgs::Point& p,
   const geometry_msgs::Vector3& v);
+geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v);
 float cosineAngle(
   const geometry_msgs::Vector3& v1,
   const geometry_msgs::Vector3& v2);
