@@ -137,6 +137,7 @@ class AutoCPDisplay: public rviz::Display {
   float time_until_move_complete_;
   bool is_moving_;
   rviz::FloatProperty* movement_time_;
+  rviz::FloatProperty* score_threshold_;
 
   // Weights
   rviz::FloatProperty* stay_in_place_weight_;

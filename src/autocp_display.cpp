@@ -60,6 +60,14 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
     SLOT(updateWeights()));
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
+  score_threshold_ = new rviz::FloatProperty(
+    "Score improvement threshold",
+    1.1,
+    "Factor by which the score must improve before adjusting the position.",
+    this,
+    SLOT(updateWeights()));
+  score_threshold_->setMin(0);
+  score_threshold_->setMax(30);
   movement_time_ = new rviz::FloatProperty(
     "Movement timer",
     1,
@@ -534,7 +542,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       }
       
       float score = computeLocationScore(test_point);
-      if (score > best_score) {
+      if (score > score_threshold_->getFloat() * best_score) {
         best_score = score;
         best_location.x = test_point.x;
         best_location.y = test_point.y;
