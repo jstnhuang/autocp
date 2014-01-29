@@ -38,7 +38,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
-    0.15,
+    0.03,
     "How much weight to points close to the current location.",
     this,
     SLOT(updateWeights()));
@@ -46,7 +46,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
   stay_in_place_weight_->setMax(1);
   be_orthogonal_weight_ = new rviz::FloatProperty(
     "Marker orthogonality weight",
-    0.25,
+    0.37,
     "How much weight to assign to points orthogonal to the current marker.",
     this,
     SLOT(updateWeights()));
@@ -70,7 +70,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
   score_threshold_->setMax(30);
   movement_time_ = new rviz::FloatProperty(
     "Movement timer",
-    1,
+    0.6,
     "How many seconds to wait to move the camera again.",
     this,
     SLOT(updateMovementTime()));
@@ -309,13 +309,12 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     }
   } else {
     updated_position = getCameraPosition();
-    placement_time = time_delta;
     if (time_until_move_ < 0) {
       bool new_position_found = chooseCameraLocation(&camera_position_);
+      placement_time = movement_time_->getFloat();
       time_until_move_complete_ = movement_time_->getFloat();
       is_moving_ = true;
     }
-
   }
 
   view_controller_msgs::CameraPlacement camera_placement;
