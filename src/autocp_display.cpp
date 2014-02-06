@@ -513,7 +513,9 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point camera_position = getCameraPosition();
   if (current_control_ != NULL) {
     geometry_msgs::Point control_position = current_control_->world_position;
-    float z_sign = sign(camera_position.z - control_position.z);
+    int x_sign = sign(camera_position.x - control_position.x);
+    int y_sign = sign(camera_position.y - control_position.y);
+    int z_sign = sign(camera_position.z - control_position.z);
     float best_score = computeLocationScore(camera_position);
     geometry_msgs::Point best_location = camera_position;
     geometry_msgs::Vector3 vector = vectorBetween(
@@ -524,11 +526,29 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     for (int tries = 10; tries > 0; tries--) {
       geometry_msgs::Vector3 test_vector = getRandomPerturbation(vector);
       geometry_msgs::Point test_point = add(control_position, test_vector);
+      int test_x_sign = sign(test_point.x - control_position.x);
+      int test_y_sign = sign(test_point.y - control_position.y);
+      int test_z_sign = sign(test_point.z - control_position.z);
 
-      // Don't go below the marker if we started out above and vice versa.
-      float test_sign = sign(test_point.z - control_position.z);
-      if (test_sign != z_sign) {
+      // Constraints
+      // Never go below the ground plane
+      if (test_point.z < 0) {
         continue;
+      }
+      // Never cross the z=0 plane of the control
+      if (test_z_sign != z_sign) {
+        continue;
+      }
+      // If you're using an x control, don't cross the y=0 plane
+      // If you're using a y control, don't cross the x=0 plane
+      if (current_control_->control == Control6Dof::X) {
+        if (test_y_sign != y_sign) {
+          continue;
+        }
+      } else if (current_control_->control == Control6Dof::Y) {
+        if (test_x_sign != x_sign) {
+          continue;
+        }
       }
       
       float score = computeLocationScore(test_point);
