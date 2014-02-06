@@ -93,7 +93,7 @@ class AutoCPDisplay: public rviz::Display {
   void updateTopic();
   void updateWeights();
   void updateCameraOptions();
-  void updateMovementTime();
+  void updateCameraSpeed();
 
  private:
   ros::NodeHandle root_nh_;
@@ -102,7 +102,6 @@ class AutoCPDisplay: public rviz::Display {
   std::vector<float> weights_;
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
-  geometry_msgs::Point camera_position_;
   geometry_msgs::Point camera_focus_;
 
   // Sensing.
@@ -133,10 +132,7 @@ class AutoCPDisplay: public rviz::Display {
   rviz::BoolProperty* r_posture_cp_enabled_;
 
   // Smoothness factors.
-  float time_until_move_;
-  float time_until_move_complete_;
-  bool is_moving_;
-  rviz::FloatProperty* movement_time_;
+  rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
 
   // Weights
@@ -164,7 +160,6 @@ class AutoCPDisplay: public rviz::Display {
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
-  geometry_msgs::Point* last_position_;
   geometry_msgs::Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(geometry_msgs::Point* focus);
@@ -181,6 +176,9 @@ class AutoCPDisplay: public rviz::Display {
     view_controller_msgs::CameraPlacement* camera_placement);
   geometry_msgs::Vector3 getRandomPerturbation(
     const geometry_msgs::Vector3& vector);
+  geometry_msgs::Point interpolatePosition(
+    const geometry_msgs::Point& start, const geometry_msgs::Point& end,
+    float time_delta);
 };
 }  // namespace autocp
 

@@ -68,17 +68,16 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
     SLOT(updateWeights()));
   score_threshold_->setMin(0);
   score_threshold_->setMax(30);
-  movement_time_ = new rviz::FloatProperty(
-    "Movement timer",
-    0.6,
-    "How many seconds to wait to move the camera again.",
+  camera_speed_ = new rviz::FloatProperty(
+    "Camera speed",
+    1,
+    "How many meters per second the camera can move.",
     this,
-    SLOT(updateMovementTime()));
-  movement_time_->setMin(0);
-  movement_time_->setMax(30);
+    SLOT(updateCameraOptions()));
+  camera_speed_->setMin(0);
+  camera_speed_->setMax(10);
 
   updateWeights();
-  updateMovementTime();
   current_control_ = NULL;
 
   l_gripper_cp_enabled_ = new rviz::BoolProperty(
@@ -142,20 +141,14 @@ void AutoCPDisplay::onInitialize() {
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
   generator_.seed(std::time(0));
-  is_moving_ = false;
 }
 
 /**
  * Main loop that alternates between sensing and placing the camera.
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
-  time_until_move_ -= wall_dt;
-  time_until_move_complete_ -= wall_dt;
   sense();
   chooseCameraPlacement(wall_dt);
-  if (time_until_move_ < 0) {
-    updateMovementTime();
-  }
 }
 
 /**
@@ -233,10 +226,6 @@ void AutoCPDisplay::updateWeights() {
   }
 }
 
-void AutoCPDisplay::updateMovementTime() {
-  time_until_move_ = movement_time_->getFloat();
-}
-
 /**
  * Get interactive marker locations.
  */
@@ -289,38 +278,40 @@ void AutoCPDisplay::markerCallback(
 }
 
 /**
+ * Interpolates between the start and end positions, subject to the camera speed
+ * and size of this time step.
+ */
+geometry_msgs::Point AutoCPDisplay::interpolatePosition(
+    const geometry_msgs::Point& start, const geometry_msgs::Point& end,
+    float time_delta) {
+  float max_distance = camera_speed_->getFloat() * time_delta;
+  if (max_distance > distance(start, end)) {
+    return end;
+  } else {
+    geometry_msgs::Vector3 v = vectorBetween(start, end);
+    v = setLength(v, max_distance);
+    geometry_msgs::Point next = add(start, v);
+    return next;
+  }
+}
+
+/**
  * Get the final focus point and location for the camera, then push the camera
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
+  geometry_msgs::Point camera_position;
+  chooseCameraLocation(&camera_position);
 
-  geometry_msgs::Point updated_position;
-  float placement_time = time_delta;
-
-  if (is_moving_) {
-    if (current_control_ != NULL) {
-      updated_position = camera_position_;
-    } else {
-      updated_position = getCameraPosition();
-    }
-    if (time_until_move_complete_ < 0) {
-      is_moving_ = false;
-    }
-  } else {
-    updated_position = getCameraPosition();
-    if (time_until_move_ < 0) {
-      bool new_position_found = chooseCameraLocation(&camera_position_);
-      placement_time = movement_time_->getFloat();
-      time_until_move_complete_ = movement_time_->getFloat();
-      is_moving_ = true;
-    }
-  }
+  // Where we will actually place the camera in this timestep.
+  geometry_msgs::Point next_position = interpolatePosition(
+    getCameraPosition(), camera_position, time_delta);
 
   view_controller_msgs::CameraPlacement camera_placement;
   setCameraPlacement(
-    updated_position, camera_focus_,
-    ros::Duration(placement_time),
+    next_position, camera_focus_,
+    ros::Duration(time_delta),
     &camera_placement);
 
   camera_placement_publisher_.publish(camera_placement);
