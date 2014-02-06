@@ -104,8 +104,14 @@ geometry_msgs::Vector3 setLength(
 /**
  * Returns the sign of x.
  */
-float sign(float x) {
-  return (x > 0) - (x < 0);
+int sign(float x) {
+  if (x < 0) {
+    return -1;
+  } else if (x > 0) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 /**

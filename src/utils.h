@@ -26,7 +26,7 @@ float minimumMagnitude(float num, float magnitude);
 geometry_msgs::Vector3 setLength(
   const geometry_msgs::Vector3& p1,
   float new_length);
-float sign(float x);
+int sign(float x);
 geometry_msgs::Point toPoint(const Ogre::Vector3& v);
 geometry_msgs::Vector3 vectorBetween(
   const geometry_msgs::Point& p1,
