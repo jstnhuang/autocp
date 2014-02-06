@@ -68,6 +68,16 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
     SLOT(updateWeights()));
   score_threshold_->setMin(0);
   score_threshold_->setMax(30);
+
+  movement_timer_ = new rviz::FloatProperty(
+    "Movement timer",
+    1,
+    "How often to reposition the camera.",
+    this,
+    SLOT(updateMovementTimer()));
+  movement_timer_->setMin(0);
+  movement_timer_->setMax(10);
+
   camera_speed_ = new rviz::FloatProperty(
     "Camera speed",
     1,
@@ -78,6 +88,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
   camera_speed_->setMax(10);
 
   updateWeights();
+  updateMovementTimer();
   current_control_ = NULL;
 
   l_gripper_cp_enabled_ = new rviz::BoolProperty(
@@ -149,6 +160,10 @@ void AutoCPDisplay::onInitialize() {
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   sense();
   chooseCameraPlacement(wall_dt);
+  if (time_until_movement_ < 0) {
+    time_until_movement_ = movement_timer_->getFloat();
+  }
+  time_until_movement_ -= wall_dt;
 }
 
 /**
@@ -166,6 +181,13 @@ void AutoCPDisplay::updateTopic() {
  */
 void AutoCPDisplay::updateCameraOptions() {
   return;
+}
+
+/**
+ * Reset the movement timer.
+ */
+void AutoCPDisplay::updateMovementTimer() {
+  time_until_movement_ = movement_timer_->getFloat();
 }
 
 /**
@@ -301,12 +323,15 @@ geometry_msgs::Point AutoCPDisplay::interpolatePosition(
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
-  geometry_msgs::Point camera_position;
-  chooseCameraLocation(&camera_position);
 
   // Where we will actually place the camera in this timestep.
-  geometry_msgs::Point next_position = interpolatePosition(
-    getCameraPosition(), camera_position, time_delta);
+  geometry_msgs::Point next_position;
+  
+  if (time_until_movement_ < 0) {
+    chooseCameraLocation(&target_position_);
+  }
+  next_position = interpolatePosition(getCameraPosition(), target_position_,
+    time_delta);
 
   view_controller_msgs::CameraPlacement camera_placement;
   setCameraPlacement(
