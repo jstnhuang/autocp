@@ -97,37 +97,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
     "Whether or not to show the frames per second.",
     this,
     SLOT(updateCameraOptions()));
-
-  l_gripper_cp_enabled_ = new rviz::BoolProperty(
-    "Move camera with left gripper",
-    true,
-    "Whether or not to move the camera when using the left gripper.",
-    this,
-    SLOT(updateCameraOptions()));
-  r_gripper_cp_enabled_ = new rviz::BoolProperty(
-    "Move camera with right gripper",
-    true,
-    "Whether or not to move the camera when using the right gripper.",
-    this,
-    SLOT(updateCameraOptions()));
-  point_head_cp_enabled_ = new rviz::BoolProperty(
-    "Move camera with head target point",
-    true,
-    "Whether or not to move the camera when using the head target point.",
-    this,
-    SLOT(updateCameraOptions()));
-  l_posture_cp_enabled_ = new rviz::BoolProperty(
-    "Move camera with left shoulder control",
-    true,
-    "Whether or not to move the camera when using the left shoulder control.",
-    this,
-    SLOT(updateCameraOptions()));
-  r_posture_cp_enabled_ = new rviz::BoolProperty(
-    "Move camera with right shoulder control",
-    true,
-    "Whether or not to move the camera when using the right shoulder control.",
-    this,
-    SLOT(updateCameraOptions()));
 }
 
 /**
@@ -276,21 +245,17 @@ void AutoCPDisplay::markerCallback(
   Control6Dof control;
   geometry_msgs::Point world_position = feedback.pose.position;
   try {
-    if (marker_name == "head_point_goal" && point_head_cp_enabled_->getBool()) {
+    if (marker_name == "head_point_goal") {
       control = POINT_HEAD_CONTROLS.at(control_name);
-    } else if (marker_name == "l_gripper_control"
-      && l_gripper_cp_enabled_->getBool()) {
+    } else if (marker_name == "l_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
       world_position = left_gripper_origin_;
-    } else if (marker_name == "r_gripper_control"
-      && r_gripper_cp_enabled_->getBool()) {
+    } else if (marker_name == "r_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
       world_position = right_gripper_origin_;
-    } else if (marker_name == "l_posture_control"
-      && l_posture_cp_enabled_->getBool()) {
+    } else if (marker_name == "l_posture_control") {
       control = Control6Dof::ROLL;
-    } else if (marker_name == "r_posture_control"
-      && r_posture_cp_enabled_->getBool()) {
+    } else if (marker_name == "r_posture_control") {
       control = Control6Dof::ROLL;
     } else {
       ROS_INFO("Unknown marker %s", marker_name.c_str());

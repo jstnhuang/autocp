@@ -128,11 +128,6 @@ class AutoCPDisplay: public rviz::Display {
   void markerCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback);
   ClickedControl* current_control_;
-  rviz::BoolProperty* l_gripper_cp_enabled_;
-  rviz::BoolProperty* r_gripper_cp_enabled_;
-  rviz::BoolProperty* point_head_cp_enabled_;
-  rviz::BoolProperty* l_posture_cp_enabled_;
-  rviz::BoolProperty* r_posture_cp_enabled_;
 
   // Smoothness factors.
   rviz::FloatProperty* camera_speed_;
