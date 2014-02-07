@@ -109,6 +109,7 @@ class AutoCPDisplay: public rviz::Display {
   // Sensing.
   void sense();
   void getTransformOrigin(std::string frame, geometry_msgs::Point* origin);
+  rviz::BoolProperty* show_fps_;
 
   // Point head factor.
   ros::Subscriber point_head_subscriber_;

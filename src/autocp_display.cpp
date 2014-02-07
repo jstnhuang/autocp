@@ -91,6 +91,13 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), distribution_(0.0, 1) {
   updateMovementTimer();
   current_control_ = NULL;
 
+  show_fps_ = new rviz::BoolProperty(
+    "Show FPS",
+    false,
+    "Whether or not to show the frames per second.",
+    this,
+    SLOT(updateCameraOptions()));
+
   l_gripper_cp_enabled_ = new rviz::BoolProperty(
     "Move camera with left gripper",
     true,
@@ -160,6 +167,11 @@ void AutoCPDisplay::onInitialize() {
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   sense();
   chooseCameraPlacement(wall_dt);
+
+  if (show_fps_->getBool()) {
+    ROS_INFO("FPS: %f", 1 / wall_dt);
+  }
+
   if (time_until_movement_ < 0) {
     time_until_movement_ = movement_timer_->getFloat();
   }
