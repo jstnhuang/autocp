@@ -537,8 +537,8 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       if (test_point.z < 0) {
         continue;
       }
-      // Never cross the z=0 plane of the control
-      if (test_z_sign != z_sign) {
+      // Never go below the control.
+      if (test_z_sign < 0) {
         continue;
       }
       // If you're using an x control, don't cross the y=0 plane
