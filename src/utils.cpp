@@ -126,6 +126,28 @@ geometry_msgs::Point toPoint(const Ogre::Vector3& v) {
 }
 
 /**
+ * Convert a ROS Vector3 to a Point.
+ */
+geometry_msgs::Point toPoint(const geometry_msgs::Vector3& v) {
+  geometry_msgs::Point point;
+  point.x = v.x;
+  point.y = v.y;
+  point.z = v.z;
+  return point;
+}
+
+/**
+ * Convert an Ogre Vector3 to a Point.
+ */
+geometry_msgs::Vector3 toVector3(const geometry_msgs::Point& p) {
+  geometry_msgs::Vector3 vector;
+  vector.x = p.x;
+  vector.y = p.y;
+  vector.z = p.z;
+  return vector;
+}
+
+/**
  * Get the vector starting at "from" and ending at "to".
  */
 geometry_msgs::Vector3 vectorBetween(

@@ -29,6 +29,7 @@
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
+#include <interactive_markers/interactive_marker_server.h>
 
 #include <math.h>
 #include <map>
@@ -78,6 +79,9 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
   {"_u1", Control6Dof::YAW},
 };
 
+static const float MIN_DISTANCE = 0.5;
+static const float MAX_DISTANCE = 5;
+
 class AutoCPDisplay: public rviz::Display {
   Q_OBJECT
 
@@ -105,6 +109,11 @@ class AutoCPDisplay: public rviz::Display {
   Ogre::Viewport* viewport_;
   geometry_msgs::Point target_position_;
   geometry_msgs::Point camera_focus_;
+
+  // Target point
+  visualization_msgs::Marker target_marker_;
+  ros::Publisher target_marker_pub_;
+  void makeMarker(const std::string& name, const geometry_msgs::Point& position, visualization_msgs::Marker* marker);
 
   // Sensing.
   void sense();
@@ -140,7 +149,8 @@ class AutoCPDisplay: public rviz::Display {
   rviz::FloatProperty* be_orthogonal_weight_;
   rviz::FloatProperty* stay_visible_weight_;
   std::default_random_engine generator_;
-  std::normal_distribution<double> distribution_;
+  std::normal_distribution<float> normal_distribution_;
+  std::normal_distribution<float> uniform_distribution_;
 
   // Visibility factors.
   void projectWorldToViewport(
@@ -176,6 +186,7 @@ class AutoCPDisplay: public rviz::Display {
     view_controller_msgs::CameraPlacement* camera_placement);
   geometry_msgs::Vector3 getRandomPerturbation(
     const geometry_msgs::Vector3& vector);
+  geometry_msgs::Vector3 getRandomVector();
   geometry_msgs::Point interpolatePosition(
     const geometry_msgs::Point& start, const geometry_msgs::Point& end,
     float time_delta);

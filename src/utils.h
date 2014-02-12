@@ -28,9 +28,11 @@ geometry_msgs::Vector3 setLength(
   float new_length);
 int sign(float x);
 geometry_msgs::Point toPoint(const Ogre::Vector3& v);
+geometry_msgs::Point toPoint(const geometry_msgs::Vector3& v);
+geometry_msgs::Vector3 toVector3(const geometry_msgs::Point & p);
 geometry_msgs::Vector3 vectorBetween(
-  const geometry_msgs::Point& p1,
-  const geometry_msgs::Point& p2);
+  const geometry_msgs::Point& from,
+  const geometry_msgs::Point& to);
 }
 
 #endif
