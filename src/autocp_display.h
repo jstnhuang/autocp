@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <array>
 
 namespace autocp {
 enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
@@ -78,6 +79,7 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
   {"_u1", Control6Dof::YAW},
 };
 
+
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
 
@@ -108,6 +110,10 @@ class AutoCPDisplay: public rviz::Display {
   Ogre::Viewport* viewport_;
   geometry_msgs::Point target_position_;
   geometry_msgs::Point camera_focus_;
+
+  // Canonical viewpoint locations, expressed as an offset from the robot's
+  // origin.
+  std::array<geometry_msgs::Vector3, 8> standard_viewpoints_;
 
   // Sensing.
   void sense();

@@ -98,6 +98,15 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
     "Whether or not to show the frames per second.",
     this,
     SLOT(updateCameraOptions()));
+
+  standard_viewpoints_[0] = makeVector3(1, 0, 2);
+  standard_viewpoints_[1] = makeVector3(1, -1, 2);
+  standard_viewpoints_[2] = makeVector3(0, -1, 2);
+  standard_viewpoints_[3] = makeVector3(-1, -1, 2);
+  standard_viewpoints_[4] = makeVector3(-1, 0, 2);
+  standard_viewpoints_[5] = makeVector3(-1, 1, 2);
+  standard_viewpoints_[6] = makeVector3(0, 1, 2);
+  standard_viewpoints_[7] = makeVector3(1, 1, 2);
 }
 
 /**
@@ -470,9 +479,7 @@ float AutoCPDisplay::computeLocationScore(
     location, camera_focus_);
   float occlusion_score = 1;
   if (occlusion_distance > 0.25) {
-    return 0;
-    // TODO(jstn): hard constraint?
-    //occlusion_score = 0;
+    occlusion_score = 0;
   }
 
   // Distance score.
@@ -487,12 +494,10 @@ float AutoCPDisplay::computeLocationScore(
     location_vector);
   float ortho_score = fabs(cosineAngle(location_vector, projection));
 
-  ROS_INFO("(%f, %f, %f); d: %f, or: %f, oc: %f", location.x, location.y, location.z, distance_score, ortho_score, occlusion_score);
-
   return (
     stay_in_place_weight_->getFloat() * distance_score
     + be_orthogonal_weight_->getFloat() * ortho_score
-    /*+ stay_visible_weight_->getFloat() * occlusion_score*/);
+    + stay_visible_weight_->getFloat() * occlusion_score);
 }
 
 /**
@@ -545,7 +550,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     int y_sign = sign(camera_position.y - control_position.y);
     int z_sign = sign(camera_position.z - control_position.z);
     float best_score = computeLocationScore(camera_position);
-    //ROS_INFO("Current position: %f %f %f, s=%f", camera_position.x, camera_position.y, camera_position.z, best_score);
+    float current_score = best_score; // TODO: delete this
     geometry_msgs::Vector3 current_vector = vectorBetween(
         camera_focus_, camera_position);
     float current_distance = length(current_vector);
@@ -553,10 +558,8 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
 
     // Strategy: get random vectors, normalize distance.
     bool new_location_found = false;
-    for (int tries = 40; tries > 0; tries--) {
-      geometry_msgs::Vector3 test_vector = getRandomVector();
-      float test_length = length(test_vector);
-      geometry_msgs::Point test_point = add(camera_focus_, test_vector);
+    for (auto test_vector : standard_viewpoints_) {
+      geometry_msgs::Point test_point = toPoint(test_vector);
       int test_x_sign = sign(test_point.x - control_position.x);
       int test_y_sign = sign(test_point.y - control_position.y);
       int test_z_sign = sign(test_point.z - control_position.z);
@@ -585,7 +588,6 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       
       float score = computeLocationScore(test_point);
       if (score > score_threshold_->getFloat() * best_score) {
-        ROS_INFO("New position: %f %f %f, p=%f, s=%f, d=%f", test_point.x, test_point.y, test_point.z, best_score, score, distance(best_location, target_position_));
         best_location.x = test_point.x;
         best_location.y = test_point.y;
         best_location.z = test_point.z;
@@ -593,9 +595,9 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
         new_location_found = true;
       }
     }
-    //location->x = best_location.x;
-    //location->y = best_location.y;
-    //location->z = best_location.z;
+    if (new_location_found) {
+      ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f", best_location.x, best_location.y, best_location.z, best_score, current_score);
+    }
     target_position_ = best_location;
 
     delete current_control_;

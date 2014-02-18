@@ -43,7 +43,6 @@ float distance(
   difference.z = p1.z - p2.z;
   return length(difference);
 }
-
 /**
  * Returns the dot product of two vectors.
  */
@@ -71,6 +70,14 @@ float logisticDistance(float x, float scale) {
     return 1;
   }
   return fabs(2 / (1 + exp(scale * -x)) - 1);
+}
+
+geometry_msgs::Vector3 makeVector3(float x, float y, float z) {
+  geometry_msgs::Vector3 result;
+  result.x = x;
+  result.y = y;
+  result.z = z;
+  return result;
 }
 
 /**
