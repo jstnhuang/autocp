@@ -61,13 +61,16 @@ float length(const geometry_msgs::Vector3& v) {
 }
 
 /**
- * A function that squeezes an unbounded distance x into a (0, 1) value.
+ * A function that squeezes an unbounded distance x into a (0, 1) value. Scale
+ * determines the width of the function. To choose the scale, you want to have
+ * an idea of what value of x should produce a result close to 1. If you use
+ * 0.99 as an approximation of 1, then scale = 5.2933 / x.
  */
-float logisticDistance(float x) {
-  if (x > 6 || x < -6) {
+float logisticDistance(float x, float scale) {
+  if (scale * x > 6 || scale * x < -6) {
     return 1;
   }
-  return fabs(2 / (1 + exp(-x)) - 1);
+  return fabs(2 / (1 + exp(scale * -x)) - 1);
 }
 
 /**

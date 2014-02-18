@@ -21,7 +21,7 @@ float dotProduct(
   const geometry_msgs::Vector3& v1,
   const geometry_msgs::Vector3& v2);
 float length(const geometry_msgs::Vector3& v);
-float logisticDistance(float x);
+float logisticDistance(float x, float scale);
 float minimumMagnitude(float num, float magnitude);
 geometry_msgs::Vector3 setLength(
   const geometry_msgs::Vector3& p1,
