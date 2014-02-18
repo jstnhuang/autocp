@@ -132,22 +132,10 @@ void AutoCPDisplay::onInitialize() {
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
-  generator_.seed(std::time(0));
   target_position_ = getCameraPosition();
 }
 
-/**
- * Main loop that alternates between sensing and placing the camera.
- */
-void AutoCPDisplay::update(float wall_dt, float ros_dt) {
-  sense();
-  chooseCameraPlacement(wall_dt);
-
-  if (show_fps_->getBool()) {
-    ROS_INFO("FPS: %f", 1 / wall_dt);
-  }
-}
-
+// Parameter update handlers ---------------------------------------------------
 /**
  * Set the topic to publish camera placement commands to.
  */
@@ -165,6 +153,28 @@ void AutoCPDisplay::updateCameraOptions() {
   return;
 }
 
+/**
+ * Update the weight vector, and normalize so that the max is 1.
+ * TODO(jstn): normalize location weights. Rename weights_ to be focus_weights_.
+ */
+void AutoCPDisplay::updateWeights() {
+  weights_ = {
+    point_head_weight_property_->getFloat(),
+    gripper_weight_property_->getFloat(),
+    gripper_weight_property_->getFloat()
+  };
+  float max = 0;
+  for (float weight : weights_) {
+    if (weight > max) {
+      max = weight;
+    }
+  }
+  for (unsigned i = 0; i < weights_.size(); i++) {
+    weights_[i] = weights_[i] / max;
+  }
+}
+
+// Sensing ---------------------------------------------------------------------
 /**
  * Update the points of interest.
  */
@@ -225,28 +235,7 @@ void AutoCPDisplay::objectSegmentationCallback(
 }
 
 /**
- * Update the weight vector, and normalize so that the max is 1.
- * TODO(jstn): normalize location weights. Rename weights_ to be focus_weights_.
- */
-void AutoCPDisplay::updateWeights() {
-  weights_ = {
-    point_head_weight_property_->getFloat(),
-    gripper_weight_property_->getFloat(),
-    gripper_weight_property_->getFloat()
-  };
-  float max = 0;
-  for (float weight : weights_) {
-    if (weight > max) {
-      max = weight;
-    }
-  }
-  for (unsigned i = 0; i < weights_.size(); i++) {
-    weights_[i] = weights_[i] / max;
-  }
-}
-
-/**
- * Get interactive marker locations.
+ * Get the location of the interactive marker currently being used.
  */
 void AutoCPDisplay::markerCallback(
   const visualization_msgs::InteractiveMarkerFeedback& feedback
@@ -292,21 +281,16 @@ void AutoCPDisplay::markerCallback(
   }
 }
 
+// Camera placement logic ------------------------------------------------------
 /**
- * Interpolates between the start and end positions, subject to the camera speed
- * and size of this time step.
+ * Main loop that alternates between sensing and placing the camera.
  */
-geometry_msgs::Point AutoCPDisplay::interpolatePosition(
-    const geometry_msgs::Point& start, const geometry_msgs::Point& end,
-    float time_delta) {
-  float max_distance = camera_speed_->getFloat() * time_delta;
-  if (max_distance > distance(start, end)) {
-    return end;
-  } else {
-    geometry_msgs::Vector3 v = vectorBetween(start, end);
-    v = setLength(v, max_distance);
-    geometry_msgs::Point next = add(start, v);
-    return next;
+void AutoCPDisplay::update(float wall_dt, float ros_dt) {
+  sense();
+  chooseCameraPlacement(wall_dt);
+
+  if (show_fps_->getBool()) {
+    ROS_INFO("FPS: %f", 1 / wall_dt);
   }
 }
 
@@ -363,108 +347,6 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
   focus->x = mean_x;
   focus->y = mean_y;
   focus->z = mean_z;
-}
-
-/**
- * Returns the x, y coordinates on the viewport of the given point. The origin
- * is in the top left corner.
- */
-void AutoCPDisplay::projectWorldToViewport(
-    const geometry_msgs::Point& point,
-    int* screen_x,
-    int* screen_y) {
-  // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
-  // is in the bottom left corner.
-  Ogre::Vector4 point4(point.x, point.y, point.z, 1);
-  Ogre::Vector4 projected =
-    camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
-  projected = projected / projected.w;
-
-  // Using the current viewport.
-  *screen_x = static_cast<int>(
-    round(viewport_->getActualWidth() * (projected.x + 1) / 2));
-  *screen_y = static_cast<int>(
-    round(viewport_->getActualHeight() * (1 - projected.y) / 2));
-}
-
-/**
- * Compute the distance between the given point and the closest visible point on * the ray pointed towards that point.
- */
-float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point) {
-  int screen_x;
-  int screen_y;
-  projectWorldToViewport(point, &screen_x, &screen_y);
-  Ogre::Vector3 occluding_vector;
-  bool success = context_->getSelectionManager()->get3DPoint(
-    viewport_,
-    screen_x,
-    screen_y,
-    occluding_vector);
-  geometry_msgs::Point occluding_point = toPoint(occluding_vector);
-  if (success) {
-    return distance(occluding_point, point);
-  } else {
-    return 0;
-  }
-}
-
-/**
- * Computes the amount of occlusion from the given point, given the desired
- * camera position and camera focus. Returns the distance in meters.
- */
-float AutoCPDisplay::occlusionDistanceFrom(
-    const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& camera_focus) {
-  Ogre::Vector3 old_position = camera_->getPosition();
-  Ogre::Vector3 old_direction = camera_->getDirection();
-  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
-  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
-  float occlusion = occlusionDistance(point);
-  camera_->setPosition(old_position);
-  camera_->setDirection(old_direction);
-  return occlusion;
-}
-
-/**
- * Compute the projection of the vector onto the orthogonal plane or line
- * defined by the current control.
- */
-geometry_msgs::Vector3 AutoCPDisplay::computeControlProjection(
-    const ClickedControl& control,
-    const geometry_msgs::Vector3& vector) {
-  geometry_msgs::Vector3 projection;
-  projection.x = vector.x;
-  projection.y = vector.y;
-  projection.z = vector.z;
-  if (current_control_->control == Control6Dof::X) {
-    projection.x = 0;
-  } else if (current_control_->control == Control6Dof::Y) {
-    projection.y = 0;
-  } else if (current_control_->control == Control6Dof::Z) {
-    projection.z = 0;
-  } else if (current_control_->control == Control6Dof::PITCH) {
-    projection.x = 0;
-    projection.z = 0;
-  } else if (current_control_->control == Control6Dof::ROLL) {
-    projection.y = 0;
-    projection.z = 0;
-  } else if (current_control_->control == Control6Dof::YAW) {
-    projection.x = 0;
-    projection.y = 0;
-  } else {
-    ROS_ERROR("Tried to compute orthogonal projection of an unknown control.");
-    return projection;
-  }
-  return projection;
-}
-
-/**
- * Returns the current camera position.
- */
-geometry_msgs::Point AutoCPDisplay::getCameraPosition() {
-  Ogre::Vector3 camera_position = camera_->getPosition();
-  return toPoint(camera_position);
 }
 
 /**
@@ -588,6 +470,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   }
 }
 
+// Utilities -------------------------------------------------------------------
 /**
  * Convenience method to set the camera placement.
  */
@@ -619,6 +502,126 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.vector.x = 0.0;
   camera_placement->up.vector.y = 0.0;
   camera_placement->up.vector.z = 1.0;
+}
+
+/**
+ * Returns the current camera position.
+ */
+geometry_msgs::Point AutoCPDisplay::getCameraPosition() {
+  Ogre::Vector3 camera_position = camera_->getPosition();
+  return toPoint(camera_position);
+}
+
+/**
+ * Interpolates between the start and end positions, subject to the camera speed
+ * and size of this time step.
+ */
+geometry_msgs::Point AutoCPDisplay::interpolatePosition(
+    const geometry_msgs::Point& start, const geometry_msgs::Point& end,
+    float time_delta) {
+  float max_distance = camera_speed_->getFloat() * time_delta;
+  if (max_distance > distance(start, end)) {
+    return end;
+  } else {
+    geometry_msgs::Vector3 v = vectorBetween(start, end);
+    v = setLength(v, max_distance);
+    geometry_msgs::Point next = add(start, v);
+    return next;
+  }
+}
+
+/**
+ * Returns the x, y coordinates on the viewport of the given point. The origin
+ * is in the top left corner.
+ */
+void AutoCPDisplay::projectWorldToViewport(
+    const geometry_msgs::Point& point,
+    int* screen_x,
+    int* screen_y) {
+  // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
+  // is in the bottom left corner.
+  Ogre::Vector4 point4(point.x, point.y, point.z, 1);
+  Ogre::Vector4 projected =
+    camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
+  projected = projected / projected.w;
+
+  // Using the current viewport.
+  *screen_x = static_cast<int>(
+    round(viewport_->getActualWidth() * (projected.x + 1) / 2));
+  *screen_y = static_cast<int>(
+    round(viewport_->getActualHeight() * (1 - projected.y) / 2));
+}
+
+/**
+ * Compute the distance between the given point and the closest visible point on * the ray pointed towards that point.
+ */
+float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point) {
+  int screen_x;
+  int screen_y;
+  projectWorldToViewport(point, &screen_x, &screen_y);
+  Ogre::Vector3 occluding_vector;
+  bool success = context_->getSelectionManager()->get3DPoint(
+    viewport_,
+    screen_x,
+    screen_y,
+    occluding_vector);
+  geometry_msgs::Point occluding_point = toPoint(occluding_vector);
+  if (success) {
+    return distance(occluding_point, point);
+  } else {
+    return 0;
+  }
+}
+
+/**
+ * Computes the amount of occlusion from the given point, given the desired
+ * camera position and camera focus. Returns the distance in meters.
+ */
+float AutoCPDisplay::occlusionDistanceFrom(
+    const geometry_msgs::Point& point,
+    const geometry_msgs::Point& camera_position,
+    const geometry_msgs::Point& camera_focus) {
+  Ogre::Vector3 old_position = camera_->getPosition();
+  Ogre::Vector3 old_direction = camera_->getDirection();
+  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
+  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
+  float occlusion = occlusionDistance(point);
+  camera_->setPosition(old_position);
+  camera_->setDirection(old_direction);
+  return occlusion;
+}
+
+/**
+ * Compute the projection of the vector onto the orthogonal plane or line
+ * defined by the current control.
+ */
+geometry_msgs::Vector3 AutoCPDisplay::computeControlProjection(
+    const ClickedControl& control,
+    const geometry_msgs::Vector3& vector) {
+  geometry_msgs::Vector3 projection;
+  projection.x = vector.x;
+  projection.y = vector.y;
+  projection.z = vector.z;
+  if (current_control_->control == Control6Dof::X) {
+    projection.x = 0;
+  } else if (current_control_->control == Control6Dof::Y) {
+    projection.y = 0;
+  } else if (current_control_->control == Control6Dof::Z) {
+    projection.z = 0;
+  } else if (current_control_->control == Control6Dof::PITCH) {
+    projection.x = 0;
+    projection.z = 0;
+  } else if (current_control_->control == Control6Dof::ROLL) {
+    projection.y = 0;
+    projection.z = 0;
+  } else if (current_control_->control == Control6Dof::YAW) {
+    projection.x = 0;
+    projection.y = 0;
+  } else {
+    ROS_ERROR("Tried to compute orthogonal projection of an unknown control.");
+    return projection;
+  }
+  return projection;
 }
 
 }  // namespace autocp
