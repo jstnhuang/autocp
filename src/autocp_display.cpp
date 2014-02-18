@@ -519,41 +519,6 @@ float AutoCPDisplay::computeLocationScore(
 }
 
 /**
- * Randomly perturb the given vector while maintaining the length.
- */
-geometry_msgs::Vector3 AutoCPDisplay::getRandomPerturbation(
-    const geometry_msgs::Vector3& vector) {
-  float x_diff = normal_distribution_(generator_);
-  float y_diff = normal_distribution_(generator_);
-  float z_diff = normal_distribution_(generator_);
-  geometry_msgs::Vector3 result;
-  result.x = vector.x + x_diff;
-  result.y = vector.y + y_diff;
-  result.z = vector.z + z_diff;
-  result = setLength(result, length(vector));
-  return result;
-}
-
-geometry_msgs::Vector3 AutoCPDisplay::getRandomVector() {
-  geometry_msgs::Vector3 result;
-  float range = MAX_DISTANCE - MIN_DISTANCE;
-  result.x = uniform_distribution_(generator_) * range;
-  if (result.x < 0) {
-    result.x -= MIN_DISTANCE;
-  } else {
-    result.x += MIN_DISTANCE;
-  }
-  result.y = uniform_distribution_(generator_) * range;
-  if (result.y < 0) {
-    result.y -= MIN_DISTANCE;
-  } else {
-    result.y += MIN_DISTANCE;
-  }
-  result.z = uniform_distribution_(generator_) * range + MIN_DISTANCE;
-  return result;
-}
-
-/**
  * Choose a location for the camera. Balances between:
  * - Not moving too much
  * - Being orthogonal to the active marker
