@@ -100,7 +100,6 @@ class AutoCPDisplay: public rviz::Display {
   void updateWeights();
   void updateCameraOptions();
   void updateCameraSpeed();
-  void updateMovementTimer();
 
  private:
   ros::NodeHandle root_nh_;
@@ -148,8 +147,6 @@ class AutoCPDisplay: public rviz::Display {
   // Smoothness factors.
   rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
-  rviz::FloatProperty* movement_timer_;
-  float time_until_movement_;
 
   // Weights
   rviz::FloatProperty* stay_in_place_weight_;

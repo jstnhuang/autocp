@@ -71,15 +71,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
   score_threshold_->setMin(0);
   score_threshold_->setMax(30);
 
-  movement_timer_ = new rviz::FloatProperty(
-    "Movement timer",
-    0.25,
-    "How often to reposition the camera.",
-    this,
-    SLOT(updateMovementTimer()));
-  movement_timer_->setMin(0);
-  movement_timer_->setMax(10);
-
   camera_speed_ = new rviz::FloatProperty(
     "Camera speed",
     10,
@@ -90,7 +81,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
   camera_speed_->setMax(10);
 
   updateWeights();
-  updateMovementTimer();
   current_control_ = NULL;
 
   show_fps_ = new rviz::BoolProperty(
@@ -100,14 +90,14 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
     this,
     SLOT(updateCameraOptions()));
 
-  standard_viewpoints_[0] = makeVector3(1, 0, 2);
-  standard_viewpoints_[1] = makeVector3(1, -1, 2);
+  standard_viewpoints_[0] = makeVector3(2, 0, 2);
+  standard_viewpoints_[1] = makeVector3(2, -1, 2);
   standard_viewpoints_[2] = makeVector3(0, -1, 2);
   standard_viewpoints_[3] = makeVector3(-1, -1, 2);
   standard_viewpoints_[4] = makeVector3(-1, 0, 2);
   standard_viewpoints_[5] = makeVector3(-1, 1, 2);
   standard_viewpoints_[6] = makeVector3(0, 1, 2);
-  standard_viewpoints_[7] = makeVector3(1, 1, 2);
+  standard_viewpoints_[7] = makeVector3(2, 1, 2);
 }
 
 /**
@@ -158,11 +148,6 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
-
-  if (time_until_movement_ < 0) {
-    time_until_movement_ = movement_timer_->getFloat();
-  }
-  time_until_movement_ -= wall_dt;
 }
 
 /**
@@ -180,13 +165,6 @@ void AutoCPDisplay::updateTopic() {
  */
 void AutoCPDisplay::updateCameraOptions() {
   return;
-}
-
-/**
- * Reset the movement timer.
- */
-void AutoCPDisplay::updateMovementTimer() {
-  time_until_movement_ = movement_timer_->getFloat();
 }
 
 /**
@@ -344,9 +322,7 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   // Where we will actually place the camera in this timestep.
   geometry_msgs::Point next_position;
   
-  if (time_until_movement_ < 0) {
-    chooseCameraLocation(&target_position_);
-  }
+  chooseCameraLocation(&target_position_);
   next_position = interpolatePosition(getCameraPosition(), target_position_,
     time_delta);
 
@@ -503,7 +479,6 @@ float AutoCPDisplay::computeLocationScore(
   }
   geometry_msgs::Point control_location = current_control_->world_position;
 
-
   // Occlusion score for current control.
   float occlusion_distance = occlusionDistanceFrom(control_location,
     location, camera_focus_);
@@ -527,7 +502,7 @@ float AutoCPDisplay::computeLocationScore(
 
   // Distance score.
   float distance_score =
-    1 - logisticDistance(distance(target_position_, location), 1);
+    1 - logisticDistance(distance(getCameraPosition(), location), 1);
 
   // Orthogonality score.
   geometry_msgs::Vector3 location_vector = vectorBetween(
