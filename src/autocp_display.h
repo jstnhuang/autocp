@@ -29,7 +29,6 @@
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
-#include <interactive_markers/interactive_marker_server.h>
 
 #include <math.h>
 #include <map>
@@ -80,7 +79,7 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
 };
 
 static const float MIN_DISTANCE = 0.5;
-static const float MAX_DISTANCE = 5;
+static const float MAX_DISTANCE = 10;
 
 class AutoCPDisplay: public rviz::Display {
   Q_OBJECT
@@ -109,11 +108,6 @@ class AutoCPDisplay: public rviz::Display {
   Ogre::Viewport* viewport_;
   geometry_msgs::Point target_position_;
   geometry_msgs::Point camera_focus_;
-
-  // Target point
-  visualization_msgs::Marker target_marker_;
-  ros::Publisher target_marker_pub_;
-  void makeMarker(const std::string& name, const geometry_msgs::Point& position, visualization_msgs::Marker* marker);
 
   // Sensing.
   void sense();

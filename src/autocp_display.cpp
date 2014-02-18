@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <random>
-#include <interactive_markers/interactive_marker_server.h>
 
 namespace autocp {
 /**
@@ -40,7 +39,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
-    0.03,
+    0.2,
     "How much weight to points close to the current location.",
     this,
     SLOT(updateWeights()));
@@ -48,7 +47,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
   stay_in_place_weight_->setMax(1);
   be_orthogonal_weight_ = new rviz::FloatProperty(
     "Marker orthogonality weight",
-    0.37,
+    0.8,
     "How much weight to assign to points orthogonal to the current marker.",
     this,
     SLOT(updateWeights()));
@@ -56,7 +55,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
   be_orthogonal_weight_->setMax(1);
   stay_visible_weight_ = new rviz::FloatProperty(
     "Marker visibility weight",
-    0.6,
+    0.0,
     "How much weight to assign to points where the current marker is visible.",
     this,
     SLOT(updateWeights()));
@@ -73,7 +72,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
 
   movement_timer_ = new rviz::FloatProperty(
     "Movement timer",
-    1,
+    0.25,
     "How often to reposition the camera.",
     this,
     SLOT(updateMovementTimer()));
@@ -82,7 +81,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
 
   camera_speed_ = new rviz::FloatProperty(
     "Camera speed",
-    1,
+    10,
     "How many meters per second the camera can move.",
     this,
     SLOT(updateCameraOptions()));
@@ -130,10 +129,7 @@ void AutoCPDisplay::onInitialize() {
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
   generator_.seed(std::time(0));
-
-  target_marker_pub_ = root_nh_.advertise<visualization_msgs::Marker>("target_point_marker", 1);
-  makeMarker(std::string("target_point_box_marker"), target_position_, &target_marker_);
-  target_marker_pub_.publish(target_marker_);
+  target_position_ = getCameraPosition();
 }
 
 /**
@@ -312,8 +308,6 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   
   if (time_until_movement_ < 0) {
     chooseCameraLocation(&target_position_);
-    target_marker_.pose.position=target_position_;
-    target_marker_pub_.publish(target_marker_);
   }
   next_position = interpolatePosition(getCameraPosition(), target_position_,
     time_delta);
@@ -476,13 +470,14 @@ float AutoCPDisplay::computeLocationScore(
     location, camera_focus_);
   float occlusion_score = 1;
   if (occlusion_distance > 0.25) {
-    occlusion_score = 0;
+    return 0;
+    // TODO(jstn): hard constraint?
+    //occlusion_score = 0;
   }
 
   // Distance score.
-  //geometry_msgs::Point camera_position = getCameraPosition();
   float distance_score =
-    1 - logisticDistance(distance(target_position_, location));
+    1 - logisticDistance(distance(target_position_, location), 1);
 
   // Orthogonality score.
   geometry_msgs::Vector3 location_vector = vectorBetween(
@@ -492,12 +487,12 @@ float AutoCPDisplay::computeLocationScore(
     location_vector);
   float ortho_score = fabs(cosineAngle(location_vector, projection));
 
-  ROS_INFO("distance: %f, ortho: %f, occl: %f", distance_score, ortho_score, occlusion_score);
+  ROS_INFO("(%f, %f, %f); d: %f, or: %f, oc: %f", location.x, location.y, location.z, distance_score, ortho_score, occlusion_score);
 
   return (
     stay_in_place_weight_->getFloat() * distance_score
     + be_orthogonal_weight_->getFloat() * ortho_score
-    + stay_visible_weight_->getFloat() * occlusion_score);
+    /*+ stay_visible_weight_->getFloat() * occlusion_score*/);
 }
 
 /**
@@ -550,7 +545,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     int y_sign = sign(camera_position.y - control_position.y);
     int z_sign = sign(camera_position.z - control_position.z);
     float best_score = computeLocationScore(camera_position);
-    ROS_INFO("Current position: %f %f %f, s=%f", camera_position.x, camera_position.y, camera_position.z, best_score);
+    //ROS_INFO("Current position: %f %f %f, s=%f", camera_position.x, camera_position.y, camera_position.z, best_score);
     geometry_msgs::Vector3 current_vector = vectorBetween(
         camera_focus_, camera_position);
     float current_distance = length(current_vector);
@@ -558,7 +553,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
 
     // Strategy: get random vectors, normalize distance.
     bool new_location_found = false;
-    for (int tries = 10; tries > 0; tries--) {
+    for (int tries = 40; tries > 0; tries--) {
       geometry_msgs::Vector3 test_vector = getRandomVector();
       float test_length = length(test_vector);
       geometry_msgs::Point test_point = add(camera_focus_, test_vector);
@@ -590,7 +585,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       
       float score = computeLocationScore(test_point);
       if (score > score_threshold_->getFloat() * best_score) {
-        ROS_INFO("New position: %f %f %f, p=%f, s=%f", test_point.x, test_point.y, test_point.z, best_score, score);
+        ROS_INFO("New position: %f %f %f, p=%f, s=%f, d=%f", test_point.x, test_point.y, test_point.z, best_score, score, distance(best_location, target_position_));
         best_location.x = test_point.x;
         best_location.y = test_point.y;
         best_location.z = test_point.z;
@@ -598,9 +593,10 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
         new_location_found = true;
       }
     }
-    location->x = best_location.x;
-    location->y = best_location.y;
-    location->z = best_location.z;
+    //location->x = best_location.x;
+    //location->y = best_location.y;
+    //location->z = best_location.z;
+    target_position_ = best_location;
 
     delete current_control_;
     current_control_ = NULL;
@@ -644,42 +640,6 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.vector.x = 0.0;
   camera_placement->up.vector.y = 0.0;
   camera_placement->up.vector.z = 1.0;
-}
-
-void AutoCPDisplay::makeMarker(const std::string& name, const geometry_msgs::Point& position, visualization_msgs::Marker* marker) {
-  // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-  marker->header.frame_id = "<Fixed Frame>";
-  marker->header.stamp = ros::Time::now();
-
-  // Set the namespace and id for this marker.  This serves to create a unique ID
-  // Any marker sent with the same namespace and id will overwrite the old one
-  marker->ns = name;
-  marker->id = 0;
-
-  marker->type = visualization_msgs::Marker::CUBE;
-
-  // Set the marker action.  Options are ADD and DELETE
-  marker->action = visualization_msgs::Marker::ADD;
-
-  // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-  marker->pose.position = position;
-  marker->pose.orientation.x = 0.0;
-  marker->pose.orientation.y = 0.0;
-  marker->pose.orientation.z = 0.0;
-  marker->pose.orientation.w = 1.0;
-
-  // Set the scale of the marker -- 1x1x1 here means 1m on a side
-  marker->scale.x = 0.25;
-  marker->scale.y = 0.25;
-  marker->scale.z = 0.25;
-
-  // Set the color -- be sure to set alpha to something non-zero!
-  marker->color.r = 0.0;
-  marker->color.g = 0.0;
-  marker->color.b = 1.0;
-  marker->color.a = 1.0;
-
-  marker->lifetime = ros::Duration();
 }
 
 }  // namespace autocp
