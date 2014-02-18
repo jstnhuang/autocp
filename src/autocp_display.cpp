@@ -2,14 +2,12 @@
 #include "utils.h"
 #include <string>
 #include <vector>
-#include <random>
 
 namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
  */
-AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
-  uniform_distribution_(0.0, 1.0) {
+AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   topic_prop_ = new rviz::RosTopicProperty(
     "Command topic",
     "/rviz/camera_placement",

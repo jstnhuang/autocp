@@ -35,7 +35,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <random>
 #include <array>
 
 namespace autocp {
@@ -152,9 +151,6 @@ class AutoCPDisplay: public rviz::Display {
   rviz::FloatProperty* stay_in_place_weight_;
   rviz::FloatProperty* be_orthogonal_weight_;
   rviz::FloatProperty* stay_visible_weight_;
-  std::default_random_engine generator_;
-  std::normal_distribution<float> normal_distribution_;
-  std::normal_distribution<float> uniform_distribution_;
 
   // Visibility factors.
   void projectWorldToViewport(
