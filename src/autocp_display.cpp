@@ -27,6 +27,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_(""), normal_distribution_(0.0, 1),
     SLOT(updateWeights()));
   gripper_weight_property_->setMin(0);
   gripper_weight_property_->setMax(100);
+
   point_head_weight_property_ = new rviz::FloatProperty(
     "Head focus point weight",
     1.0,
@@ -134,6 +135,12 @@ void AutoCPDisplay::onInitialize() {
     &AutoCPDisplay::markerCallback,
     this);
 
+  object_segmentation_subscriber_ = root_nh_.subscribe(
+    "/interactive_object_recognition_result",
+    5,
+    &AutoCPDisplay::objectSegmentationCallback,
+    this);
+
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
@@ -217,6 +224,28 @@ void AutoCPDisplay::pointHeadCallback(
   const pr2_controllers_msgs::PointHeadActionGoal& action_goal
 ) {
   head_focus_point_ = action_goal.goal.target.point;
+}
+
+/**
+ * When an object is segmented, compute the average point in the point cloud and
+ * update the segmented_object_positions_ vector.
+ */
+void AutoCPDisplay::objectSegmentationCallback(
+  const manipulation_msgs::GraspableObjectList& list
+) {
+  segmented_object_positions_.clear();
+  for (auto obj : list.graspable_objects) {
+    geometry_msgs::Point obj_location;
+    for (auto point : obj.cluster.points) {
+      obj_location.x += point.x;
+      obj_location.y += point.y;
+      obj_location.z += point.z;
+    }
+    obj_location.x /= obj.cluster.points.size();
+    obj_location.y /= obj.cluster.points.size();
+    obj_location.z /= obj.cluster.points.size();
+    segmented_object_positions_.push_back(obj_location);
+  }
 }
 
 /**
@@ -474,13 +503,27 @@ float AutoCPDisplay::computeLocationScore(
   }
   geometry_msgs::Point control_location = current_control_->world_position;
 
-  // Occlusion score.
+
+  // Occlusion score for current control.
   float occlusion_distance = occlusionDistanceFrom(control_location,
     location, camera_focus_);
   float occlusion_score = 1;
   if (occlusion_distance > 0.25) {
     occlusion_score = 0;
   }
+  
+  // Occlusion score for segmented objects.
+  // TODO: clean this up
+  for (auto point : segmented_object_positions_) {
+    float occlusion_distance = occlusionDistanceFrom(point, location,
+      camera_focus_);
+    if (occlusion_distance > 0.25) {
+      occlusion_score += 0;
+    } else {
+      occlusion_score += 1;
+    }
+  }
+  occlusion_score /= segmented_object_positions_.size() + 1;
 
   // Distance score.
   float distance_score =
@@ -551,9 +594,6 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     int z_sign = sign(camera_position.z - control_position.z);
     float best_score = computeLocationScore(camera_position);
     float current_score = best_score; // TODO: delete this
-    geometry_msgs::Vector3 current_vector = vectorBetween(
-        camera_focus_, camera_position);
-    float current_distance = length(current_vector);
     geometry_msgs::Point best_location = camera_position;
 
     // Strategy: get random vectors, normalize distance.
@@ -563,7 +603,6 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
       int test_x_sign = sign(test_point.x - control_position.x);
       int test_y_sign = sign(test_point.y - control_position.y);
       int test_z_sign = sign(test_point.z - control_position.z);
-      float test_distance = length(vectorBetween(camera_focus_, test_point));
 
       // Constraints
       // Never go below the ground plane

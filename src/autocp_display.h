@@ -29,6 +29,7 @@
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
+#include <manipulation_msgs/GraspableObjectList.h>
 
 #include <math.h>
 #include <map>
@@ -126,6 +127,12 @@ class AutoCPDisplay: public rviz::Display {
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* point_head_weight_property_;
+
+  // Segmented objects factor.
+  ros::Subscriber object_segmentation_subscriber_;
+  std::vector<geometry_msgs::Point> segmented_object_positions_;
+  void objectSegmentationCallback(
+    const manipulation_msgs::GraspableObjectList& list);
 
   // Gripper factors.
   geometry_msgs::Point left_gripper_origin_;
