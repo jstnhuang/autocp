@@ -38,7 +38,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
-    0.2,
+    0.1,
     "How much weight to points close to the current location.",
     this,
     SLOT(updateWeights()));
@@ -46,7 +46,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   stay_in_place_weight_->setMax(1);
   be_orthogonal_weight_ = new rviz::FloatProperty(
     "Marker orthogonality weight",
-    0.4,
+    0.7,
     "How much weight to assign to points orthogonal to the current marker.",
     this,
     SLOT(updateWeights()));
@@ -54,7 +54,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   be_orthogonal_weight_->setMax(1);
   stay_visible_weight_ = new rviz::FloatProperty(
     "Marker visibility weight",
-    0.4,
+    0.2,
     "How much weight to assign to points where the current marker is visible.",
     this,
     SLOT(updateWeights()));
@@ -62,7 +62,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   stay_visible_weight_->setMax(1);
   score_threshold_ = new rviz::FloatProperty(
     "Score improvement threshold",
-    1.1,
+    1.05,
     "Factor by which the score must improve before adjusting the position.",
     this,
     SLOT(updateWeights()));
@@ -71,7 +71,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
 
   camera_speed_ = new rviz::FloatProperty(
     "Camera speed",
-    10,
+    3,
     "How many meters per second the camera can move.",
     this,
     SLOT(updateCameraOptions()));
@@ -292,6 +292,9 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
+
+  delete current_control_;
+  current_control_ = NULL;
 }
 
 /**
@@ -300,13 +303,9 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
-
-  // Where we will actually place the camera in this timestep.
-  geometry_msgs::Point next_position;
-  
   chooseCameraLocation(&target_position_);
-  next_position = interpolatePosition(getCameraPosition(), target_position_,
-    time_delta);
+  geometry_msgs::Point next_position = interpolatePosition(
+    getCameraPosition(), target_position_, time_delta);
 
   view_controller_msgs::CameraPlacement camera_placement;
   setCameraPlacement(
@@ -354,85 +353,118 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 float AutoCPDisplay::computeLocationScore(
     const geometry_msgs::Point& location) {
-  if (current_control_ == NULL) {
-    return -1;
+  float score_numerator = 0;
+  float score_denominator = 0;
+
+  geometry_msgs::Point control_location;
+  if (current_control_ != NULL) {
+    control_location = current_control_->world_position;
   }
-  geometry_msgs::Point control_location = current_control_->world_position;
+
+  // Occlusion score.
+  int num_visible = 0;
+  int num_points = 0;
 
   // Occlusion score for current control.
-  float occlusion_distance = occlusionDistanceFrom(control_location,
-    location, camera_focus_);
-  float occlusion_score = 1;
-  if (occlusion_distance > 0.25) {
-    occlusion_score = 0;
+  if (current_control_ != NULL) {
+    float occlusion_distance = occlusionDistanceFrom(control_location,
+      location, camera_focus_);
+    if (occlusion_distance < 0.25) {
+      num_visible++;
+    }
+    num_points++;
   }
   
   // Occlusion score for segmented objects.
-  // TODO: clean this up
   for (auto point : segmented_object_positions_) {
     float occlusion_distance = occlusionDistanceFrom(point, location,
       camera_focus_);
-    if (occlusion_distance > 0.25) {
-      occlusion_score += 0;
-    } else {
-      occlusion_score += 1;
+    if (occlusion_distance < 0.25) {
+      num_visible++;
     }
+    num_points++;
   }
-  occlusion_score /= segmented_object_positions_.size() + 1;
 
-  // Distance score.
-  float distance_score =
+  if (num_points != 0) {
+    score_numerator += stay_visible_weight_->getFloat()
+      * num_visible / num_points;
+    score_denominator += stay_visible_weight_->getFloat();
+  }
+
+  // Movement moderation.
+  float movement_moderation_score =
     1 - logisticDistance(distance(getCameraPosition(), location), 1);
+  score_numerator +=
+    stay_in_place_weight_->getFloat() * movement_moderation_score;
+  score_denominator += stay_in_place_weight_->getFloat();
 
   // Orthogonality score.
-  geometry_msgs::Vector3 location_vector = vectorBetween(
-    control_location, location);
-  geometry_msgs::Vector3 projection = computeControlProjection(
-    *current_control_,
-    location_vector);
-  float ortho_score = fabs(cosineAngle(location_vector, projection));
+  float ortho_score = 0;
+  if (current_control_ != NULL) {
+    geometry_msgs::Vector3 location_vector = vectorBetween(
+      control_location, location);
+    geometry_msgs::Vector3 projection = computeControlProjection(
+      *current_control_,
+      location_vector);
+    ortho_score = fabs(cosineAngle(location_vector, projection));
+    score_numerator += be_orthogonal_weight_->getFloat() * ortho_score;
+    score_denominator += be_orthogonal_weight_->getFloat();
+  }
 
-  return (
-    stay_in_place_weight_->getFloat() * distance_score
-    + be_orthogonal_weight_->getFloat() * ortho_score
-    + stay_visible_weight_->getFloat() * occlusion_score);
+  if (score_denominator != 0) {
+    return score_numerator / score_denominator;
+  } else {
+    return 0;
+  }
 }
 
 /**
- * Choose a location for the camera. Balances between:
- * - Not moving too much
- * - Being orthogonal to the active marker
- * - Being able to see the active marker
- * Returns true if a new location was found.
+ * Choose a location for the camera. It searches through the list of standard
+ * viewpoints and selects the highest scoring one. Returns true if a new
+ * location was found.
  */
 bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point camera_position = getCameraPosition();
-  if (current_control_ != NULL) {
-    geometry_msgs::Point control_position = current_control_->world_position;
-    int x_sign = sign(camera_position.x - control_position.x);
-    int y_sign = sign(camera_position.y - control_position.y);
-    int z_sign = sign(camera_position.z - control_position.z);
-    float best_score = computeLocationScore(camera_position);
-    float current_score = best_score; // TODO: delete this
-    geometry_msgs::Point best_location = camera_position;
+  bool new_location_found = false;
 
-    // Strategy: get random vectors, normalize distance.
-    bool new_location_found = false;
-    for (auto test_vector : standard_viewpoints_) {
-      geometry_msgs::Point test_point = toPoint(test_vector);
+  float current_score = computeLocationScore(camera_position);
+  float best_score = current_score;
+  geometry_msgs::Point best_location = camera_position;
+
+  // If the user is using a control, precompute the quadrant the camera is in
+  // relative to the control. The camera must stay in this quadrant.
+  geometry_msgs::Point control_position;
+  int x_sign = 0;
+  int y_sign = 0;
+  int z_sign = 0;
+  if (current_control_ != NULL) {
+    control_position = current_control_->world_position;
+    x_sign = sign(camera_position.x - control_position.x);
+    y_sign = sign(camera_position.y - control_position.y);
+    z_sign = sign(camera_position.z - control_position.z);
+  }
+
+  for (auto test_vector : standard_viewpoints_) {
+    geometry_msgs::Point test_point = toPoint(test_vector);
+
+    // Constraints
+    // Never go below the ground plane
+    if (test_point.z < 0) {
+      continue;
+    }
+
+    // If the user is using a control, then we automatically place some
+    // additional constraints on the viewpoint.
+    if (current_control_ != NULL) {
       int test_x_sign = sign(test_point.x - control_position.x);
       int test_y_sign = sign(test_point.y - control_position.y);
       int test_z_sign = sign(test_point.z - control_position.z);
-
-      // Constraints
-      // Never go below the ground plane
-      if (test_point.z < 0) {
-        continue;
-      }
+      
       // Never go below the control.
       if (test_z_sign < 0) {
         continue;
       }
+
       // If you're using an x control, don't cross the y=0 plane
       // If you're using a y control, don't cross the x=0 plane
       if (current_control_->control == Control6Dof::X) {
@@ -444,30 +476,23 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
           continue;
         }
       }
-      
-      float score = computeLocationScore(test_point);
-      if (score > score_threshold_->getFloat() * best_score) {
-        best_location.x = test_point.x;
-        best_location.y = test_point.y;
-        best_location.z = test_point.z;
-        best_score = score;
-        new_location_found = true;
-      }
     }
-    if (new_location_found) {
-      ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f", best_location.x, best_location.y, best_location.z, best_score, current_score);
-    }
-    target_position_ = best_location;
 
-    delete current_control_;
-    current_control_ = NULL;
-    return new_location_found;
-  } else {
-    location->x = camera_position.x;
-    location->y = camera_position.y;
-    location->z = camera_position.z;
-    return false;
+    float score = computeLocationScore(test_point);
+    if (score > score_threshold_->getFloat() * best_score) {
+      best_location = test_point;
+      best_score = score;
+      new_location_found = true;
+    }
   }
+
+  if (new_location_found) {
+    ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f",
+      best_location.x, best_location.y, best_location.z,
+      best_score, current_score);
+  }
+  target_position_ = best_location;
+  return new_location_found;
 }
 
 // Utilities -------------------------------------------------------------------
