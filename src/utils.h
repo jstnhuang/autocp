@@ -10,6 +10,9 @@ namespace autocp {
 geometry_msgs::Point add(
   const geometry_msgs::Point& p,
   const geometry_msgs::Vector3& v);
+geometry_msgs::Point add(
+  const geometry_msgs::Point& a,
+  const geometry_msgs::Point& b);
 geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v);
 float cosineAngle(
   const geometry_msgs::Vector3& v1,
@@ -24,6 +27,7 @@ float length(const geometry_msgs::Vector3& v);
 float logisticDistance(float x, float scale);
 geometry_msgs::Vector3 makeVector3(float x, float y, float z);
 float minimumMagnitude(float num, float magnitude);
+geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale);
 geometry_msgs::Vector3 setLength(
   const geometry_msgs::Vector3& p1,
   float new_length);

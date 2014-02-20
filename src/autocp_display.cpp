@@ -17,23 +17,42 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateTopic()));
   
-  gripper_weight_property_ = new rviz::FloatProperty(
+  // Landmark weights.
+  gripper_weight_= new rviz::FloatProperty(
     "Gripper focus weight",
-    1.0,
+    0.25,
     "How much weight to assign to the grippers' locations.",
     this,
     SLOT(updateWeights()));
-  gripper_weight_property_->setMin(0);
-  gripper_weight_property_->setMax(100);
+  gripper_weight_->setMin(0);
+  gripper_weight_->setMax(1);
 
-  point_head_weight_property_ = new rviz::FloatProperty(
+  head_focus_weight_= new rviz::FloatProperty(
     "Head focus point weight",
-    1.0,
+    0.25,
     "How much weight to assign to the location the robot is looking.",
     this,
     SLOT(updateWeights()));
-  point_head_weight_property_->setMin(0);
-  point_head_weight_property_->setMax(100);
+  head_focus_weight_->setMin(0);
+  head_focus_weight_->setMax(1);
+
+  segmented_object_weight_ = new rviz::FloatProperty(
+    "Segmented object weight",
+    0.25,
+    "How much weight to assign to the locations of segmented objects",
+    this,
+    SLOT(updateWeights()));
+  segmented_object_weight_->setMin(0);
+  segmented_object_weight_->setMax(1);
+
+  current_marker_weight_ = new rviz::FloatProperty(
+    "Current marker",
+    0.25,
+    "How much weight to assign to the location of the current marker.",
+    this,
+    SLOT(updateWeights()));
+  current_marker_weight_->setMin(0);
+  current_marker_weight_->setMax(1);
 
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
@@ -44,14 +63,16 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     SLOT(updateWeights()));
   stay_in_place_weight_->setMin(0);
   stay_in_place_weight_->setMax(1);
+
   be_orthogonal_weight_ = new rviz::FloatProperty(
     "Marker orthogonality weight",
-    0.7,
+    0.6,
     "How much weight to assign to points orthogonal to the current marker.",
     this,
     SLOT(updateWeights()));
   be_orthogonal_weight_->setMin(0);
   be_orthogonal_weight_->setMax(1);
+
   stay_visible_weight_ = new rviz::FloatProperty(
     "Marker visibility weight",
     0.2,
@@ -60,6 +81,10 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     SLOT(updateWeights()));
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
+
+  updateWeights();
+  
+  // Other properties.
   score_threshold_ = new rviz::FloatProperty(
     "Score improvement threshold",
     1.05,
@@ -78,7 +103,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   camera_speed_->setMin(0);
   camera_speed_->setMax(10);
 
-  updateWeights();
   current_control_ = NULL;
 
   show_fps_ = new rviz::BoolProperty(
@@ -155,23 +179,12 @@ void AutoCPDisplay::updateCameraOptions() {
 
 /**
  * Update the weight vector, and normalize so that the max is 1.
- * TODO(jstn): normalize location weights. Rename weights_ to be focus_weights_.
  */
 void AutoCPDisplay::updateWeights() {
-  weights_ = {
-    point_head_weight_property_->getFloat(),
-    gripper_weight_property_->getFloat(),
-    gripper_weight_property_->getFloat()
-  };
-  float max = 0;
-  for (float weight : weights_) {
-    if (weight > max) {
-      max = weight;
-    }
-  }
-  for (unsigned i = 0; i < weights_.size(); i++) {
-    weights_[i] = weights_[i] / max;
-  }
+  landmarks_.UpdateGripperWeight(gripper_weight_->getFloat());
+  landmarks_.UpdateHeadFocusWeight(head_focus_weight_->getFloat());
+  landmarks_.UpdateCurrentMarkerWeight(current_marker_weight_->getFloat());
+  landmarks_.UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
 }
 
 // Sensing ---------------------------------------------------------------------
@@ -181,6 +194,8 @@ void AutoCPDisplay::updateWeights() {
 void AutoCPDisplay::sense() {
   getTransformOrigin("/l_wrist_roll_link", &left_gripper_origin_);
   getTransformOrigin("/r_wrist_roll_link", &right_gripper_origin_);
+  landmarks_.UpdateLeftGripper(&left_gripper_origin_);
+  landmarks_.UpdateRightGripper(&right_gripper_origin_);
 }
 
 /**
@@ -210,6 +225,7 @@ void AutoCPDisplay::pointHeadCallback(
   const pr2_controllers_msgs::PointHeadActionGoal& action_goal
 ) {
   head_focus_point_ = action_goal.goal.target.point;
+  landmarks_.UpdateHeadFocus(&head_focus_point_);
 }
 
 /**
@@ -232,6 +248,7 @@ void AutoCPDisplay::objectSegmentationCallback(
     obj_location.z /= obj.cluster.points.size();
     segmented_object_positions_.push_back(obj_location);
   }
+  landmarks_.UpdateSegmentedObjects(segmented_object_positions_);
 }
 
 /**
@@ -273,6 +290,7 @@ void AutoCPDisplay::markerCallback(
       feedback.pose,
       world_position
     };
+    landmarks_.UpdateCurrentMarker(&world_position);
   } catch (std::out_of_range e) {
     ROS_INFO(
       "Unknown control %s for marker %s",
@@ -295,6 +313,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
 
   delete current_control_;
   current_control_ = NULL;
+  landmarks_.UpdateCurrentMarker(NULL);
 }
 
 /**
@@ -327,25 +346,31 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
     &right_gripper_origin_
   };
 
-  float mean_x = 0;
-  float mean_y = 0;
-  float mean_z = 0;
-  int num_points = points.size();
-  for (int i = 0; i < num_points; i++) {
-    geometry_msgs::Point* point = points[i];
-    float weight = weights_[i];
-    mean_x += weight * point->x;
-    mean_y += weight * point->y;
-    mean_z += weight * point->z;
-  }
+  geometry_msgs::Point center = landmarks_.Center();
+  *focus = center;
+  //focus->x = center.x;
+  //focus->y = center.y;
+  //focus->z = center.z;
 
-  mean_x /= num_points;
-  mean_y /= num_points;
-  mean_z /= num_points;
+  //float mean_x = 0;
+  //float mean_y = 0;
+  //float mean_z = 0;
+  //int num_points = points.size();
+  //for (int i = 0; i < num_points; i++) {
+  //  geometry_msgs::Point* point = points[i];
+  //  float weight = weights_[i];
+  //  mean_x += weight * point->x;
+  //  mean_y += weight * point->y;
+  //  mean_z += weight * point->z;
+  //}
 
-  focus->x = mean_x;
-  focus->y = mean_y;
-  focus->z = mean_z;
+  //mean_x /= num_points;
+  //mean_y /= num_points;
+  //mean_z /= num_points;
+
+  //focus->x = mean_x;
+  //focus->y = mean_y;
+  //focus->z = mean_z;
 }
 
 /**

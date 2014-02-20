@@ -30,6 +30,7 @@
 #include <visualization_msgs/InteractiveMarker.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
+#include "landmarks.h"
 
 #include <math.h>
 #include <map>
@@ -119,35 +120,40 @@ class AutoCPDisplay: public rviz::Display {
   void getTransformOrigin(std::string frame, geometry_msgs::Point* origin);
   rviz::BoolProperty* show_fps_;
 
-  // Point head factor.
+  // Landmarks container.
+  Landmarks landmarks_;
+
+  // Grippers.
+  geometry_msgs::Point left_gripper_origin_;
+  geometry_msgs::Point right_gripper_origin_;
+  rviz::FloatProperty* gripper_weight_;
+
+  // Head focus.
   ros::Subscriber point_head_subscriber_;
   geometry_msgs::Point head_focus_point_;
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal);
-  rviz::FloatProperty* point_head_weight_property_;
+  rviz::FloatProperty* head_focus_weight_;
 
-  // Segmented objects factor.
-  ros::Subscriber object_segmentation_subscriber_;
-  std::vector<geometry_msgs::Point> segmented_object_positions_;
-  void objectSegmentationCallback(
-    const manipulation_msgs::GraspableObjectList& list);
-
-  // Gripper factors.
-  geometry_msgs::Point left_gripper_origin_;
-  geometry_msgs::Point right_gripper_origin_;
-  rviz::FloatProperty* gripper_weight_property_;
-
-  // Interactive marker factors.
+  // Current marker.
   ros::Subscriber marker_subscriber_;
   void markerCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback);
+  rviz::FloatProperty* current_marker_weight_;
   ClickedControl* current_control_;
 
+  // Segmented objects factor.
+  ros::Subscriber object_segmentation_subscriber_;
+  rviz::FloatProperty* segmented_object_weight_;
+  std::vector<geometry_msgs::Point> segmented_object_positions_;
+  void objectSegmentationCallback(
+    const manipulation_msgs::GraspableObjectList& list);
+  
   // Smoothness factors.
   rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
 
-  // Weights
+  // Location weights
   rviz::FloatProperty* stay_in_place_weight_;
   rviz::FloatProperty* be_orthogonal_weight_;
   rviz::FloatProperty* stay_visible_weight_;

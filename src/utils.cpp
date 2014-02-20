@@ -15,6 +15,19 @@ geometry_msgs::Point add(
 }
 
 /**
+ * Computes the result of adding two points.
+ */
+geometry_msgs::Point add(
+    const geometry_msgs::Point& a,
+    const geometry_msgs::Point& b) {
+  geometry_msgs::Point result;
+  result.x = a.x + b.x;
+  result.y = a.y + b.y;
+  result.z = a.z + b.z;
+  return result;
+}
+
+/**
  * Copies v (since Vector3 doesn't have a copy constructor).
  */
 geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v) {
@@ -38,8 +51,7 @@ float distance(
     const geometry_msgs::Point& p1,
     const geometry_msgs::Point& p2) {
   geometry_msgs::Vector3 difference;
-  difference.x = p1.x - p2.x;
-  difference.y = p1.y - p2.y;
+  difference.x = p1.x - p2.x; difference.y = p1.y - p2.y;
   difference.z = p1.z - p2.z;
   return length(difference);
 }
@@ -96,6 +108,14 @@ float minimumMagnitude(float num, float magnitude) {
     }
   }
   return num;
+}
+
+geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale) {
+  geometry_msgs::Point result;
+  result.x = point.x * scale;
+  result.y = point.y * scale;
+  result.z = point.z * scale;
+  return result;
 }
 
 /**

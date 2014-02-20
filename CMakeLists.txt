@@ -27,6 +27,8 @@ qt4_wrap_cpp(MOC_FILES
 set(SOURCE_FILES
   src/utils.h
   src/utils.cpp
+  src/landmarks.h
+  src/landmarks.cpp
   src/autocp_display.cpp
   ${MOC_FILES}
 )
