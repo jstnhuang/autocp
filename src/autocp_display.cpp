@@ -236,9 +236,9 @@ void AutoCPDisplay::objectSegmentationCallback(
   const manipulation_msgs::GraspableObjectList& list
 ) {
   segmented_object_positions_.clear();
-  for (auto obj : list.graspable_objects) {
+  for (const auto& obj : list.graspable_objects) {
     geometry_msgs::Point obj_location;
-    for (auto point : obj.cluster.points) {
+    for (const auto& point : obj.cluster.points) {
       obj_location.x += point.x;
       obj_location.y += point.y;
       obj_location.z += point.z;
@@ -378,7 +378,7 @@ float AutoCPDisplay::computeLocationScore(
   }
   
   // Occlusion score for segmented objects.
-  for (auto point : segmented_object_positions_) {
+  for (const auto& point : segmented_object_positions_) {
     float occlusion_distance = occlusionDistanceFrom(point, location,
       camera_focus_);
     if (occlusion_distance < 0.25) {
@@ -446,7 +446,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     z_sign = sign(camera_position.z - control_position.z);
   }
 
-  for (auto test_vector : standard_viewpoints_) {
+  for (const auto& test_vector : standard_viewpoints_) {
     geometry_msgs::Point test_point = toPoint(test_vector);
 
     // Constraints

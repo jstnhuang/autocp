@@ -24,7 +24,7 @@ Point Landmarks::Center() {
   Point center;
   std::vector<Landmark> landmarks = landmarksVector();
   float normalizer = 0;
-  for (auto landmark : landmarks) {
+  for (const auto& landmark : landmarks) {
     if (landmark.exists) {
       normalizer += landmark.weight;
       Point weighted = scale(landmark.position, landmark.weight);
@@ -118,7 +118,7 @@ void Landmarks::UpdateCurrentMarker(const Point* point) {
 void Landmarks::UpdateSegmentedObjects(const std::vector<Point>& objects) {
   float weight = segmented_object_weight_ / segmented_objects_.size();
   segmented_objects_.clear();
-  for (auto object : objects) {
+  for (const auto& object : objects) {
     segmented_objects_.push_back(Landmark(object, weight, true));
   }
 }
@@ -155,7 +155,7 @@ void Landmarks::UpdateCurrentMarkerWeight(float weight) {
 void Landmarks::UpdateSegmentedObjectWeight(float weight) {
   segmented_object_weight_ = weight;
   float updated_weight = segmented_object_weight_ / segmented_objects_.size();
-  for (auto object : segmented_objects_) {
+  for (auto& object : segmented_objects_) {
     object.weight = updated_weight;
   }
 }
