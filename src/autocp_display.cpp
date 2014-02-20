@@ -348,29 +348,6 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
 
   geometry_msgs::Point center = landmarks_.Center();
   *focus = center;
-  //focus->x = center.x;
-  //focus->y = center.y;
-  //focus->z = center.z;
-
-  //float mean_x = 0;
-  //float mean_y = 0;
-  //float mean_z = 0;
-  //int num_points = points.size();
-  //for (int i = 0; i < num_points; i++) {
-  //  geometry_msgs::Point* point = points[i];
-  //  float weight = weights_[i];
-  //  mean_x += weight * point->x;
-  //  mean_y += weight * point->y;
-  //  mean_z += weight * point->z;
-  //}
-
-  //mean_x /= num_points;
-  //mean_y /= num_points;
-  //mean_z /= num_points;
-
-  //focus->x = mean_x;
-  //focus->y = mean_y;
-  //focus->z = mean_z;
 }
 
 /**
