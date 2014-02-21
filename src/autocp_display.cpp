@@ -156,14 +156,14 @@ void AutoCPDisplay::onInitialize() {
   target_position_ = getCameraPosition();
   current_control_ = NULL;
 
-  standard_viewpoints_[0] = makeVector3(2, 0, 2);
-  standard_viewpoints_[1] = makeVector3(2, -1, 2);
-  standard_viewpoints_[2] = makeVector3(0, -1, 2);
-  standard_viewpoints_[3] = makeVector3(-1, -1, 2);
-  standard_viewpoints_[4] = makeVector3(-1, 0, 2);
-  standard_viewpoints_[5] = makeVector3(-1, 1, 2);
-  standard_viewpoints_[6] = makeVector3(0, 1, 2);
-  standard_viewpoints_[7] = makeVector3(2, 1, 2);
+  standard_viewpoints_[0] = makeVector3(1, 0, 1);
+  standard_viewpoints_[1] = makeVector3(1, -1, 1);
+  standard_viewpoints_[2] = makeVector3(0, -1, 1);
+  standard_viewpoints_[3] = makeVector3(-1, -1, 1);
+  standard_viewpoints_[4] = makeVector3(-1, 0, 1);
+  standard_viewpoints_[5] = makeVector3(-1, 1, 1);
+  standard_viewpoints_[6] = makeVector3(0, 1, 1);
+  standard_viewpoints_[7] = makeVector3(1, 1, 1);
 }
 
 // Parameter update handlers ---------------------------------------------------
