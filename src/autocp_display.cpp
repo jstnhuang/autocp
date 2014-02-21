@@ -465,7 +465,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   }
 
   for (const auto& test_vector : standard_viewpoints_) {
-    geometry_msgs::Point test_point = toPoint(test_vector);
+    geometry_msgs::Point test_point = add(camera_focus_, test_vector);
 
     // Constraints
     // Never go below the ground plane
