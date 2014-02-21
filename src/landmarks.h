@@ -1,6 +1,7 @@
 #ifndef AUTOCP_LANDMARKS_H
 #define AUTOCP_LANDMARKS_H
 
+#include <functional>
 #include <vector>
 #include <geometry_msgs/Point.h>
 
@@ -31,6 +32,8 @@ class Landmarks {
       float current_marker_weight, float segmented_object_weight);
     ~Landmarks();
     Point Center();
+    template <typename MetricFunc>
+    float ComputeMetric(MetricFunc metric);
     void UpdateLeftGripper(const Point* point);
     void UpdateRightGripper(const Point* point);
     void UpdateHeadFocus(const Point* point);
@@ -52,6 +55,23 @@ class Landmarks {
     float segmented_object_weight_;
     std::vector<Landmark> landmarksVector();
 };
+
+template <typename MetricFunc>
+float Landmarks::ComputeMetric(MetricFunc metric) {
+  float result = 0;
+  float normalizer = 0;
+  std::vector<Landmark> landmarks = landmarksVector();
+  for (const auto& landmark : landmarks) {
+    if (landmark.exists) {
+      normalizer += landmark.weight;
+      result += landmark.weight * metric(landmark.position);
+    }
+  }
+  // TODO: we currently assume normalizer is never 0.
+  result /= normalizer;
+  return result;
+}
+
 }
 
 #endif

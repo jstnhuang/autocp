@@ -82,6 +82,15 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
 
+  zoom_weight_ = new rviz::FloatProperty(
+    "Zoom weight",
+    0.1,
+    "How much weight to assign to being close to landmarks.",
+    this,
+    SLOT(updateWeights()));
+  zoom_weight_->setMin(0);
+  zoom_weight_->setMax(1);
+
   updateWeights();
   
   // Other properties.
@@ -358,6 +367,23 @@ float AutoCPDisplay::computeLocationScore(
   float score_numerator = 0;
   float score_denominator = 0;
 
+  // TODO(jstn): Hold onto this code for now. Despite my best efforts this has a
+  // huge impact on performance, probably because this is a fairly non-trivial
+  // function, which the compiler is attempting to inline?
+  //auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
+  //  float occlusion_distance = occlusionDistanceFrom(point, location,
+  //    camera_focus_);
+  //  if (occlusion_distance < 0.25) {
+  //    return 1;
+  //  } else {
+  //    return 0;
+  //  }
+  //};
+
+  //float occlusion_score = landmarks_.ComputeMetric(occlusion_metric);
+  //score_numerator += stay_visible_weight_->getFloat() * occlusion_score;
+  //score_denominator += stay_visible_weight_->getFloat();
+
   geometry_msgs::Point control_location;
   if (current_control_ != NULL) {
     control_location = current_control_->world_position;
@@ -412,6 +438,20 @@ float AutoCPDisplay::computeLocationScore(
     score_numerator += be_orthogonal_weight_->getFloat() * ortho_score;
     score_denominator += be_orthogonal_weight_->getFloat();
   }
+
+  // Zoom score.
+  auto zoom_metric = [&] (const geometry_msgs::Point& point) -> float {
+    float dist = distance(point, location);
+    if (dist < MIN_DISTANCE || dist > MAX_DISTANCE) {
+      return 0;
+    } else {
+      float slope = 1.0 / (MAX_DISTANCE - MIN_DISTANCE);
+      return -slope * dist + (1 + MIN_DISTANCE * slope);
+    }
+  };
+  float zoom_score = landmarks_.ComputeMetric(zoom_metric);
+  score_numerator += zoom_weight_->getFloat() * zoom_score;
+  score_denominator += zoom_weight_->getFloat();
 
   if (score_denominator != 0) {
     return score_numerator / score_denominator;

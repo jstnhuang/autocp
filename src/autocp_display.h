@@ -148,6 +148,9 @@ class AutoCPDisplay: public rviz::Display {
   std::vector<geometry_msgs::Point> segmented_object_positions_;
   void objectSegmentationCallback(
     const manipulation_msgs::GraspableObjectList& list);
+
+  // Zoom factors.
+  rviz::FloatProperty* zoom_weight_;
   
   // Smoothness factors.
   rviz::FloatProperty* camera_speed_;
