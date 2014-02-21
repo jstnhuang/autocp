@@ -105,7 +105,6 @@ class AutoCPDisplay: public rviz::Display {
   ros::NodeHandle root_nh_;
   tf::TransformListener tf_listener_;
   rviz::VisualizationManager* vm_;
-  std::vector<float> weights_;
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
   geometry_msgs::Point target_position_;
@@ -164,13 +163,15 @@ class AutoCPDisplay: public rviz::Display {
   // Visibility factors.
   void projectWorldToViewport(
     const geometry_msgs::Point& point,
+    const Ogre::Matrix4& product,
     int* screen_x,
     int* screen_y);
-  float occlusionDistance(const geometry_msgs::Point& point);
-  float occlusionDistanceFrom(
-    const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& focus);
+  float occlusionDistance(const geometry_msgs::Point& point,
+    const Ogre::Matrix4& product);
+  //float occlusionDistanceFrom(
+  //  const geometry_msgs::Point& point,
+  //  const geometry_msgs::Point& camera_position,
+  //  const geometry_msgs::Point& focus);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;

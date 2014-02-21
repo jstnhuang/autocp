@@ -2,7 +2,7 @@
 #include "utils.h"
 #include <string>
 #include <vector>
-
+#include <sys/time.h>
 namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
@@ -91,8 +91,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   zoom_weight_->setMin(0);
   zoom_weight_->setMax(1);
 
-  updateWeights();
-  
   // Other properties.
   score_threshold_ = new rviz::FloatProperty(
     "Score improvement threshold",
@@ -112,23 +110,12 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   camera_speed_->setMin(0);
   camera_speed_->setMax(10);
 
-  current_control_ = NULL;
-
   show_fps_ = new rviz::BoolProperty(
     "Show FPS",
     false,
     "Whether or not to show the frames per second.",
     this,
     SLOT(updateCameraOptions()));
-
-  standard_viewpoints_[0] = makeVector3(2, 0, 2);
-  standard_viewpoints_[1] = makeVector3(2, -1, 2);
-  standard_viewpoints_[2] = makeVector3(0, -1, 2);
-  standard_viewpoints_[3] = makeVector3(-1, -1, 2);
-  standard_viewpoints_[4] = makeVector3(-1, 0, 2);
-  standard_viewpoints_[5] = makeVector3(-1, 1, 2);
-  standard_viewpoints_[6] = makeVector3(0, 1, 2);
-  standard_viewpoints_[7] = makeVector3(2, 1, 2);
 }
 
 /**
@@ -143,6 +130,7 @@ AutoCPDisplay::~AutoCPDisplay() {
 void AutoCPDisplay::onInitialize() {
   Display:: onInitialize();
   updateTopic();
+  updateWeights();
 
   point_head_subscriber_ = root_nh_.subscribe(
     "head_traj_controller/point_head_action/goal",
@@ -166,6 +154,16 @@ void AutoCPDisplay::onInitialize() {
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
   target_position_ = getCameraPosition();
+  current_control_ = NULL;
+
+  standard_viewpoints_[0] = makeVector3(2, 0, 2);
+  standard_viewpoints_[1] = makeVector3(2, -1, 2);
+  standard_viewpoints_[2] = makeVector3(0, -1, 2);
+  standard_viewpoints_[3] = makeVector3(-1, -1, 2);
+  standard_viewpoints_[4] = makeVector3(-1, 0, 2);
+  standard_viewpoints_[5] = makeVector3(-1, 1, 2);
+  standard_viewpoints_[6] = makeVector3(0, 1, 2);
+  standard_viewpoints_[7] = makeVector3(2, 1, 2);
 }
 
 // Parameter update handlers ---------------------------------------------------
@@ -349,12 +347,6 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
  * weighted mean of the current focus points.
  */
 void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
-  std::vector<geometry_msgs::Point*> points = {
-    &head_focus_point_,
-    &left_gripper_origin_,
-    &right_gripper_origin_
-  };
-
   geometry_msgs::Point center = landmarks_.Center();
   *focus = center;
 }
@@ -368,25 +360,32 @@ float AutoCPDisplay::computeLocationScore(
   float score_numerator = 0;
   float score_denominator = 0;
 
-  // TODO(jstn): Hold onto this code for now. Despite my best efforts this has a
-  // huge impact on performance, probably because this is a fairly non-trivial
-  // function, which the compiler is attempting to inline?
-  //float (*ofunc) (const geometry_msgs::Point&, const geometry_msgs::Point&,
-  //  const geometry_msgs::Point&);
-  //ofunc = &occlusionDistanceFrom;
-  //auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
-  //  float occlusion_distance = ofunc(point, location,
-  //    camera_focus_);
-  //  if (occlusion_distance < 0.25) {
-  //    return 1;
-  //  } else {
-  //    return 0;
-  //  }
-  //};
+  // Position the camera in the test pose, cache the matrix computation.
+  Ogre::Vector3 old_position = camera_->getPosition();
+  Ogre::Vector3 old_direction = camera_->getDirection();
+  camera_->setPosition(location.x, location.y, location.z);
+  camera_->lookAt(camera_focus_.x, camera_focus_.y, camera_focus_.z);
+  Ogre::Matrix4 prod =
+    camera_->getProjectionMatrix() * camera_->getViewMatrix();
 
-  //float occlusion_score = landmarks_.ComputeMetric(occlusion_metric);
-  //score_numerator += stay_visible_weight_->getFloat() * occlusion_score;
-  //score_denominator += stay_visible_weight_->getFloat();
+  // TODO(jstn): Taking occlusions into account for all points is expensive.
+  auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
+    float occlusion_distance = occlusionDistance(point, prod);
+    //float occlusion_distance = occlusionDistanceFrom(point, location,
+    //  camera_focus_);
+    if (occlusion_distance < 0.25) {
+      return 1;
+    } else {
+      return 0;
+    }
+  };
+
+  float occlusion_score = landmarks_.ComputeMetric(occlusion_metric);
+  camera_->setPosition(old_position);
+  camera_->setDirection(old_direction);
+
+  score_numerator += stay_visible_weight_->getFloat() * occlusion_score;
+  score_denominator += stay_visible_weight_->getFloat();
 
   geometry_msgs::Point control_location;
   if (current_control_ != NULL) {
@@ -394,34 +393,34 @@ float AutoCPDisplay::computeLocationScore(
   }
 
   //// Occlusion score.
-  int num_visible = 0;
-  int num_points = 0;
+  //int num_visible = 0;
+  //int num_points = 0;
 
-  // Occlusion score for current control.
-  if (current_control_ != NULL) {
-    float occlusion_distance = occlusionDistanceFrom(control_location,
-      location, camera_focus_);
-    if (occlusion_distance < 0.25) {
-      num_visible++;
-    }
-    num_points++;
-  }
-  
-  // Occlusion score for segmented objects.
-  for (const auto& point : segmented_object_positions_) {
-    float occlusion_distance = occlusionDistanceFrom(point, location,
-      camera_focus_);
-    if (occlusion_distance < 0.25) {
-      num_visible++;
-    }
-    num_points++;
-  }
+  //// Occlusion score for current control.
+  //if (current_control_ != NULL) {
+  //  float occlusion_distance = occlusionDistanceFrom(control_location,
+  //    location, camera_focus_);
+  //  if (occlusion_distance < 0.25) {
+  //    num_visible++;
+  //  }
+  //  num_points++;
+  //}
+  //
+  //// Occlusion score for segmented objects.
+  //for (const auto& point : segmented_object_positions_) {
+  //  float occlusion_distance = occlusionDistanceFrom(point, location,
+  //    camera_focus_);
+  //  if (occlusion_distance < 0.25) {
+  //    num_visible++;
+  //  }
+  //  num_points++;
+  //}
 
-  if (num_points != 0) {
-    score_numerator += stay_visible_weight_->getFloat()
-      * num_visible / num_points;
-    score_denominator += stay_visible_weight_->getFloat();
-  }
+  //if (num_points != 0) {
+  //  score_numerator += stay_visible_weight_->getFloat()
+  //    * num_visible / num_points;
+  //  score_denominator += stay_visible_weight_->getFloat();
+  //}
 
   // Movement moderation.
   float movement_moderation_score =
@@ -473,6 +472,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point camera_position = getCameraPosition();
   bool new_location_found = false;
 
+  // TODO: debug
   float current_score = computeLocationScore(camera_position);
   float best_score = current_score;
   geometry_msgs::Point best_location = camera_position;
@@ -482,12 +482,10 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point control_position;
   int x_sign = 0;
   int y_sign = 0;
-  int z_sign = 0;
   if (current_control_ != NULL) {
     control_position = current_control_->world_position;
     x_sign = sign(camera_position.x - control_position.x);
     y_sign = sign(camera_position.y - control_position.y);
-    z_sign = sign(camera_position.z - control_position.z);
   }
 
   for (const auto& test_vector : standard_viewpoints_) {
@@ -525,19 +523,21 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     }
 
     float score = computeLocationScore(test_point);
-    if (score > score_threshold_->getFloat() * best_score) {
+    if (score > best_score
+        && score > score_threshold_->getFloat() * current_score) {
       best_location = test_point;
       best_score = score;
       new_location_found = true;
     }
   }
 
+  target_position_ = best_location;
   if (new_location_found) {
     ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f",
       best_location.x, best_location.y, best_location.z,
       best_score, current_score);
   }
-  target_position_ = best_location;
+
   return new_location_found;
 }
 
@@ -607,14 +607,16 @@ geometry_msgs::Point AutoCPDisplay::interpolatePosition(
  */
 void AutoCPDisplay::projectWorldToViewport(
     const geometry_msgs::Point& point,
+    const Ogre::Matrix4& product,
     int* screen_x,
     int* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
   Ogre::Vector4 point4(point.x, point.y, point.z, 1);
-  Ogre::Vector4 projected =
-    camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
-  projected = projected / projected.w;
+  // TODO: debug
+  Ogre::Vector4 projected = product * point4;
+  //Ogre::Vector4 projected = camera_->getProjectionMatrix() * camera_->getViewMatrix() * point4;
+    projected = projected / projected.w;
 
   // Using the current viewport.
   *screen_x = static_cast<int>(
@@ -626,16 +628,25 @@ void AutoCPDisplay::projectWorldToViewport(
 /**
  * Compute the distance between the given point and the closest visible point on * the ray pointed towards that point.
  */
-float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point) {
+float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point,
+    const Ogre::Matrix4& product) {
   int screen_x;
   int screen_y;
-  projectWorldToViewport(point, &screen_x, &screen_y);
+  timespec start;
+  clock_gettime(CLOCK_REALTIME, &start);
+  projectWorldToViewport(point, product, &screen_x, &screen_y);
+  timespec projected;
+  clock_gettime(CLOCK_REALTIME, &projected);
   Ogre::Vector3 occluding_vector;
   bool success = context_->getSelectionManager()->get3DPoint(
     viewport_,
     screen_x,
     screen_y,
     occluding_vector);
+  timespec picked;
+  clock_gettime(CLOCK_REALTIME, &picked);
+  ROS_INFO("project: %ld, pick: %ld", projected.tv_nsec - start.tv_nsec,
+    picked.tv_nsec - projected.tv_nsec);
   geometry_msgs::Point occluding_point = toPoint(occluding_vector);
   if (success) {
     return distance(occluding_point, point);
@@ -648,19 +659,19 @@ float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point) {
  * Computes the amount of occlusion from the given point, given the desired
  * camera position and camera focus. Returns the distance in meters.
  */
-float AutoCPDisplay::occlusionDistanceFrom(
-    const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& camera_focus) {
-  Ogre::Vector3 old_position = camera_->getPosition();
-  Ogre::Vector3 old_direction = camera_->getDirection();
-  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
-  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
-  float occlusion = occlusionDistance(point);
-  camera_->setPosition(old_position);
-  camera_->setDirection(old_direction);
-  return occlusion;
-}
+//float AutoCPDisplay::occlusionDistanceFrom(
+//    const geometry_msgs::Point& point,
+//    const geometry_msgs::Point& camera_position,
+//    const geometry_msgs::Point& camera_focus) {
+//  Ogre::Vector3 old_position = camera_->getPosition();
+//  Ogre::Vector3 old_direction = camera_->getDirection();
+//  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
+//  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
+//  float occlusion = occlusionDistance(point);
+//  camera_->setPosition(old_position);
+//  camera_->setDirection(old_direction);
+//  return occlusion;
+//}
 
 /**
  * Compute the projection of the vector onto the orthogonal plane or line
