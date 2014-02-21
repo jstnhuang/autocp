@@ -364,14 +364,18 @@ void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
  */
 float AutoCPDisplay::computeLocationScore(
     const geometry_msgs::Point& location) {
+  // TODO(jstn): maybe change back to just a single score.
   float score_numerator = 0;
   float score_denominator = 0;
 
   // TODO(jstn): Hold onto this code for now. Despite my best efforts this has a
   // huge impact on performance, probably because this is a fairly non-trivial
   // function, which the compiler is attempting to inline?
+  //float (*ofunc) (const geometry_msgs::Point&, const geometry_msgs::Point&,
+  //  const geometry_msgs::Point&);
+  //ofunc = &occlusionDistanceFrom;
   //auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
-  //  float occlusion_distance = occlusionDistanceFrom(point, location,
+  //  float occlusion_distance = ofunc(point, location,
   //    camera_focus_);
   //  if (occlusion_distance < 0.25) {
   //    return 1;
@@ -389,7 +393,7 @@ float AutoCPDisplay::computeLocationScore(
     control_location = current_control_->world_position;
   }
 
-  // Occlusion score.
+  //// Occlusion score.
   int num_visible = 0;
   int num_points = 0;
 

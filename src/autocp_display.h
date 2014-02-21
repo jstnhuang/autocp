@@ -182,20 +182,16 @@ class AutoCPDisplay: public rviz::Display {
   geometry_msgs::Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(geometry_msgs::Point* focus);
-  geometry_msgs::Point computeOrthogonalPosition(const ClickedControl& control);
   geometry_msgs::Vector3 computeControlProjection(
     const ClickedControl& control,
     const geometry_msgs::Vector3& vector);
   float computeLocationScore(const geometry_msgs::Point& location);
   bool chooseCameraLocation(geometry_msgs::Point* location);
-  void setCameraPlacement(
+  static void setCameraPlacement(
     const geometry_msgs::Point& location,
     const geometry_msgs::Point& focus,
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement);
-  geometry_msgs::Vector3 getRandomPerturbation(
-    const geometry_msgs::Vector3& vector);
-  geometry_msgs::Vector3 getRandomVector();
   geometry_msgs::Point interpolatePosition(
     const geometry_msgs::Point& start, const geometry_msgs::Point& end,
     float time_delta);
