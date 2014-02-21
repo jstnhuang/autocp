@@ -171,10 +171,6 @@ class AutoCPDisplay: public rviz::Display {
     const geometry_msgs::Point& point,
     const geometry_msgs::Point& camera_position,
     const geometry_msgs::Point& focus);
-  bool isOccludedFrom(
-    const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& focus);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
