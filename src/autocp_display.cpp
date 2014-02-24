@@ -360,7 +360,7 @@ float AutoCPDisplay::computeLocationScore(
   float score_numerator = 0;
   float score_denominator = 0;
 
-  /* Uncomment to take all points into account. */
+  /* Uncomment to take all points into account.
   // TODO(jstn): Taking occlusions into account for all points is expensive.
   auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
     float occlusion_distance = occlusionDistanceFrom(point, location,
@@ -376,9 +376,9 @@ float AutoCPDisplay::computeLocationScore(
 
   score_numerator += stay_visible_weight_->getFloat() * occlusion_score;
   score_denominator += stay_visible_weight_->getFloat();
-  /**/ 
+  */ 
 
-  /* Uncomment to take just the center of the landmarks into account.
+  /* Uncomment to take just the center of the landmarks into account. */
   // Occlusion score.
   int num_visible = 0;
   int num_points = 0;
@@ -394,7 +394,7 @@ float AutoCPDisplay::computeLocationScore(
   score_numerator +=
     stay_visible_weight_->getFloat() * num_visible / num_points;
   score_denominator += stay_visible_weight_->getFloat();
-  */
+  /**/
 
   // Movement moderation.
   float movement_moderation_score =
