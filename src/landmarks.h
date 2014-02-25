@@ -32,6 +32,7 @@ class Landmarks {
       float current_marker_weight, float segmented_object_weight);
     ~Landmarks();
     Point Center();
+    void LandmarksVector(std::vector<Landmark>* landmarks);
     template <typename MetricFunc>
     float ComputeMetric(MetricFunc metric);
     void UpdateLeftGripper(const Point* point);
@@ -53,14 +54,14 @@ class Landmarks {
     // for single objects are just stored in the Landmark data structure.
     float gripper_weight_;
     float segmented_object_weight_;
-    std::vector<Landmark> landmarksVector();
 };
 
 template <typename MetricFunc>
 float Landmarks::ComputeMetric(MetricFunc metric) {
   float result = 0;
   float normalizer = 0;
-  std::vector<Landmark> landmarks = landmarksVector();
+  std::vector<Landmark> landmarks;
+  LandmarksVector(&landmarks);
   for (const auto& landmark : landmarks) {
     if (landmark.exists) {
       normalizer += landmark.weight;

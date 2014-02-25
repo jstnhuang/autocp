@@ -36,7 +36,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <array>
 
 namespace autocp {
 enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
@@ -83,6 +82,13 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
 
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
+// The maximum number of times per frame we can check if some point is occluded
+// from some camera pose.
+static const int OCCLUSION_CHECK_LIMIT = 15;
+
+static const float R2 = 0.70710678118; // sqrt(2) / 2
+
+static const float OCCLUSION_THRESHOLD = 0.25;
 
 class AutoCPDisplay: public rviz::Display {
   Q_OBJECT
@@ -112,7 +118,8 @@ class AutoCPDisplay: public rviz::Display {
 
   // Canonical viewpoint locations, expressed as an offset from the robot's
   // origin.
-  std::array<geometry_msgs::Vector3, 8> standard_viewpoints_;
+  void initializeStandardViewpoints();
+  std::vector<geometry_msgs::Vector3> standard_viewpoints_;
 
   // Sensing.
   void sense();
@@ -165,8 +172,9 @@ class AutoCPDisplay: public rviz::Display {
     const geometry_msgs::Point& point,
     int* screen_x,
     int* screen_y);
-  float occlusionDistance(const geometry_msgs::Point& point);
-  float occlusionDistanceFrom(
+  bool isOnScreen(int screen_x, int screen_y);
+  bool isVisible(const geometry_msgs::Point& point);
+  bool isVisibleFrom(
     const geometry_msgs::Point& point,
     const geometry_msgs::Point& camera_position,
     const geometry_msgs::Point& focus);
@@ -181,6 +189,7 @@ class AutoCPDisplay: public rviz::Display {
     const ClickedControl& control,
     const geometry_msgs::Vector3& vector);
   float computeLocationScore(const geometry_msgs::Point& location);
+  void selectViewpoints(std::vector<geometry_msgs::Vector3>* viewpoints);
   bool chooseCameraLocation(geometry_msgs::Point* location);
   static void setCameraPlacement(
     const geometry_msgs::Point& location,

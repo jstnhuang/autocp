@@ -110,11 +110,26 @@ float minimumMagnitude(float num, float magnitude) {
   return num;
 }
 
+/*
+ * Returns the scaled point.
+ */
 geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale) {
   geometry_msgs::Point result;
   result.x = point.x * scale;
   result.y = point.y * scale;
   result.z = point.z * scale;
+  return result;
+}
+
+/*
+ * Returns the scaled vector.
+ */
+geometry_msgs::Vector3 scale(
+  const geometry_msgs::Vector3& vector, float scale) {
+  geometry_msgs::Vector3 result;
+  result.x = vector.x * scale;
+  result.y = vector.y * scale;
+  result.z = vector.z * scale;
   return result;
 }
 

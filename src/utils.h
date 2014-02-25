@@ -28,6 +28,7 @@ float logisticDistance(float x, float scale);
 geometry_msgs::Vector3 makeVector3(float x, float y, float z);
 float minimumMagnitude(float num, float magnitude);
 geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale);
+geometry_msgs::Vector3 scale(const geometry_msgs::Vector3& vector, float scale);
 geometry_msgs::Vector3 setLength(
   const geometry_msgs::Vector3& p1,
   float new_length);

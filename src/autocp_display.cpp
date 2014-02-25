@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <sys/time.h>
+
 namespace autocp {
 /**
  * Constructor. Hooks up the display properties.
@@ -156,6 +157,8 @@ void AutoCPDisplay::onInitialize() {
   target_position_ = getCameraPosition();
   current_control_ = NULL;
 
+  initializeStandardViewpoints();
+
   standard_viewpoints_[0] = makeVector3(1, 0, 1);
   standard_viewpoints_[1] = makeVector3(1, -1, 1);
   standard_viewpoints_[2] = makeVector3(0, -1, 1);
@@ -164,6 +167,38 @@ void AutoCPDisplay::onInitialize() {
   standard_viewpoints_[5] = makeVector3(-1, 1, 1);
   standard_viewpoints_[6] = makeVector3(0, 1, 1);
   standard_viewpoints_[7] = makeVector3(1, 1, 1);
+}
+
+void AutoCPDisplay::initializeStandardViewpoints() {
+  // Lower plane.
+  standard_viewpoints_.push_back(makeVector3(1, 0, 0));
+  standard_viewpoints_.push_back(makeVector3(R2, R2, 0));
+  standard_viewpoints_.push_back(makeVector3(0, 1, 0));
+  standard_viewpoints_.push_back(makeVector3(-R2, R2, 0));
+  standard_viewpoints_.push_back(makeVector3(-1, 0, 0));
+  standard_viewpoints_.push_back(makeVector3(-R2, -R2, 0));
+  standard_viewpoints_.push_back(makeVector3(0, -1, 0));
+  standard_viewpoints_.push_back(makeVector3(R2, -R2, 0));
+  // 45 degrees up.
+  standard_viewpoints_.push_back(makeVector3(R2, 0, R2));
+  standard_viewpoints_.push_back(makeVector3(0.5, 0.5, R2));
+  standard_viewpoints_.push_back(makeVector3(0, R2, R2));
+  standard_viewpoints_.push_back(makeVector3(-0.5, 0.5, R2));
+  standard_viewpoints_.push_back(makeVector3(-R2, 0, R2));
+  standard_viewpoints_.push_back(makeVector3(-0.5, -0.5, R2));
+  standard_viewpoints_.push_back(makeVector3(0, -R2, R2));
+  standard_viewpoints_.push_back(makeVector3(0.5, -0.5, R2));
+
+  // Add scaled versions of the standard viewpoints.
+  int num_standard = standard_viewpoints_.size();
+  const int num_scales = 4;
+  float scales[num_scales] = {0.5, 2, 3, 4};
+  for (int i=0; i<num_standard; i++) {
+    auto viewpoint = standard_viewpoints_[i];
+    for (int j=0; j<num_scales; j++) {
+      standard_viewpoints_.push_back(scale(viewpoint, scales[j]));
+    }
+  }
 }
 
 // Parameter update handlers ---------------------------------------------------
@@ -361,11 +396,8 @@ float AutoCPDisplay::computeLocationScore(
   float score_denominator = 0;
 
   /* Uncomment to take all points into account. */
-  // TODO(jstn): Taking occlusions into account for all points is expensive.
   auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
-    float occlusion_distance = occlusionDistanceFrom(point, location,
-      camera_focus_);
-    if (occlusion_distance < 0.25) {
+    if (isVisibleFrom(point, location, camera_focus_)) {
       return 1;
     } else {
       return 0;
@@ -384,9 +416,7 @@ float AutoCPDisplay::computeLocationScore(
   int num_points = 0;
 
   // Occlusion score for the center of the landmarks.
-  float occlusion_distance = occlusionDistanceFrom(camera_focus_,
-    location, camera_focus_);
-  if (occlusion_distance < 0.25) {
+  if (isVisibleFrom(camera_focus_, location, camera_focus_)) {
     num_visible++;
   }
   num_points++;
@@ -440,6 +470,28 @@ float AutoCPDisplay::computeLocationScore(
   }
 }
 
+/*
+ * Randomly select some viewpoints. The number of
+ * viewpoints to select should be OCCLUSION_CHECK_LIMIT / # of landmarks.
+ */
+void AutoCPDisplay::selectViewpoints(
+    std::vector<geometry_msgs::Vector3>* viewpoints) {
+  std::vector<Landmark> landmarks;
+  landmarks_.LandmarksVector(&landmarks);
+  int num_landmarks = landmarks.size(); 
+  int num_viewpoints = static_cast<int>(
+    static_cast<double>(OCCLUSION_CHECK_LIMIT) / num_landmarks);
+  if (num_viewpoints < 2) {
+    ROS_INFO("Sampling less than two viewpoints per frame. "
+      "There may be too many landmarks.");
+    num_viewpoints = 2;
+  }
+  for (int i=0; i<num_viewpoints; i++) {
+    int index = rand() % standard_viewpoints_.size();
+    viewpoints->push_back(standard_viewpoints_[index]);
+  }
+}
+
 /**
  * Choose a location for the camera. It searches through the list of standard
  * viewpoints and selects the highest scoring one. Returns true if a new
@@ -449,7 +501,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   geometry_msgs::Point camera_position = getCameraPosition();
   bool new_location_found = false;
 
-  float current_score = computeLocationScore(camera_position);
+  float current_score = computeLocationScore(target_position_);
   float best_score = current_score;
   geometry_msgs::Point best_location = camera_position;
 
@@ -464,7 +516,9 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     y_sign = sign(camera_position.y - control_position.y);
   }
 
-  for (const auto& test_vector : standard_viewpoints_) {
+  std::vector<geometry_msgs::Vector3> viewpoints;
+  selectViewpoints(&viewpoints);
+  for (const auto& test_vector : viewpoints) {
     geometry_msgs::Point test_point = add(camera_focus_, test_vector);
 
     // Constraints
@@ -499,19 +553,18 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
     }
 
     float score = computeLocationScore(test_point);
-    if (score > best_score
-        && score > score_threshold_->getFloat() * current_score) {
+    if (score > best_score) {
       best_location = test_point;
       best_score = score;
-      new_location_found = true;
     }
   }
 
-  target_position_ = best_location;
-  if (new_location_found) {
+  if (best_score > score_threshold_->getFloat() * current_score) {
     ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f",
       best_location.x, best_location.y, best_location.z,
       best_score, current_score);
+    new_location_found = true;
+    target_position_ = best_location;
   }
 
   return new_location_found;
@@ -599,43 +652,62 @@ void AutoCPDisplay::projectWorldToViewport(
     round(viewport_->getActualHeight() * (1 - projected.y) / 2));
 }
 
-/**
- * Compute the distance between the given point and the closest visible point on * the ray pointed towards that point.
+/*
+ * Returns true if the given (x, y) coordinates are visible on screen.
  */
-float AutoCPDisplay::occlusionDistance(const geometry_msgs::Point& point) {
-  int screen_x;
-  int screen_y;
-  projectWorldToViewport(point, &screen_x, &screen_y);
-  Ogre::Vector3 occluding_vector;
-  bool success = context_->getSelectionManager()->get3DPoint(
-    viewport_,
-    screen_x,
-    screen_y,
-    occluding_vector);
-  geometry_msgs::Point occluding_point = toPoint(occluding_vector);
-  if (success) {
-    return distance(occluding_point, point);
+bool AutoCPDisplay::isOnScreen(int screen_x, int screen_y) {
+  if (screen_x < 0 || screen_y < 0 || screen_x > viewport_->getActualWidth()
+      || screen_y > viewport_->getActualHeight()) {
+    return false;
   } else {
-    return 0;
+    return true;
   }
 }
 
-/**
- * Computes the amount of occlusion from the given point, given the desired
- * camera position and camera focus. Returns the distance in meters.
+/*
+ * Returns true if the given point is visible from the current camera pose.
  */
-float AutoCPDisplay::occlusionDistanceFrom(
-    const geometry_msgs::Point& point,
+bool AutoCPDisplay::isVisible(const geometry_msgs::Point& point) {
+  int screen_x;
+  int screen_y;
+  projectWorldToViewport(point, &screen_x, &screen_y);
+  if (isOnScreen(screen_x, screen_y)) {
+    float occlusion_distance = 0;
+    Ogre::Vector3 occluding_vector;
+    bool success = context_->getSelectionManager()->get3DPoint(
+      viewport_,
+      screen_x,
+      screen_y,
+      occluding_vector);
+    geometry_msgs::Point occluding_point = toPoint(occluding_vector);
+    if (success) {
+      occlusion_distance = distance(occluding_point, point);
+    }
+    if (occlusion_distance < OCCLUSION_THRESHOLD) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+/*
+ * Returns true if the given point is visible from the given camera position and
+ * focus point.
+ */
+bool AutoCPDisplay::isVisibleFrom(const geometry_msgs::Point& point,
     const geometry_msgs::Point& camera_position,
     const geometry_msgs::Point& camera_focus) {
   Ogre::Vector3 old_position = camera_->getPosition();
   Ogre::Vector3 old_direction = camera_->getDirection();
   camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
   camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
-  float occlusion = occlusionDistance(point);
+  bool result = isVisible(point);
   camera_->setPosition(old_position);
   camera_->setDirection(old_direction);
-  return occlusion;
+  return result;
 }
 
 /**

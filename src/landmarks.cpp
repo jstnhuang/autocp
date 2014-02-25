@@ -22,7 +22,8 @@ Landmarks::~Landmarks() {
  */
 Point Landmarks::Center() {
   Point center;
-  std::vector<Landmark> landmarks = landmarksVector();
+  std::vector<Landmark> landmarks;
+  LandmarksVector(&landmarks);
   float normalizer = 0;
   for (const auto& landmark : landmarks) {
     if (landmark.exists) {
@@ -38,25 +39,23 @@ Point Landmarks::Center() {
 /*
  * Returns all the existing landmarks as a vector.
  */
-std::vector<Landmark> Landmarks::landmarksVector() {
-  std::vector<Landmark> points;
-  if (l_gripper_.exists) {
-    points.push_back(l_gripper_);
+void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
+  if (l_gripper_.exists && l_gripper_.weight > 0) {
+    landmarks->push_back(l_gripper_);
   }
-  if (r_gripper_.exists) {
-    points.push_back(r_gripper_);
+  if (r_gripper_.exists && r_gripper_.weight > 0) {
+    landmarks->push_back(r_gripper_);
   }
-  if (head_focus_.exists) {
-    points.push_back(head_focus_);
+  if (head_focus_.exists && head_focus_.weight > 0) {
+    landmarks->push_back(head_focus_);
   }
-  if (current_marker_.exists) {
-    points.push_back(current_marker_);
+  if (current_marker_.exists && current_marker_.weight > 0) {
+    landmarks->push_back(current_marker_);
   }
   // If the segmented objects vector is nonempty, the objects are assumed to
   // exist.
-  points.insert(points.end(), segmented_objects_.begin(),
+  landmarks->insert(landmarks->end(), segmented_objects_.begin(),
     segmented_objects_.end());
-  return points;
 }
 
 /*
