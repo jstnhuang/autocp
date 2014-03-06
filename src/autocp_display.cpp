@@ -48,7 +48,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
 
   current_marker_weight_ = new rviz::FloatProperty(
     "Current marker",
-    0.25,
+    0,
     "How much weight to assign to the location of the current marker.",
     this,
     SLOT(updateWeights()));
@@ -58,7 +58,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
-    0.1,
+    0.15,
     "How much weight to points close to the current location.",
     this,
     SLOT(updateWeights()));
@@ -85,7 +85,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
 
   zoom_weight_ = new rviz::FloatProperty(
     "Zoom weight",
-    0.1,
+    0.05,
     "How much weight to assign to being close to landmarks.",
     this,
     SLOT(updateWeights()));
@@ -158,15 +158,6 @@ void AutoCPDisplay::onInitialize() {
   current_control_ = NULL;
 
   initializeStandardViewpoints();
-
-  standard_viewpoints_[0] = makeVector3(1, 0, 1);
-  standard_viewpoints_[1] = makeVector3(1, -1, 1);
-  standard_viewpoints_[2] = makeVector3(0, -1, 1);
-  standard_viewpoints_[3] = makeVector3(-1, -1, 1);
-  standard_viewpoints_[4] = makeVector3(-1, 0, 1);
-  standard_viewpoints_[5] = makeVector3(-1, 1, 1);
-  standard_viewpoints_[6] = makeVector3(0, 1, 1);
-  standard_viewpoints_[7] = makeVector3(1, 1, 1);
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
@@ -333,7 +324,7 @@ void AutoCPDisplay::markerCallback(
       world_position
     };
     landmarks_.UpdateCurrentMarker(&world_position);
-  } catch (std::out_of_range e) {
+  } catch (const std::out_of_range& e) {
     ROS_INFO(
       "Unknown control %s for marker %s",
       control_name.c_str(),
@@ -410,7 +401,7 @@ float AutoCPDisplay::computeLocationScore(
   score_denominator += stay_visible_weight_->getFloat();
   /**/ 
 
-  /* Uncomment to take just the center of the landmarks into account.
+  /* Uncomment to take just the center of the landmarks into account.*/
   // Occlusion score.
   int num_visible = 0;
   int num_points = 0;
@@ -424,7 +415,7 @@ float AutoCPDisplay::computeLocationScore(
   score_numerator +=
     stay_visible_weight_->getFloat() * num_visible / num_points;
   score_denominator += stay_visible_weight_->getFloat();
-  */
+  /**/
 
   // Movement moderation.
   float movement_moderation_score =
@@ -498,12 +489,12 @@ void AutoCPDisplay::selectViewpoints(
  * location was found.
  */
 bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-  geometry_msgs::Point camera_position = getCameraPosition();
+//  geometry_msgs::Point camera_position = getCameraPosition();
   bool new_location_found = false;
 
   float current_score = computeLocationScore(target_position_);
   float best_score = current_score;
-  geometry_msgs::Point best_location = camera_position;
+  geometry_msgs::Point best_location = target_position_;
 
   // If the user is using a control, precompute the quadrant the camera is in
   // relative to the control. The camera must stay in this quadrant.
@@ -512,8 +503,8 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   int y_sign = 0;
   if (current_control_ != NULL) {
     control_position = current_control_->world_position;
-    x_sign = sign(camera_position.x - control_position.x);
-    y_sign = sign(camera_position.y - control_position.y);
+    x_sign = sign(target_position_.x - control_position.x);
+    y_sign = sign(target_position_.y - control_position.y);
   }
 
   std::vector<geometry_msgs::Vector3> viewpoints;
