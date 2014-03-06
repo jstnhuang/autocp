@@ -15,3 +15,7 @@
 lib/
 build/
 scripts/cpplint.py
+
+.cproject
+.project
+.pydevproject
