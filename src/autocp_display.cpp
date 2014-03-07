@@ -380,19 +380,6 @@ void AutoCPDisplay::chooseCameraFocus(Point* focus) {
 }
 
 float AutoCPDisplay::visibilityScore(const Point& location) {
-
-}
-
-/**
- * Computes a score for the location.
- */
-float AutoCPDisplay::computeLocationScore(
-    const Point& location) {
-  // TODO(jstn): maybe change back to just a single score.
-  float score_numerator = 0;
-  float score_denominator = 0;
-
-  /* Uncomment to take all points into account. */
   auto occlusion_metric = [&] (const Point& point) -> float {
     if (isVisibleFrom(point, location, camera_focus_)) {
       return 1;
@@ -400,53 +387,24 @@ float AutoCPDisplay::computeLocationScore(
       return 0;
     }
   };
+  return landmarks_.ComputeMetric(occlusion_metric);
+}
 
-  float occlusion_score = landmarks_.ComputeMetric(occlusion_metric);
-
-  score_numerator += stay_visible_weight_->getFloat() * occlusion_score;
-  score_denominator += stay_visible_weight_->getFloat();
-  /**/ 
-
-  /* Uncomment to take just the center of the landmarks into account.*/
-  // Occlusion score.
-  int num_visible = 0;
-  int num_points = 0;
-
-  // Occlusion score for the center of the landmarks.
-  if (isVisibleFrom(camera_focus_, location, camera_focus_)) {
-    num_visible++;
+float AutoCPDisplay::orthogonalityScore(const Point& location,
+    const Point& control_location) {
+  if (current_control_ == NULL) {
+    ROS_INFO("Warning: tried to get orthogonality score without a control.");
+    return 0;
   }
-  num_points++;
-  
-  score_numerator +=
-    stay_visible_weight_->getFloat() * num_visible / num_points;
-  score_denominator += stay_visible_weight_->getFloat();
-  /**/
+  geometry_msgs::Vector3 location_vector = vectorBetween(
+    control_location, location);
+  geometry_msgs::Vector3 projection = computeControlProjection(
+    *current_control_,
+    location_vector);
+  return fabs(cosineAngle(location_vector, projection));
+}
 
-  // Movement moderation.
-  float movement_moderation_score =
-    1 - logisticDistance(distance(getCameraPosition(), location), 1);
-  score_numerator +=
-    stay_in_place_weight_->getFloat() * movement_moderation_score;
-  score_denominator += stay_in_place_weight_->getFloat();
-
-  // Orthogonality score.
-  Point control_location;
-  if (current_control_ != NULL) {
-    control_location = current_control_->world_position;
-  }
-  float ortho_score = 0; if (current_control_ != NULL) {
-    geometry_msgs::Vector3 location_vector = vectorBetween(
-      control_location, location);
-    geometry_msgs::Vector3 projection = computeControlProjection(
-      *current_control_,
-      location_vector);
-    ortho_score = fabs(cosineAngle(location_vector, projection));
-    score_numerator += be_orthogonal_weight_->getFloat() * ortho_score;
-    score_denominator += be_orthogonal_weight_->getFloat();
-  }
-
-  // Zoom score.
+float AutoCPDisplay::zoomScore(const Point& location) {
   auto zoom_metric = [&] (const Point& point) -> float {
     float dist = distance(point, location);
     if (dist < MIN_DISTANCE || dist > MAX_DISTANCE) {
@@ -456,13 +414,49 @@ float AutoCPDisplay::computeLocationScore(
       return -slope * dist + (1 + MIN_DISTANCE * slope);
     }
   };
-  float zoom_score = landmarks_.ComputeMetric(zoom_metric);
-  score_numerator += zoom_weight_->getFloat() * zoom_score;
-  score_denominator += zoom_weight_->getFloat();
+  return landmarks_.ComputeMetric(zoom_metric);
+}
+
+float AutoCPDisplay::smoothnessScore(const Point& location) {
+  return 1 - logisticDistance(distance(getCameraPosition(), location), 1);
+}
+
+/**
+ * Computes a score for the location.
+ */
+float AutoCPDisplay::computeLocationScore(
+    const Point& location) {
+  float score_numerator = 0;
+  float score_denominator = 0;
+  
+  // Visibility score.
+  float visibility_weight = stay_visible_weight_->getFloat();
+  score_numerator += visibility_weight * visibilityScore(location);
+  score_denominator += visibility_weight;
+
+  // Orthogonality score.
+  if (current_control_ != NULL) {
+    Point control_location = current_control_->world_position;
+    float ortho_weight = be_orthogonal_weight_->getFloat();
+    score_numerator +=
+      ortho_weight * orthogonalityScore(location, control_location);
+    score_denominator += ortho_weight;
+  }
+
+  // Zoom score.
+  float zoom_weight = zoom_weight_->getFloat();
+  score_numerator += zoom_weight * zoomScore(location);
+  score_denominator += zoom_weight;
+
+  // Movement moderation.
+  float smoothness_weight = stay_in_place_weight_->getFloat();
+  score_numerator += smoothness_weight * smoothnessScore(location);
+  score_denominator += smoothness_weight;
 
   if (score_denominator != 0) {
     return score_numerator / score_denominator;
   } else {
+    ROS_INFO("Warning: score function took nothing into account.");
     return 0;
   }
 }

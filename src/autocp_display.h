@@ -191,6 +191,13 @@ class AutoCPDisplay: public rviz::Display {
   Vector3 computeControlProjection(
     const ClickedControl& control,
     const Vector3& vector);
+
+  // Score functions.
+  float visibilityScore(const Point& location);
+  float orthogonalityScore(const Point& location,
+    const Point& control_location);
+  float zoomScore(const Point& location);
+  float smoothnessScore(const Point& location);
   float computeLocationScore(const Point& location);
   void selectViewpoints(std::vector<Vector3>* viewpoints);
   bool chooseCameraLocation(Point* location);
