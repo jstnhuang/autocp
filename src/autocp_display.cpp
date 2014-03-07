@@ -379,6 +379,10 @@ void AutoCPDisplay::chooseCameraFocus(Point* focus) {
   *focus = center;
 }
 
+/**
+ * Visibility score. Returns the weighted average visibility of all the
+ * landmarks.
+ */
 float AutoCPDisplay::visibilityScore(const Point& location) {
   auto occlusion_metric = [&] (const Point& point) -> float {
     if (isVisibleFrom(point, location, camera_focus_)) {
@@ -390,6 +394,11 @@ float AutoCPDisplay::visibilityScore(const Point& location) {
   return landmarks_.ComputeMetric(occlusion_metric);
 }
 
+/**
+ * Orthogonality score. Returns 1 if the current control is orthogonal to the
+ * movement of the current control, 0 if it is perfectly parallel, and the
+ * absolute value of the cosine of the angle otherwise.
+ */
 float AutoCPDisplay::orthogonalityScore(const Point& location,
     const Point& control_location) {
   if (current_control_ == NULL) {
@@ -404,6 +413,11 @@ float AutoCPDisplay::orthogonalityScore(const Point& location,
   return fabs(cosineAngle(location_vector, projection));
 }
 
+/**
+ * Zoom score. Returns 1 if we are very close, 0 if we are far away, and a
+ * linearly interpolated value if we are in between. Close and far are defined
+ * by MIN_DISTANCE and MAX_DISTANCE.
+ */
 float AutoCPDisplay::zoomScore(const Point& location) {
   auto zoom_metric = [&] (const Point& point) -> float {
     float dist = distance(point, location);
@@ -417,6 +431,11 @@ float AutoCPDisplay::zoomScore(const Point& location) {
   return landmarks_.ComputeMetric(zoom_metric);
 }
 
+/**
+ * Smoothness score. Returns 1 if the camera has not moved much, 0 if it has
+ * moved a lot, and a number in between mediated by the logisticDistance
+ * function.
+ */
 float AutoCPDisplay::smoothnessScore(const Point& location) {
   return 1 - logisticDistance(distance(getCameraPosition(), location), 1);
 }
