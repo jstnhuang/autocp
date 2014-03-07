@@ -5,6 +5,8 @@
 #include <sys/time.h>
 
 namespace autocp {
+using geometry_msgs::Point;
+
 /**
  * Constructor. Hooks up the display properties.
  */
@@ -236,7 +238,7 @@ void AutoCPDisplay::sense() {
  */
 void AutoCPDisplay::getTransformOrigin(
   std::string frame,
-  geometry_msgs::Point* origin
+  Point* origin
 ) {
   ros::Duration timeout(5);
   tf_listener_.waitForTransform(
@@ -270,7 +272,7 @@ void AutoCPDisplay::objectSegmentationCallback(
 ) {
   segmented_object_positions_.clear();
   for (const auto& obj : list.graspable_objects) {
-    geometry_msgs::Point obj_location;
+    Point obj_location;
     for (const auto& point : obj.cluster.points) {
       obj_location.x += point.x;
       obj_location.y += point.y;
@@ -298,7 +300,7 @@ void AutoCPDisplay::markerCallback(
   std::string control_name = static_cast<std::string>(feedback.control_name);
 
   Control6Dof control;
-  geometry_msgs::Point world_position = feedback.pose.position;
+  Point world_position = feedback.pose.position;
   try {
     if (marker_name == "head_point_goal") {
       control = POINT_HEAD_CONTROLS.at(control_name);
@@ -356,7 +358,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
   chooseCameraLocation(&target_position_);
-  geometry_msgs::Point next_position = interpolatePosition(
+  Point next_position = interpolatePosition(
     getCameraPosition(), target_position_, time_delta);
 
   view_controller_msgs::CameraPlacement camera_placement;
@@ -372,22 +374,26 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
  * Choose a final focus point for the camera. The final focus point is the
  * weighted mean of the current focus points.
  */
-void AutoCPDisplay::chooseCameraFocus(geometry_msgs::Point* focus) {
-  geometry_msgs::Point center = landmarks_.Center();
+void AutoCPDisplay::chooseCameraFocus(Point* focus) {
+  Point center = landmarks_.Center();
   *focus = center;
+}
+
+float AutoCPDisplay::visibilityScore(const Point& location) {
+
 }
 
 /**
  * Computes a score for the location.
  */
 float AutoCPDisplay::computeLocationScore(
-    const geometry_msgs::Point& location) {
+    const Point& location) {
   // TODO(jstn): maybe change back to just a single score.
   float score_numerator = 0;
   float score_denominator = 0;
 
   /* Uncomment to take all points into account. */
-  auto occlusion_metric = [&] (const geometry_msgs::Point& point) -> float {
+  auto occlusion_metric = [&] (const Point& point) -> float {
     if (isVisibleFrom(point, location, camera_focus_)) {
       return 1;
     } else {
@@ -425,7 +431,7 @@ float AutoCPDisplay::computeLocationScore(
   score_denominator += stay_in_place_weight_->getFloat();
 
   // Orthogonality score.
-  geometry_msgs::Point control_location;
+  Point control_location;
   if (current_control_ != NULL) {
     control_location = current_control_->world_position;
   }
@@ -441,7 +447,7 @@ float AutoCPDisplay::computeLocationScore(
   }
 
   // Zoom score.
-  auto zoom_metric = [&] (const geometry_msgs::Point& point) -> float {
+  auto zoom_metric = [&] (const Point& point) -> float {
     float dist = distance(point, location);
     if (dist < MIN_DISTANCE || dist > MAX_DISTANCE) {
       return 0;
@@ -488,17 +494,17 @@ void AutoCPDisplay::selectViewpoints(
  * viewpoints and selects the highest scoring one. Returns true if a new
  * location was found.
  */
-bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
-//  geometry_msgs::Point camera_position = getCameraPosition();
+bool AutoCPDisplay::chooseCameraLocation(Point* location) {
+//  Point camera_position = getCameraPosition();
   bool new_location_found = false;
 
   float current_score = computeLocationScore(target_position_);
   float best_score = current_score;
-  geometry_msgs::Point best_location = target_position_;
+  Point best_location = target_position_;
 
   // If the user is using a control, precompute the quadrant the camera is in
   // relative to the control. The camera must stay in this quadrant.
-  geometry_msgs::Point control_position;
+  Point control_position;
   int x_sign = 0;
   int y_sign = 0;
   if (current_control_ != NULL) {
@@ -510,7 +516,7 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
   std::vector<geometry_msgs::Vector3> viewpoints;
   selectViewpoints(&viewpoints);
   for (const auto& test_vector : viewpoints) {
-    geometry_msgs::Point test_point = add(camera_focus_, test_vector);
+    Point test_point = add(camera_focus_, test_vector);
 
     // Constraints
     // Never go below the ground plane
@@ -566,8 +572,8 @@ bool AutoCPDisplay::chooseCameraLocation(geometry_msgs::Point* location) {
  * Convenience method to set the camera placement.
  */
 void AutoCPDisplay::setCameraPlacement(
-  const geometry_msgs::Point& location,
-  const geometry_msgs::Point& focus,
+  const Point& location,
+  const Point& focus,
   const ros::Duration& time_from_start,
   view_controller_msgs::CameraPlacement* camera_placement
 ) {
@@ -598,7 +604,7 @@ void AutoCPDisplay::setCameraPlacement(
 /**
  * Returns the current camera position.
  */
-geometry_msgs::Point AutoCPDisplay::getCameraPosition() {
+Point AutoCPDisplay::getCameraPosition() {
   Ogre::Vector3 camera_position = camera_->getPosition();
   return toPoint(camera_position);
 }
@@ -607,8 +613,8 @@ geometry_msgs::Point AutoCPDisplay::getCameraPosition() {
  * Interpolates between the start and end positions, subject to the camera speed
  * and size of this time step.
  */
-geometry_msgs::Point AutoCPDisplay::interpolatePosition(
-    const geometry_msgs::Point& start, const geometry_msgs::Point& end,
+Point AutoCPDisplay::interpolatePosition(
+    const Point& start, const Point& end,
     float time_delta) {
   float max_distance = camera_speed_->getFloat() * time_delta;
   if (max_distance > distance(start, end)) {
@@ -616,7 +622,7 @@ geometry_msgs::Point AutoCPDisplay::interpolatePosition(
   } else {
     geometry_msgs::Vector3 v = vectorBetween(start, end);
     v = setLength(v, max_distance);
-    geometry_msgs::Point next = add(start, v);
+    Point next = add(start, v);
     return next;
   }
 }
@@ -626,7 +632,7 @@ geometry_msgs::Point AutoCPDisplay::interpolatePosition(
  * is in the top left corner.
  */
 void AutoCPDisplay::projectWorldToViewport(
-    const geometry_msgs::Point& point,
+    const Point& point,
     int* screen_x,
     int* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
@@ -658,7 +664,7 @@ bool AutoCPDisplay::isOnScreen(int screen_x, int screen_y) {
 /*
  * Returns true if the given point is visible from the current camera pose.
  */
-bool AutoCPDisplay::isVisible(const geometry_msgs::Point& point) {
+bool AutoCPDisplay::isVisible(const Point& point) {
   int screen_x;
   int screen_y;
   projectWorldToViewport(point, &screen_x, &screen_y);
@@ -670,7 +676,7 @@ bool AutoCPDisplay::isVisible(const geometry_msgs::Point& point) {
       screen_x,
       screen_y,
       occluding_vector);
-    geometry_msgs::Point occluding_point = toPoint(occluding_vector);
+    Point occluding_point = toPoint(occluding_vector);
     if (success) {
       occlusion_distance = distance(occluding_point, point);
     }
@@ -688,9 +694,9 @@ bool AutoCPDisplay::isVisible(const geometry_msgs::Point& point) {
  * Returns true if the given point is visible from the given camera position and
  * focus point.
  */
-bool AutoCPDisplay::isVisibleFrom(const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& camera_focus) {
+bool AutoCPDisplay::isVisibleFrom(const Point& point,
+    const Point& camera_position,
+    const Point& camera_focus) {
   Ogre::Vector3 old_position = camera_->getPosition();
   Ogre::Vector3 old_direction = camera_->getDirection();
   camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);

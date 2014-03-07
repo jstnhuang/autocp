@@ -38,6 +38,9 @@
 #include <vector>
 
 namespace autocp {
+using geometry_msgs::Point;
+using geometry_msgs::Vector3;
+
 enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
 
 struct ClickedControl {
@@ -45,10 +48,10 @@ struct ClickedControl {
   Control6Dof control;
   geometry_msgs::Pose pose;
   // Position of the object the marker is controlling.
-  geometry_msgs::Point world_position;
+  Point world_position;
 
   ClickedControl(std::string marker, Control6Dof control,
-    geometry_msgs::Pose pose, geometry_msgs::Point world_position
+    geometry_msgs::Pose pose, Point world_position
   ) {
     this->marker = marker;
     this->control = control;
@@ -113,30 +116,30 @@ class AutoCPDisplay: public rviz::Display {
   rviz::VisualizationManager* vm_;
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
-  geometry_msgs::Point target_position_;
-  geometry_msgs::Point camera_focus_;
+  Point target_position_;
+  Point camera_focus_;
 
   // Canonical viewpoint locations, expressed as an offset from the robot's
   // origin.
   void initializeStandardViewpoints();
-  std::vector<geometry_msgs::Vector3> standard_viewpoints_;
+  std::vector<Vector3> standard_viewpoints_;
 
   // Sensing.
   void sense();
-  void getTransformOrigin(std::string frame, geometry_msgs::Point* origin);
+  void getTransformOrigin(std::string frame, Point* origin);
   rviz::BoolProperty* show_fps_;
 
   // Landmarks container.
   Landmarks landmarks_;
 
   // Grippers.
-  geometry_msgs::Point left_gripper_origin_;
-  geometry_msgs::Point right_gripper_origin_;
+  Point left_gripper_origin_;
+  Point right_gripper_origin_;
   rviz::FloatProperty* gripper_weight_;
 
   // Head focus.
   ros::Subscriber point_head_subscriber_;
-  geometry_msgs::Point head_focus_point_;
+  Point head_focus_point_;
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* head_focus_weight_;
@@ -151,7 +154,7 @@ class AutoCPDisplay: public rviz::Display {
   // Segmented objects factor.
   ros::Subscriber object_segmentation_subscriber_;
   rviz::FloatProperty* segmented_object_weight_;
-  std::vector<geometry_msgs::Point> segmented_object_positions_;
+  std::vector<Point> segmented_object_positions_;
   void objectSegmentationCallback(
     const manipulation_msgs::GraspableObjectList& list);
 
@@ -169,35 +172,35 @@ class AutoCPDisplay: public rviz::Display {
 
   // Visibility factors.
   void projectWorldToViewport(
-    const geometry_msgs::Point& point,
+    const Point& point,
     int* screen_x,
     int* screen_y);
   bool isOnScreen(int screen_x, int screen_y);
-  bool isVisible(const geometry_msgs::Point& point);
+  bool isVisible(const Point& point);
   bool isVisibleFrom(
-    const geometry_msgs::Point& point,
-    const geometry_msgs::Point& camera_position,
-    const geometry_msgs::Point& focus);
+    const Point& point,
+    const Point& camera_position,
+    const Point& focus);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
-  geometry_msgs::Point getCameraPosition();
+  Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
-  void chooseCameraFocus(geometry_msgs::Point* focus);
-  geometry_msgs::Vector3 computeControlProjection(
+  void chooseCameraFocus(Point* focus);
+  Vector3 computeControlProjection(
     const ClickedControl& control,
-    const geometry_msgs::Vector3& vector);
-  float computeLocationScore(const geometry_msgs::Point& location);
-  void selectViewpoints(std::vector<geometry_msgs::Vector3>* viewpoints);
-  bool chooseCameraLocation(geometry_msgs::Point* location);
+    const Vector3& vector);
+  float computeLocationScore(const Point& location);
+  void selectViewpoints(std::vector<Vector3>* viewpoints);
+  bool chooseCameraLocation(Point* location);
   static void setCameraPlacement(
-    const geometry_msgs::Point& location,
-    const geometry_msgs::Point& focus,
+    const Point& location,
+    const Point& focus,
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement);
-  geometry_msgs::Point interpolatePosition(
-    const geometry_msgs::Point& start, const geometry_msgs::Point& end,
+  Point interpolatePosition(
+    const Point& start, const Point& end,
     float time_delta);
 };
 }  // namespace autocp
