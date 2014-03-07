@@ -183,7 +183,7 @@ void AutoCPDisplay::initializeStandardViewpoints() {
   // Add scaled versions of the standard viewpoints.
   int num_standard = standard_viewpoints_.size();
   const int num_scales = 4;
-  float scales[num_scales] = {0.5, 2, 3, 4};
+  float scales[num_scales] = {2, 3, 4};
   for (int i=0; i<num_standard; i++) {
     auto viewpoint = standard_viewpoints_[i];
     for (int j=0; j<num_scales; j++) {
