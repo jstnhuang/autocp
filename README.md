@@ -94,6 +94,7 @@ The plan is to do an early evaluation on the following table of combinations:
 
 | Properties                              | No smoothing | Smoothing 1 | Smoothing 2 |
 | --------------------------------------- | ------------ | ----------- | ----------- |
+| Baseline (no modifications)             |              |             |             |
 | Visibility                              |              |             |             |
 | Visibility + closeness                  |              |             |             |
 | Orthogonality                           |              |             |             |
