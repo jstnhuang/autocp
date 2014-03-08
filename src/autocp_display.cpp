@@ -113,6 +113,14 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   camera_speed_->setMin(0);
   camera_speed_->setMax(10);
 
+  only_move_on_idle_ = new rviz::BoolProperty(
+    "Don't move when using a marker",
+    true,
+    "Restricts camera repositioning to when no marker is being used.",
+    this,
+    SLOT(updateSmoothnessOption()));
+
+
   show_fps_ = new rviz::BoolProperty(
     "Show FPS",
     false,
@@ -158,6 +166,8 @@ void AutoCPDisplay::onInitialize() {
   viewport_ = camera_->getViewport();
   target_position_ = getCameraPosition();
   current_control_ = NULL;
+  active_control_ = NULL;
+  previous_control_ = NULL;
 
   initializeStandardViewpoints();
 }
@@ -220,6 +230,20 @@ void AutoCPDisplay::updateWeights() {
   landmarks_.UpdateHeadFocusWeight(head_focus_weight_->getFloat());
   landmarks_.UpdateCurrentMarkerWeight(current_marker_weight_->getFloat());
   landmarks_.UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
+}
+
+/**
+ * If we are only going to move the camera when no controls are being used, then
+ * the control we care about is the last control that was used. If we will move
+ * the camera when a control is being used, then that's the control we care
+ * about.
+ */
+void AutoCPDisplay::updateSmoothnessOption() {
+  if (only_move_on_idle_) {
+    current_control_ = previous_control_;
+  } else {
+    current_control_ = active_control_;
+  }
 }
 
 // Sensing ---------------------------------------------------------------------
@@ -319,12 +343,13 @@ void AutoCPDisplay::markerCallback(
       return;
     }
 
-    current_control_ = new ClickedControl {
+    active_control_ = new ClickedControl {
       marker_name,
       control,
       feedback.pose,
       world_position
     };
+    updateSmoothnessOption();
     landmarks_.UpdateCurrentMarker(&world_position);
   } catch (const std::out_of_range& e) {
     ROS_INFO(
@@ -346,8 +371,14 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
 
-  delete current_control_;
-  current_control_ = NULL;
+  if (active_control_ != NULL) {
+    if (previous_control_ != NULL) {
+      delete previous_control_;
+    }
+    previous_control_ = active_control_;
+    active_control_ = NULL;
+  }
+  updateSmoothnessOption();
   landmarks_.UpdateCurrentMarker(NULL);
 }
 
@@ -357,7 +388,9 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
-  chooseCameraLocation(&target_position_);
+  if (!only_move_on_idle_->getBool() || active_control_ == NULL) {
+    chooseCameraLocation(&target_position_);
+  }
   Point next_position = interpolatePosition(
     getCameraPosition(), target_position_, time_delta);
 
@@ -541,7 +574,6 @@ void AutoCPDisplay::selectViewpoints(
  * location was found.
  */
 bool AutoCPDisplay::chooseCameraLocation(Point* location) {
-//  Point camera_position = getCameraPosition();
   bool new_location_found = false;
 
   Score current_score = computeLocationScore(target_position_);
@@ -611,6 +643,10 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
     if (score.score > best_score.score) {
       best_location = test_point;
       best_score = score;
+      //ROS_INFO("Found (%f, %f, %f), score=(v: %f, o: %f, z: %f, s: %f = %f)",
+      //  best_location.x, best_location.y, best_location.z,
+      //  best_score.visibility, best_score.orthogonality, best_score.zoom,
+      //  best_score.smoothness, best_score.score);
     }
   }
 
@@ -785,6 +821,9 @@ bool AutoCPDisplay::isVisibleFrom(const Point& point,
 geometry_msgs::Vector3 AutoCPDisplay::computeControlProjection(
     const ClickedControl& control,
     const geometry_msgs::Vector3& vector) {
+  if (current_control_ == NULL) {
+    ROS_INFO("Error: tried to compute projection of null control.");
+  }
   geometry_msgs::Vector3 projection;
   projection.x = vector.x;
   projection.y = vector.y;

@@ -121,6 +121,7 @@ class AutoCPDisplay: public rviz::Display {
   void updateWeights();
   void updateCameraOptions();
   void updateCameraSpeed();
+  void updateSmoothnessOption();
 
  private:
   ros::NodeHandle root_nh_;
@@ -131,8 +132,8 @@ class AutoCPDisplay: public rviz::Display {
   Point target_position_;
   Point camera_focus_;
 
-  // Canonical viewpoint locations, expressed as an offset from the robot's
-  // origin.
+  // Canonical viewpoint locations, expressed as an offset from the current
+  // focus point.
   void initializeStandardViewpoints();
   std::vector<Vector3> standard_viewpoints_;
 
@@ -161,7 +162,11 @@ class AutoCPDisplay: public rviz::Display {
   void markerCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback);
   rviz::FloatProperty* current_marker_weight_;
+  // current_control_ is either the active control or the previous control,
+  // depending on whether or not we move when a control is active.
   ClickedControl* current_control_;
+  ClickedControl* active_control_;
+  ClickedControl* previous_control_;
 
   // Segmented objects factor.
   ros::Subscriber object_segmentation_subscriber_;
@@ -176,6 +181,7 @@ class AutoCPDisplay: public rviz::Display {
   // Smoothness factors.
   rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
+  rviz::BoolProperty* only_move_on_idle_;
 
   // Location weights
   rviz::FloatProperty* stay_in_place_weight_;
