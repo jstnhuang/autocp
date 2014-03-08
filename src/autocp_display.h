@@ -22,6 +22,7 @@
 #include <rviz/properties/ros_topic_property.h>
 #include <rviz/properties/bool_property.h>
 #include <rviz/properties/float_property.h>
+#include <rviz/properties/int_property.h>
 #include <rviz/render_panel.h>
 #include <rviz/selection/selection_manager.h>
 #include <rviz/visualization_manager.h>
@@ -97,10 +98,6 @@ struct Score {
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
 
-// The maximum number of times per frame we can check if some point is occluded
-// from some camera pose.
-static const int OCCLUSION_CHECK_LIMIT = 15;
-
 static const float R2 = 0.70710678118; // sqrt(2) / 2
 
 static const float OCCLUSION_THRESHOLD = 0.25;
@@ -120,7 +117,6 @@ class AutoCPDisplay: public rviz::Display {
   void updateTopic();
   void updateWeights();
   void updateCameraOptions();
-  void updateCameraSpeed();
   void updateSmoothnessOption();
 
  private:
@@ -182,6 +178,7 @@ class AutoCPDisplay: public rviz::Display {
   rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
   rviz::BoolProperty* only_move_on_idle_;
+  rviz::IntProperty* occlusion_check_limit_;
 
   // Location weights
   rviz::FloatProperty* stay_in_place_weight_;

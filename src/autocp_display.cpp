@@ -120,6 +120,14 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     this,
     SLOT(updateSmoothnessOption()));
 
+  occlusion_check_limit_ = new rviz::IntProperty(
+    "Occlusion check limit",
+    15,
+    "The number of occlusions to check each frame.",
+    this,
+    SLOT(updateCameraOptions()));
+  occlusion_check_limit_->setMin(0);
+  occlusion_check_limit_->setMax(100);
 
   show_fps_ = new rviz::BoolProperty(
     "Show FPS",
@@ -548,7 +556,7 @@ Score AutoCPDisplay::computeLocationScore(
 
 /*
  * Randomly select some viewpoints. The number of
- * viewpoints to select should be OCCLUSION_CHECK_LIMIT / # of landmarks.
+ * viewpoints to select should be occlusion_check_limit_ / # of landmarks.
  */
 void AutoCPDisplay::selectViewpoints(
     std::vector<geometry_msgs::Vector3>* viewpoints) {
@@ -556,7 +564,7 @@ void AutoCPDisplay::selectViewpoints(
   landmarks_.LandmarksVector(&landmarks);
   int num_landmarks = landmarks.size(); 
   int num_viewpoints = static_cast<int>(
-    static_cast<double>(OCCLUSION_CHECK_LIMIT) / num_landmarks);
+    static_cast<double>(occlusion_check_limit_->getInt()) / num_landmarks);
   if (num_viewpoints < 2) {
     ROS_INFO("Sampling less than two viewpoints per frame. "
       "There may be too many landmarks.");
