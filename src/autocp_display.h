@@ -64,7 +64,7 @@ struct ClickedControl {
 
 // Maps built by observing /pr2_marker_control_transparent/feedback
 // TODO(jstn): Are these fixed or do they depend on other factors?
-static const  std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
+static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
   {"_u1", Control6Dof::X},
   {"_u5", Control6Dof::Y},
   {"_u3", Control6Dof::Z},
@@ -82,9 +82,21 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
   {"_u1", Control6Dof::YAW},
 };
 
+/**
+ * Represents the score of a camera pose. It contains all the components of the
+ * score as well as the final score, for debugging purposes.
+ */
+struct Score {
+  float visibility;
+  float orthogonality;
+  float zoom;
+  float smoothness;
+  float score;
+};
 
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
+
 // The maximum number of times per frame we can check if some point is occluded
 // from some camera pose.
 static const int OCCLUSION_CHECK_LIMIT = 15;
@@ -198,7 +210,7 @@ class AutoCPDisplay: public rviz::Display {
     const Point& control_location);
   float zoomScore(const Point& location);
   float smoothnessScore(const Point& location);
-  float computeLocationScore(const Point& location);
+  Score computeLocationScore(const Point& location);
   void selectViewpoints(std::vector<Vector3>* viewpoints);
   bool chooseCameraLocation(Point* location);
   static void setCameraPlacement(

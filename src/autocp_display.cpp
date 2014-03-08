@@ -60,7 +60,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
-    0.15,
+    0.1,
     "How much weight to points close to the current location.",
     this,
     SLOT(updateWeights()));
@@ -87,7 +87,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
 
   zoom_weight_ = new rviz::FloatProperty(
     "Zoom weight",
-    0.05,
+    0.1,
     "How much weight to assign to being close to landmarks.",
     this,
     SLOT(updateWeights()));
@@ -437,46 +437,79 @@ float AutoCPDisplay::zoomScore(const Point& location) {
  * function.
  */
 float AutoCPDisplay::smoothnessScore(const Point& location) {
-  return 1 - logisticDistance(distance(getCameraPosition(), location), 1);
+  Ogre::Camera camera ("test", vm_->getSceneManager());
+  camera.setPosition(location.x, location.y, location.z);
+  camera.lookAt(camera_focus_.x, camera_focus_.y, camera_focus_.z);
+  auto sim_orientation = camera.getOrientation();
+  auto our_orientation = camera_->getOrientation();
+  float x_diff = target_position_.x - location.x;
+  float y_diff = target_position_.y - location.y;
+  float z_diff = target_position_.z - location.z;
+  float orientation_w_diff = sim_orientation.w - our_orientation.w;
+  float orientation_x_diff = sim_orientation.x - our_orientation.x;
+  float orientation_y_diff = sim_orientation.y - our_orientation.y;
+  float orientation_z_diff = sim_orientation.z - our_orientation.z;
+  float distance = sqrt(
+    x_diff * x_diff
+    + y_diff * y_diff
+    + z_diff * z_diff
+    + orientation_w_diff * orientation_w_diff
+    + orientation_x_diff * orientation_x_diff
+    + orientation_y_diff * orientation_y_diff
+    + orientation_z_diff * orientation_z_diff
+  );
+  return 1 - logisticDistance(distance, 1);
 }
 
 /**
  * Computes a score for the location.
  */
-float AutoCPDisplay::computeLocationScore(
+Score AutoCPDisplay::computeLocationScore(
     const Point& location) {
+  Score result;
   float score_numerator = 0;
   float score_denominator = 0;
   
   // Visibility score.
+  float visibility_score = visibilityScore(location);
   float visibility_weight = stay_visible_weight_->getFloat();
-  score_numerator += visibility_weight * visibilityScore(location);
+  score_numerator += visibility_weight * visibility_score;
   score_denominator += visibility_weight;
+  result.visibility = visibility_score;
 
   // Orthogonality score.
   if (current_control_ != NULL) {
     Point control_location = current_control_->world_position;
+    float ortho_score = orthogonalityScore(location, control_location);
     float ortho_weight = be_orthogonal_weight_->getFloat();
-    score_numerator +=
-      ortho_weight * orthogonalityScore(location, control_location);
+    score_numerator += ortho_weight * ortho_score;
     score_denominator += ortho_weight;
+    result.orthogonality = ortho_score;
+  } else {
+    result.orthogonality = -1;
   }
 
   // Zoom score.
+  float zoom_score = zoomScore(location);
   float zoom_weight = zoom_weight_->getFloat();
-  score_numerator += zoom_weight * zoomScore(location);
+  score_numerator += zoom_weight * zoom_score;
   score_denominator += zoom_weight;
+  result.zoom = zoom_score;
 
   // Movement moderation.
+  float smoothness_score = smoothnessScore(location);
   float smoothness_weight = stay_in_place_weight_->getFloat();
-  score_numerator += smoothness_weight * smoothnessScore(location);
+  score_numerator += smoothness_weight * smoothness_score;
   score_denominator += smoothness_weight;
+  result.smoothness = smoothness_score;
 
   if (score_denominator != 0) {
-    return score_numerator / score_denominator;
+    result.score = score_numerator / score_denominator;
+    return result;
   } else {
     ROS_INFO("Warning: score function took nothing into account.");
-    return 0;
+    result.score = -1;
+    return result;
   }
 }
 
@@ -511,8 +544,8 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
 //  Point camera_position = getCameraPosition();
   bool new_location_found = false;
 
-  float current_score = computeLocationScore(target_position_);
-  float best_score = current_score;
+  Score current_score = computeLocationScore(target_position_);
+  Score best_score = current_score;
   Point best_location = target_position_;
 
   // If the user is using a control, precompute the quadrant the camera is in
@@ -527,13 +560,21 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
   }
 
   std::vector<geometry_msgs::Vector3> viewpoints;
+  std::vector<Score> scores;
   selectViewpoints(&viewpoints);
+  Score null_score;
+  null_score.visibility = -1;
+  null_score.orthogonality = -1;
+  null_score.zoom = -1;
+  null_score.smoothness = -1;
+  null_score.score = -1;
   for (const auto& test_vector : viewpoints) {
     Point test_point = add(camera_focus_, test_vector);
 
     // Constraints
     // Never go below the ground plane
     if (test_point.z < 0) {
+      scores.push_back(null_score);
       continue;
     }
 
@@ -546,6 +587,7 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
       
       // Never go below the control.
       if (test_z_sign < 0) {
+        scores.push_back(null_score);
         continue;
       }
 
@@ -553,26 +595,42 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
       // If you're using a y control, don't cross the x=0 plane
       if (current_control_->control == Control6Dof::X) {
         if (test_y_sign != y_sign) {
+          scores.push_back(null_score);
           continue;
         }
       } else if (current_control_->control == Control6Dof::Y) {
         if (test_x_sign != x_sign) {
+          scores.push_back(null_score);
           continue;
         }
       }
     }
 
-    float score = computeLocationScore(test_point);
-    if (score > best_score) {
+    Score score = computeLocationScore(test_point);
+    scores.push_back(score);
+    if (score.score > best_score.score) {
       best_location = test_point;
       best_score = score;
     }
   }
 
-  if (best_score > score_threshold_->getFloat() * current_score) {
+  if (best_score.score > score_threshold_->getFloat() * current_score.score) {
     ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f",
       best_location.x, best_location.y, best_location.z,
-      best_score, current_score);
+      best_score.score, current_score.score);
+    ROS_INFO("viewpoints were: ");
+    ROS_INFO("  %f %f %f (v: %f, o: %f, z: %f, s: %f = %f)",
+      target_position_.x, target_position_.y, target_position_.z,
+      current_score.visibility, current_score.orthogonality, current_score.zoom,
+      current_score.smoothness, current_score.score);
+    for (int i=0; i<viewpoints.size(); i++) {
+      auto viewpoint = add(camera_focus_, viewpoints[i]);
+      auto vpscore = scores[i];
+      ROS_INFO("  %f %f %f (v: %f, o: %f, z: %f, s: %f = %f)",
+        viewpoint.x, viewpoint.y, viewpoint.z,
+        vpscore.visibility, vpscore.orthogonality, vpscore.zoom,
+        vpscore.smoothness, vpscore.score);
+    }
     new_location_found = true;
     target_position_ = best_location;
   }
