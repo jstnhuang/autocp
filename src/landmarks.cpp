@@ -158,4 +158,20 @@ void Landmarks::UpdateSegmentedObjectWeight(float weight) {
     object.weight = updated_weight;
   }
 }
+
+float Landmarks::GripperWeight() {
+  return gripper_weight_;
+}
+
+float Landmarks::HeadFocusWeight() {
+  return head_focus_.weight;
+}
+
+float Landmarks::CurrentMarkerWeight() {
+  return current_marker_.weight;
+}
+
+float Landmarks::SegmentedObjectWeight() {
+  return segmented_object_weight_;
+}
 }

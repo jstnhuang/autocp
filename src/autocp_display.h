@@ -102,6 +102,10 @@ static const float R2 = 0.70710678118; // sqrt(2) / 2
 
 static const float OCCLUSION_THRESHOLD = 0.25;
 
+// Number of seconds for a landmark's weight to decay back to normal.
+static const float CONTROL_DECAY_TIME = 2;
+static const float CONTROL_IMPORTANCE_FACTOR = 2;
+
 class AutoCPDisplay: public rviz::Display {
   Q_OBJECT
 
@@ -172,6 +176,7 @@ class AutoCPDisplay: public rviz::Display {
   ros::Subscriber marker_subscriber_;
   void markerCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback);
+  void decayWeights(float time_delta);
   rviz::FloatProperty* current_marker_weight_;
   // current_control_ is either the active control or the previous control,
   // depending on whether or not we move when a control is active.

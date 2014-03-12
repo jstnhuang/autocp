@@ -44,6 +44,10 @@ class Landmarks {
     void UpdateHeadFocusWeight(float weight);
     void UpdateCurrentMarkerWeight(float weight);
     void UpdateSegmentedObjectWeight(float weight);
+    float GripperWeight();
+    float HeadFocusWeight();
+    float CurrentMarkerWeight();
+    float SegmentedObjectWeight();
   private:
     Landmark l_gripper_;
     Landmark r_gripper_;

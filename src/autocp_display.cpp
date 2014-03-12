@@ -118,7 +118,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
 
   only_move_on_idle_ = new rviz::BoolProperty(
     "Don't move when using a marker",
-    true,
+    false,
     "Restricts camera repositioning to when no marker is being used.",
     this,
     SLOT(updateSmoothnessOption()));
@@ -342,12 +342,23 @@ void AutoCPDisplay::markerCallback(
   try {
     if (marker_name == "head_point_goal") {
       control = POINT_HEAD_CONTROLS.at(control_name);
+      // Boost weight for this marker. Possible TODO: move this into its own
+      // method.
+      float updated_weight =
+        head_focus_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
+      landmarks_.UpdateHeadFocusWeight(updated_weight);
     } else if (marker_name == "l_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
       world_position = left_gripper_origin_;
+      float updated_weight =
+        gripper_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
+      landmarks_.UpdateGripperWeight(updated_weight);
     } else if (marker_name == "r_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
       world_position = right_gripper_origin_;
+      float updated_weight =
+        gripper_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
+      landmarks_.UpdateGripperWeight(updated_weight);
     } else if (marker_name == "l_posture_control") {
       control = Control6Dof::ROLL;
     } else if (marker_name == "r_posture_control") {
@@ -373,6 +384,37 @@ void AutoCPDisplay::markerCallback(
   }
 }
 
+/**
+ * Check if the weight on the current control is larger than it should be. If
+ * so, linearly decays the weight back to where it should be over
+ * CONTROL_DECAY_TIME seconds.
+ */
+void AutoCPDisplay::decayWeights(float time_delta) {
+  if (current_control_ == NULL) {
+    return;
+  }
+  if (current_control_->marker == "head_point_goal"
+      && landmarks_.HeadFocusWeight() > head_focus_weight_->getFloat()) {
+    float max_step = head_focus_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
+    float step = max_step * time_delta / CONTROL_DECAY_TIME;
+    float updated_weight = std::max(
+      landmarks_.HeadFocusWeight() - step,
+      head_focus_weight_->getFloat()
+    );
+    landmarks_.UpdateHeadFocusWeight(updated_weight);
+  } else if ((current_control_->marker == "l_gripper_control"
+      || current_control_->marker == "r_gripper_control")
+      && landmarks_.GripperWeight() > gripper_weight_->getFloat()) {
+    float max_step = gripper_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
+    float step = max_step * time_delta / CONTROL_DECAY_TIME;
+    float updated_weight = std::max(
+      landmarks_.GripperWeight() - step,
+      gripper_weight_->getFloat()
+    );
+    landmarks_.UpdateGripperWeight(updated_weight);
+  }
+}
+
 // Camera placement logic ------------------------------------------------------
 /**
  * Main loop that alternates between sensing and placing the camera.
@@ -394,6 +436,8 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   }
   updateSmoothnessOption();
   landmarks_.UpdateCurrentMarker(NULL);
+
+  decayWeights(wall_dt);
 }
 
 /**
