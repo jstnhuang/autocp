@@ -51,15 +51,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
   segmented_object_weight_->setMin(0);
   segmented_object_weight_->setMax(1);
 
-  current_marker_weight_ = new rviz::FloatProperty(
-    "Current marker",
-    0,
-    "How much weight to assign to the location of the current marker.",
-    this,
-    SLOT(updateWeights()));
-  current_marker_weight_->setMin(0);
-  current_marker_weight_->setMax(1);
-
   // Weights on location.
   stay_in_place_weight_ = new rviz::FloatProperty(
     "Movement moderation weight",
@@ -242,7 +233,6 @@ void AutoCPDisplay::updateCameraOptions() {
 void AutoCPDisplay::updateWeights() {
   landmarks_.UpdateGripperWeight(gripper_weight_->getFloat());
   landmarks_.UpdateHeadFocusWeight(head_focus_weight_->getFloat());
-  landmarks_.UpdateCurrentMarkerWeight(current_marker_weight_->getFloat());
   landmarks_.UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
 }
 
@@ -375,7 +365,6 @@ void AutoCPDisplay::markerCallback(
       world_position
     };
     updateSmoothnessOption();
-    landmarks_.UpdateCurrentMarker(&world_position);
   } catch (const std::out_of_range& e) {
     ROS_INFO(
       "Unknown control %s for marker %s",
@@ -435,7 +424,6 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
     active_control_ = NULL;
   }
   updateSmoothnessOption();
-  landmarks_.UpdateCurrentMarker(NULL);
 
   decayWeights(wall_dt);
 }

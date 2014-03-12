@@ -177,7 +177,6 @@ class AutoCPDisplay: public rviz::Display {
   void markerCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback);
   void decayWeights(float time_delta);
-  rviz::FloatProperty* current_marker_weight_;
   // current_control_ is either the active control or the previous control,
   // depending on whether or not we move when a control is active.
   ClickedControl* current_control_;

@@ -8,7 +8,6 @@ Landmarks::Landmarks()
   : l_gripper_(),
     r_gripper_(),
     head_focus_(),
-    current_marker_(),
     segmented_objects_(),
     gripper_weight_(0),
     segmented_object_weight_(0) {
@@ -48,9 +47,6 @@ void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
   }
   if (head_focus_.exists && head_focus_.weight > 0) {
     landmarks->push_back(head_focus_);
-  }
-  if (current_marker_.exists && current_marker_.weight > 0) {
-    landmarks->push_back(current_marker_);
   }
   // If the segmented objects vector is nonempty, the objects are assumed to
   // exist.
@@ -98,19 +94,6 @@ void Landmarks::UpdateHeadFocus(const Point* point) {
 }
 
 /*
- * Updates the position of the current marker being interacted with. A NULL
- * input pointer represents a point that doesn't exist.
- */
-void Landmarks::UpdateCurrentMarker(const Point* point) {
-  if (point != NULL) {
-    current_marker_.position = *point;
-    current_marker_.exists = true;
-  } else {
-    current_marker_.exists = false;
-  }
-}
-
-/*
  * Updates the position of the segmented objects. An empty vector can be used to
  * represent the fact that there are no segmented objects.
  */
@@ -140,13 +123,6 @@ void Landmarks::UpdateHeadFocusWeight(float weight) {
 }
 
 /*
- * Updates the weight of the marker that is currently being interactived with.
- */
-void Landmarks::UpdateCurrentMarkerWeight(float weight) {
-  current_marker_.weight = weight;
-}
-
-/*
  * Updates the weight of the segmented objects. The provided weight is for all
  * the segmented objects. Each object ends up getting an equal share of the
  * weight.
@@ -165,10 +141,6 @@ float Landmarks::GripperWeight() {
 
 float Landmarks::HeadFocusWeight() {
   return head_focus_.weight;
-}
-
-float Landmarks::CurrentMarkerWeight() {
-  return current_marker_.weight;
 }
 
 float Landmarks::SegmentedObjectWeight() {

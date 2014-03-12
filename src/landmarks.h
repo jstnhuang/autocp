@@ -29,7 +29,7 @@ class Landmarks {
   public:
     Landmarks();
     Landmarks(float gripper_weight, float head_focus_weight,
-      float current_marker_weight, float segmented_object_weight);
+      float segmented_object_weight);
     ~Landmarks();
     Point Center();
     void LandmarksVector(std::vector<Landmark>* landmarks);
@@ -38,21 +38,17 @@ class Landmarks {
     void UpdateLeftGripper(const Point* point);
     void UpdateRightGripper(const Point* point);
     void UpdateHeadFocus(const Point* point);
-    void UpdateCurrentMarker(const Point* point);
     void UpdateSegmentedObjects(const std::vector<Point>& objects);
     void UpdateGripperWeight(float weight);
     void UpdateHeadFocusWeight(float weight);
-    void UpdateCurrentMarkerWeight(float weight);
     void UpdateSegmentedObjectWeight(float weight);
     float GripperWeight();
     float HeadFocusWeight();
-    float CurrentMarkerWeight();
     float SegmentedObjectWeight();
   private:
     Landmark l_gripper_;
     Landmark r_gripper_;
     Landmark head_focus_;
-    Landmark current_marker_;
     std::vector<Landmark> segmented_objects_;
     // We save weights that are distributed between multiple objects. Weights
     // for single objects are just stored in the Landmark data structure.
