@@ -40,7 +40,9 @@
 
 namespace autocp {
 using geometry_msgs::Point;
+using geometry_msgs::Quaternion;
 using geometry_msgs::Vector3;
+using visualization_msgs::Marker;
 
 enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
 
@@ -58,8 +60,7 @@ struct ClickedControl {
     this->control = control;
     this->pose = pose;
     this->world_position = world_position;
-  }
-  ~ClickedControl() {
+  } ~ClickedControl() {
   }
 };
 
@@ -94,7 +95,6 @@ struct Score {
   float smoothness;
   float score;
 };
-
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
 
@@ -127,6 +127,21 @@ class AutoCPDisplay: public rviz::Display {
   Ogre::Viewport* viewport_;
   Point target_position_;
   Point camera_focus_;
+
+  // Debugging
+  ros::Publisher candidate_marker_pub_;
+  void publishCandidateMarkers(
+    const std::vector<Point>& viewpoints,
+    const std::vector<Score>& scores,
+    float time_delta
+  );
+  void makeCameraMarker(
+    const Point& position,
+    const Score& score,
+    int id,
+    float time_delta,
+    Marker* marker
+  );
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
@@ -215,7 +230,7 @@ class AutoCPDisplay: public rviz::Display {
   float smoothnessScore(const Point& location);
   Score computeLocationScore(const Point& location);
   void selectViewpoints(std::vector<Vector3>* viewpoints);
-  bool chooseCameraLocation(Point* location);
+  bool chooseCameraLocation(Point* location, float time_delta);
   static void setCameraPlacement(
     const Point& location,
     const Point& focus,
@@ -224,6 +239,9 @@ class AutoCPDisplay: public rviz::Display {
   Point interpolatePosition(
     const Point& start, const Point& end,
     float time_delta);
+  // Utilities
+  void focusToOrientation(const Point& position, const Point& focus,
+    Quaternion* orientation);
 };
 }  // namespace autocp
 

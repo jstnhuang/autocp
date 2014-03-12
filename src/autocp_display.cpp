@@ -6,6 +6,9 @@
 
 namespace autocp {
 using geometry_msgs::Point;
+using geometry_msgs::Vector3;
+using geometry_msgs::Quaternion;
+using visualization_msgs::Marker;
 
 /**
  * Constructor. Hooks up the display properties.
@@ -135,7 +138,13 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     "Whether or not to show the frames per second.",
     this,
     SLOT(updateCameraOptions()));
+
+  initializeStandardViewpoints();
+  candidate_marker_pub_ = root_nh_.advertise<Marker>(
+    "autocp_candidates", 1);
 }
+
+
 
 /**
  * Destructor.
@@ -176,8 +185,6 @@ void AutoCPDisplay::onInitialize() {
   current_control_ = NULL;
   active_control_ = NULL;
   previous_control_ = NULL;
-
-  initializeStandardViewpoints();
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
@@ -202,11 +209,10 @@ void AutoCPDisplay::initializeStandardViewpoints() {
 
   // Add scaled versions of the standard viewpoints.
   int num_standard = standard_viewpoints_.size();
-  const int num_scales = 4;
-  float scales[num_scales] = {2, 3, 4};
+  std::vector<int> scales = {2, 3};
   for (int i=0; i<num_standard; i++) {
     auto viewpoint = standard_viewpoints_[i];
-    for (int j=0; j<num_scales; j++) {
+    for (int j=0; j<scales.size(); j++) {
       standard_viewpoints_.push_back(scale(viewpoint, scales[j]));
     }
   }
@@ -397,7 +403,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   chooseCameraFocus(&camera_focus_);
   if (!only_move_on_idle_->getBool() || active_control_ == NULL) {
-    chooseCameraLocation(&target_position_);
+    chooseCameraLocation(&target_position_, time_delta);
   }
   Point next_position = interpolatePosition(
     getCameraPosition(), target_position_, time_delta);
@@ -446,9 +452,9 @@ float AutoCPDisplay::orthogonalityScore(const Point& location,
     ROS_INFO("Warning: tried to get orthogonality score without a control.");
     return 0;
   }
-  geometry_msgs::Vector3 location_vector = vectorBetween(
+  Vector3 location_vector = vectorBetween(
     control_location, location);
-  geometry_msgs::Vector3 projection = computeControlProjection(
+  Vector3 projection = computeControlProjection(
     *current_control_,
     location_vector);
   return fabs(cosineAngle(location_vector, projection));
@@ -478,10 +484,8 @@ float AutoCPDisplay::zoomScore(const Point& location) {
  * function.
  */
 float AutoCPDisplay::smoothnessScore(const Point& location) {
-  Ogre::Camera camera ("test", vm_->getSceneManager());
-  camera.setPosition(location.x, location.y, location.z);
-  camera.lookAt(camera_focus_.x, camera_focus_.y, camera_focus_.z);
-  auto sim_orientation = camera.getOrientation();
+  Quaternion sim_orientation;
+  focusToOrientation(location, camera_focus_, &sim_orientation);
   auto our_orientation = camera_->getOrientation();
   float x_diff = target_position_.x - location.x;
   float y_diff = target_position_.y - location.y;
@@ -559,7 +563,7 @@ Score AutoCPDisplay::computeLocationScore(
  * viewpoints to select should be occlusion_check_limit_ / # of landmarks.
  */
 void AutoCPDisplay::selectViewpoints(
-    std::vector<geometry_msgs::Vector3>* viewpoints) {
+    std::vector<Vector3>* viewpoints) {
   std::vector<Landmark> landmarks;
   landmarks_.LandmarksVector(&landmarks);
   int num_landmarks = landmarks.size(); 
@@ -572,6 +576,7 @@ void AutoCPDisplay::selectViewpoints(
   }
   for (int i=0; i<num_viewpoints; i++) {
     int index = rand() % standard_viewpoints_.size();
+    auto viewpoint = standard_viewpoints_[index];
     viewpoints->push_back(standard_viewpoints_[index]);
   }
 }
@@ -581,7 +586,7 @@ void AutoCPDisplay::selectViewpoints(
  * viewpoints and selects the highest scoring one. Returns true if a new
  * location was found.
  */
-bool AutoCPDisplay::chooseCameraLocation(Point* location) {
+bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   bool new_location_found = false;
 
   Score current_score = computeLocationScore(target_position_);
@@ -599,7 +604,8 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
     y_sign = sign(target_position_.y - control_position.y);
   }
 
-  std::vector<geometry_msgs::Vector3> viewpoints;
+  std::vector<Point> test_points;
+  std::vector<Vector3> viewpoints;
   std::vector<Score> scores;
   selectViewpoints(&viewpoints);
   Score null_score;
@@ -610,6 +616,7 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
   null_score.score = -1;
   for (const auto& test_vector : viewpoints) {
     Point test_point = add(camera_focus_, test_vector);
+    test_points.push_back(test_point);
 
     // Constraints
     // Never go below the ground plane
@@ -648,6 +655,7 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
 
     Score score = computeLocationScore(test_point);
     scores.push_back(score);
+
     if (score.score > best_score.score) {
       best_location = test_point;
       best_score = score;
@@ -659,6 +667,8 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location) {
   }
 
   if (best_score.score > score_threshold_->getFloat() * current_score.score) {
+    publishCandidateMarkers(test_points, scores, time_delta);
+
     ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f",
       best_location.x, best_location.y, best_location.z,
       best_score.score, current_score.score);
@@ -717,6 +727,63 @@ void AutoCPDisplay::setCameraPlacement(
 }
 
 /**
+ * Publish markers for each
+ */
+void AutoCPDisplay::publishCandidateMarkers(
+  const std::vector<Point>& test_points,
+  const std::vector<Score>& scores,
+  float time_delta
+) {
+  for (int i=0; i<test_points.size(); i++) {
+    Marker marker;
+    makeCameraMarker(test_points[i], scores[i], i, time_delta, &marker);
+    candidate_marker_pub_.publish(marker);
+  }
+}
+
+/**
+ * Creates an arrow marker pointing towards the focus point. It is colored green
+ * if the score is 1, red if the score is 0, and something in between otherwise.
+ */
+void AutoCPDisplay::makeCameraMarker(
+  const Point& position,
+  const Score& score,
+  int id,
+  float time_delta,
+  Marker* marker
+) {
+  Quaternion orientation;
+  focusToOrientation(position, camera_focus_, &orientation);
+  marker->header.frame_id = fixed_frame_.toStdString();
+  marker->header.stamp = ros::Time::now();
+  marker->ns = "candidates";
+  marker->id = id;
+  marker->type = Marker::ARROW;
+  marker->action = Marker::ADD;
+  marker->pose.position.x = position.x;
+  marker->pose.position.y = position.y;
+  marker->pose.position.z = position.z;
+  marker->pose.orientation.x = orientation.x;
+  marker->pose.orientation.y = orientation.y;
+  marker->pose.orientation.z = orientation.z;
+  marker->pose.orientation.w = orientation.w;
+  marker->scale.x = 0.1;
+  marker->scale.y = 0.1;
+  marker->scale.z = 0.1;
+  if (score.score < 0) {
+    marker->color.r = 0;
+    marker->color.g = 0;
+    marker->color.b = 0;
+  } else {
+    marker->color.r = 1.0-score.score;
+    marker->color.g = score.score;
+    marker->color.b = 0.0f;
+  }
+  marker->color.a = 1.0;
+  marker->lifetime = ros::Duration();
+}
+
+/**
  * Returns the current camera position.
  */
 Point AutoCPDisplay::getCameraPosition() {
@@ -735,7 +802,7 @@ Point AutoCPDisplay::interpolatePosition(
   if (max_distance > distance(start, end)) {
     return end;
   } else {
-    geometry_msgs::Vector3 v = vectorBetween(start, end);
+    Vector3 v = vectorBetween(start, end);
     v = setLength(v, max_distance);
     Point next = add(start, v);
     return next;
@@ -826,13 +893,13 @@ bool AutoCPDisplay::isVisibleFrom(const Point& point,
  * Compute the projection of the vector onto the orthogonal plane or line
  * defined by the current control.
  */
-geometry_msgs::Vector3 AutoCPDisplay::computeControlProjection(
+Vector3 AutoCPDisplay::computeControlProjection(
     const ClickedControl& control,
-    const geometry_msgs::Vector3& vector) {
+    const Vector3& vector) {
   if (current_control_ == NULL) {
     ROS_INFO("Error: tried to compute projection of null control.");
   }
-  geometry_msgs::Vector3 projection;
+  Vector3 projection;
   projection.x = vector.x;
   projection.y = vector.y;
   projection.z = vector.z;
@@ -856,6 +923,33 @@ geometry_msgs::Vector3 AutoCPDisplay::computeControlProjection(
     return projection;
   }
   return projection;
+}
+
+/**
+ * Converts a position/focus point into an orientation from the position.
+ */
+void AutoCPDisplay::focusToOrientation(
+  const Point& position,
+  const Point& focus,
+  Quaternion* orientation
+) {
+  Ogre::Vector3 start(position.x, position.y, position.z);
+  Ogre::Vector3 end(focus.x, focus.y, focus.z);
+  Ogre::Vector3 diff = end - start;
+  auto ogre_orientation = Ogre::Vector3::UNIT_X.getRotationTo(diff);
+  orientation->x = ogre_orientation.x;
+  orientation->y = ogre_orientation.y;
+  orientation->z = ogre_orientation.z;
+  orientation->w = ogre_orientation.w;
+  //Ogre::Camera camera ("test", vm_->getSceneManager());
+  //camera.setPosition(position.x, position.y, position.z);
+  //camera.lookAt(focus.x, focus.y, focus.z);
+  //auto cam_orientation = camera.getOrientation();
+
+  //orientation->x = cam_orientation.x;
+  //orientation->y = cam_orientation.y;
+  //orientation->z = cam_orientation.z;
+  //orientation->w = cam_orientation.w;
 }
 
 }  // namespace autocp
