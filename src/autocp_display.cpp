@@ -135,8 +135,6 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
     "autocp_candidates", 1);
 }
 
-
-
 /**
  * Destructor.
  */
