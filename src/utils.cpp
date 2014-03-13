@@ -4,9 +4,8 @@ namespace autocp {
 /**
  * Computes the point when adding the given vector to the given point.
  */
-geometry_msgs::Point add(
-    const geometry_msgs::Point& p,
-    const geometry_msgs::Vector3& v) {
+geometry_msgs::Point add(const geometry_msgs::Point& p,
+                         const geometry_msgs::Vector3& v) {
   geometry_msgs::Point result;
   result.x = p.x + v.x;
   result.y = p.y + v.y;
@@ -17,9 +16,8 @@ geometry_msgs::Point add(
 /**
  * Computes the result of adding two points.
  */
-geometry_msgs::Point add(
-    const geometry_msgs::Point& a,
-    const geometry_msgs::Point& b) {
+geometry_msgs::Point add(const geometry_msgs::Point& a,
+                         const geometry_msgs::Point& b) {
   geometry_msgs::Point result;
   result.x = a.x + b.x;
   result.y = a.y + b.y;
@@ -41,17 +39,15 @@ geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v) {
 /**
  * Returns the cosine of the angle between the two vectors.
  */
-float cosineAngle(
-    const geometry_msgs::Vector3& v1,
-    const geometry_msgs::Vector3& v2) {
+float cosineAngle(const geometry_msgs::Vector3& v1,
+                  const geometry_msgs::Vector3& v2) {
   return dotProduct(v1, v2) / (length(v1) * length(v2));
 }
 
-float distance(
-    const geometry_msgs::Point& p1,
-    const geometry_msgs::Point& p2) {
+float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2) {
   geometry_msgs::Vector3 difference;
-  difference.x = p1.x - p2.x; difference.y = p1.y - p2.y;
+  difference.x = p1.x - p2.x;
+  difference.y = p1.y - p2.y;
   difference.z = p1.z - p2.z;
   return length(difference);
 }
@@ -59,9 +55,8 @@ float distance(
 /**
  * Returns the dot product of two vectors.
  */
-float dotProduct(
-    const geometry_msgs::Vector3& v1,
-    const geometry_msgs::Vector3& v2) {
+float dotProduct(const geometry_msgs::Vector3& v1,
+                 const geometry_msgs::Vector3& v2) {
   return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
@@ -129,8 +124,8 @@ geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale) {
 /*
  * Returns the scaled vector.
  */
-geometry_msgs::Vector3 scale(
-  const geometry_msgs::Vector3& vector, float scale) {
+geometry_msgs::Vector3 scale(const geometry_msgs::Vector3& vector,
+                             float scale) {
   geometry_msgs::Vector3 result;
   result.x = vector.x * scale;
   result.y = vector.y * scale;
@@ -141,8 +136,8 @@ geometry_msgs::Vector3 scale(
 /**
  * Returns a new vector that's the same as v, but scaled to the given length.
  */
-geometry_msgs::Vector3 setLength(
-    const geometry_msgs::Vector3& v, float new_length) {
+geometry_msgs::Vector3 setLength(const geometry_msgs::Vector3& v,
+                                 float new_length) {
   geometry_msgs::Vector3 result = copyVector(v);
   float constant = new_length / length(result);
   result.x *= constant;
@@ -200,9 +195,8 @@ geometry_msgs::Vector3 toVector3(const geometry_msgs::Point& p) {
 /**
  * Get the vector starting at "from" and ending at "to".
  */
-geometry_msgs::Vector3 vectorBetween(
-    const geometry_msgs::Point& from,
-    const geometry_msgs::Point& to) {
+geometry_msgs::Vector3 vectorBetween(const geometry_msgs::Point& from,
+                                     const geometry_msgs::Point& to) {
   geometry_msgs::Vector3 result;
   result.x = to.x - from.x;
   result.y = to.y - from.y;

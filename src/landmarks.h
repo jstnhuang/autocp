@@ -12,11 +12,16 @@ struct Landmark {
   Point position;
   float weight;
   bool exists;
-  Landmark(): position(), weight(0), exists(false) {}
+  Landmark()
+      : position(),
+        weight(0),
+        exists(false) {
+  }
   Landmark(Point position, float weight, bool exists)
-    : position(position),
-      weight(weight),
-      exists(exists) {}
+      : position(position),
+        weight(weight),
+        exists(exists) {
+  }
 };
 
 /*
@@ -26,37 +31,37 @@ struct Landmark {
  * landmarks add is 1.
  */
 class Landmarks {
-  public:
-    Landmarks();
-    Landmarks(float gripper_weight, float head_focus_weight,
-      float segmented_object_weight);
-    ~Landmarks();
-    Point Center();
-    void LandmarksVector(std::vector<Landmark>* landmarks);
-    template <typename MetricFunc>
-    float ComputeMetric(MetricFunc metric);
-    void UpdateLeftGripper(const Point* point);
-    void UpdateRightGripper(const Point* point);
-    void UpdateHeadFocus(const Point* point);
-    void UpdateSegmentedObjects(const std::vector<Point>& objects);
-    void UpdateGripperWeight(float weight);
-    void UpdateHeadFocusWeight(float weight);
-    void UpdateSegmentedObjectWeight(float weight);
-    float GripperWeight();
-    float HeadFocusWeight();
-    float SegmentedObjectWeight();
-  private:
-    Landmark l_gripper_;
-    Landmark r_gripper_;
-    Landmark head_focus_;
-    std::vector<Landmark> segmented_objects_;
-    // We save weights that are distributed between multiple objects. Weights
-    // for single objects are just stored in the Landmark data structure.
-    float gripper_weight_;
-    float segmented_object_weight_;
+ public:
+  Landmarks();
+  Landmarks(float gripper_weight, float head_focus_weight,
+            float segmented_object_weight);
+  ~Landmarks();
+  Point Center();
+  void LandmarksVector(std::vector<Landmark>* landmarks);
+  template<typename MetricFunc>
+  float ComputeMetric(MetricFunc metric);
+  void UpdateLeftGripper(const Point* point);
+  void UpdateRightGripper(const Point* point);
+  void UpdateHeadFocus(const Point* point);
+  void UpdateSegmentedObjects(const std::vector<Point>& objects);
+  void UpdateGripperWeight(float weight);
+  void UpdateHeadFocusWeight(float weight);
+  void UpdateSegmentedObjectWeight(float weight);
+  float GripperWeight();
+  float HeadFocusWeight();
+  float SegmentedObjectWeight();
+ private:
+  Landmark l_gripper_;
+  Landmark r_gripper_;
+  Landmark head_focus_;
+  std::vector<Landmark> segmented_objects_;
+  // We save weights that are distributed between multiple objects. Weights
+  // for single objects are just stored in the Landmark data structure.
+  float gripper_weight_;
+  float segmented_object_weight_;
 };
 
-template <typename MetricFunc>
+template<typename MetricFunc>
 float Landmarks::ComputeMetric(MetricFunc metric) {
   float result = 0;
   float normalizer = 0;

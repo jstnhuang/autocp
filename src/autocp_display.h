@@ -45,7 +45,14 @@ using geometry_msgs::Quaternion;
 using geometry_msgs::Vector3;
 using visualization_msgs::Marker;
 
-enum class Control6Dof { X, Y, Z, PITCH, ROLL, YAW };
+enum class Control6Dof {
+  X,
+  Y,
+  Z,
+  PITCH,
+  ROLL,
+  YAW
+};
 
 struct ClickedControl {
   std::string marker;
@@ -55,35 +62,27 @@ struct ClickedControl {
   Point world_position;
 
   ClickedControl(std::string marker, Control6Dof control,
-    geometry_msgs::Pose pose, Point world_position
-  ) {
+                 geometry_msgs::Pose pose, Point world_position) {
     this->marker = marker;
     this->control = control;
     this->pose = pose;
     this->world_position = world_position;
-  } ~ClickedControl() {
+  }
+  ~ClickedControl() {
   }
 };
 
 // Maps built by observing /pr2_marker_control_transparent/feedback
 // TODO(jstn): Are these fixed or do they depend on other factors?
-static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
-  {"_u1", Control6Dof::X},
-  {"_u5", Control6Dof::Y},
-  {"_u3", Control6Dof::Z},
-  {"_u4", Control6Dof::PITCH},
-  {"_u0", Control6Dof::ROLL},
-  {"_u2", Control6Dof::YAW},
-};
+static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = { { "_u1",
+    Control6Dof::X }, { "_u5", Control6Dof::Y }, { "_u3", Control6Dof::Z }, {
+    "_u4", Control6Dof::PITCH }, { "_u0", Control6Dof::ROLL }, { "_u2",
+    Control6Dof::YAW }, };
 
-static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
-  {"_u0", Control6Dof::X},
-  {"_u4", Control6Dof::Y},
-  {"_u2", Control6Dof::Z},
-  {"_u3", Control6Dof::PITCH},
-  {"", Control6Dof::ROLL},
-  {"_u1", Control6Dof::YAW},
-};
+static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = { { "_u0",
+    Control6Dof::X }, { "_u4", Control6Dof::Y }, { "_u2", Control6Dof::Z }, {
+    "_u3", Control6Dof::PITCH }, { "", Control6Dof::ROLL }, { "_u1",
+    Control6Dof::YAW }, };
 
 /**
  * Represents the score of a camera pose. It contains all the components of the
@@ -99,7 +98,7 @@ struct Score {
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
 
-static const float R2 = 0.70710678118; // sqrt(2) / 2
+static const float R2 = 0.70710678118;  // sqrt(2) / 2
 
 static const float OCCLUSION_THRESHOLD = 0.25;
 
@@ -107,8 +106,8 @@ static const float OCCLUSION_THRESHOLD = 0.25;
 static const float CONTROL_DECAY_TIME = 2;
 static const float CONTROL_IMPORTANCE_FACTOR = 2;
 
-class AutoCPDisplay: public rviz::Display {
-  Q_OBJECT
+class AutoCPDisplay : public rviz::Display {
+Q_OBJECT
 
  public:
   AutoCPDisplay();
@@ -135,18 +134,11 @@ class AutoCPDisplay: public rviz::Display {
 
   // Debugging
   ros::Publisher candidate_marker_pub_;
-  void publishCandidateMarkers(
-    const std::vector<Point>& viewpoints,
-    const std::vector<Score>& scores,
-    float time_delta
-  );
-  void makeCameraMarker(
-    const Point& position,
-    const Score& score,
-    int id,
-    float time_delta,
-    Marker* marker
-  );
+  void publishCandidateMarkers(const std::vector<Point>& viewpoints,
+                               const std::vector<Score>& scores,
+                               float time_delta);
+  void makeCameraMarker(const Point& position, const Score& score, int id,
+                        float time_delta, Marker* marker);
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
@@ -169,16 +161,15 @@ class AutoCPDisplay: public rviz::Display {
   // Head focus.
   ros::Subscriber point_head_subscriber_;
   Point head_focus_point_;
-  void pointHeadCallback(
-    const pr2_controllers_msgs::PointHeadActionGoal& goal);
+  void pointHeadCallback(const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* head_focus_weight_;
   void fullMarkerCallback(
-    const visualization_msgs::InteractiveMarkerInit& im_init);
+      const visualization_msgs::InteractiveMarkerInit& im_init);
 
   // Current marker.
   ros::Subscriber marker_subscriber_;
   void markerCallback(
-    const visualization_msgs::InteractiveMarkerFeedback& feedback);
+      const visualization_msgs::InteractiveMarkerFeedback& feedback);
   void decayWeights(float time_delta);
   // current_control_ is either the active control or the previous control,
   // depending on whether or not we move when a control is active.
@@ -191,11 +182,11 @@ class AutoCPDisplay: public rviz::Display {
   rviz::FloatProperty* segmented_object_weight_;
   std::vector<Point> segmented_object_positions_;
   void objectSegmentationCallback(
-    const manipulation_msgs::GraspableObjectList& list);
+      const manipulation_msgs::GraspableObjectList& list);
 
   // Zoom factors.
   rviz::FloatProperty* zoom_weight_;
-  
+
   // Smoothness factors.
   rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
@@ -208,16 +199,11 @@ class AutoCPDisplay: public rviz::Display {
   rviz::FloatProperty* stay_visible_weight_;
 
   // Visibility factors.
-  void projectWorldToViewport(
-    const Point& point,
-    int* screen_x,
-    int* screen_y);
+  void projectWorldToViewport(const Point& point, int* screen_x, int* screen_y);
   bool isOnScreen(int screen_x, int screen_y);
   bool isVisible(const Point& point);
-  bool isVisibleFrom(
-    const Point& point,
-    const Point& camera_position,
-    const Point& focus);
+  bool isVisibleFrom(const Point& point, const Point& camera_position,
+                     const Point& focus);
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
@@ -225,30 +211,27 @@ class AutoCPDisplay: public rviz::Display {
   Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
   void chooseCameraFocus(Point* focus);
-  Vector3 computeControlProjection(
-    const ClickedControl& control,
-    const Vector3& vector);
+  Vector3 computeControlProjection(const ClickedControl& control,
+                                   const Vector3& vector);
 
   // Score functions.
   float visibilityScore(const Point& location);
   float orthogonalityScore(const Point& location,
-    const Point& control_location);
+                           const Point& control_location);
   float zoomScore(const Point& location);
   float smoothnessScore(const Point& location);
   Score computeLocationScore(const Point& location);
   void selectViewpoints(std::vector<Vector3>* viewpoints);
   bool chooseCameraLocation(Point* location, float time_delta);
   static void setCameraPlacement(
-    const Point& location,
-    const Point& focus,
-    const ros::Duration& time_from_start,
-    view_controller_msgs::CameraPlacement* camera_placement);
-  Point interpolatePosition(
-    const Point& start, const Point& end,
-    float time_delta);
+      const Point& location, const Point& focus,
+      const ros::Duration& time_from_start,
+      view_controller_msgs::CameraPlacement* camera_placement);
+  Point interpolatePosition(const Point& start, const Point& end,
+                            float time_delta);
   // Utilities
   void focusToOrientation(const Point& position, const Point& focus,
-    Quaternion* orientation);
+                          Quaternion* orientation);
 };
 }  // namespace autocp
 

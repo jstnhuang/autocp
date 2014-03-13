@@ -5,12 +5,12 @@ namespace autocp {
 using namespace geometry_msgs;
 
 Landmarks::Landmarks()
-  : l_gripper_(),
-    r_gripper_(),
-    head_focus_(),
-    segmented_objects_(),
-    gripper_weight_(0),
-    segmented_object_weight_(0) {
+    : l_gripper_(),
+      r_gripper_(),
+      head_focus_(),
+      segmented_objects_(),
+      gripper_weight_(0),
+      segmented_object_weight_(0) {
 }
 
 Landmarks::~Landmarks() {
@@ -51,7 +51,7 @@ void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
   // If the segmented objects vector is nonempty, the objects are assumed to
   // exist.
   landmarks->insert(landmarks->end(), segmented_objects_.begin(),
-    segmented_objects_.end());
+                    segmented_objects_.end());
 }
 
 /*
