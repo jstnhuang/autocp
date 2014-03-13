@@ -132,7 +132,7 @@ AutoCPDisplay::AutoCPDisplay(): root_nh_("") {
 
   initializeStandardViewpoints();
   candidate_marker_pub_ = root_nh_.advertise<Marker>(
-    "autocp_candidates", 1);
+    "autocp_markers", 1);
 }
 
 /**
@@ -165,6 +165,13 @@ void AutoCPDisplay::onInitialize() {
     "/interactive_object_recognition_result",
     5,
     &AutoCPDisplay::objectSegmentationCallback,
+    this);
+
+  // Just read the first message to get the initial head focus point.
+  auto full_subscriber = root_nh_.subscribe(
+    "/pr2_marker_control_transparent/update_full",
+    1,
+    &AutoCPDisplay::fullMarkerCallback,
     this);
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
@@ -372,6 +379,21 @@ void AutoCPDisplay::markerCallback(
 }
 
 /**
+ * Get the initial state of all the markers. Currently, all we do is read the
+ * head focus point. We can get the location of the grippers in sense().
+ */
+void AutoCPDisplay::fullMarkerCallback(
+  const visualization_msgs::InteractiveMarkerInit& im_init
+) {
+  for (const auto& marker : im_init.markers) {
+    if (marker.name == "head_point_goal") {
+      landmarks_.UpdateHeadFocus(&marker.pose.position);
+      return;
+    }
+  }
+}
+
+/**
  * Check if the weight on the current control is larger than it should be. If
  * so, linearly decays the weight back to where it should be over
  * CONTROL_DECAY_TIME seconds.
@@ -514,7 +536,8 @@ float AutoCPDisplay::zoomScore(const Point& location) {
  * function.
  */
 float AutoCPDisplay::smoothnessScore(const Point& location) {
-  return 1 - logisticDistance(distance(location, target_position_), 1);
+  auto camera_position = toPoint(camera_->getPosition());
+  return 1 - logisticDistance(distance(location, camera_position), 1);
 }
 
 /**

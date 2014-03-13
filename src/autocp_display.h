@@ -29,6 +29,7 @@
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
+#include <visualization_msgs/InteractiveMarkerInit.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
 #include "landmarks.h"
@@ -171,6 +172,8 @@ class AutoCPDisplay: public rviz::Display {
   void pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* head_focus_weight_;
+  void fullMarkerCallback(
+    const visualization_msgs::InteractiveMarkerInit& im_init);
 
   // Current marker.
   ros::Subscriber marker_subscriber_;
