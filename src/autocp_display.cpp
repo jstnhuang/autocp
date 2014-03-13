@@ -516,26 +516,7 @@ float AutoCPDisplay::zoomScore(const Point& location) {
  * function.
  */
 float AutoCPDisplay::smoothnessScore(const Point& location) {
-  Quaternion sim_orientation;
-  focusToOrientation(location, camera_focus_, &sim_orientation);
-  auto our_orientation = camera_->getOrientation();
-  float x_diff = target_position_.x - location.x;
-  float y_diff = target_position_.y - location.y;
-  float z_diff = target_position_.z - location.z;
-  float orientation_w_diff = sim_orientation.w - our_orientation.w;
-  float orientation_x_diff = sim_orientation.x - our_orientation.x;
-  float orientation_y_diff = sim_orientation.y - our_orientation.y;
-  float orientation_z_diff = sim_orientation.z - our_orientation.z;
-  float distance = sqrt(
-    x_diff * x_diff
-    + y_diff * y_diff
-    + z_diff * z_diff
-    + orientation_w_diff * orientation_w_diff
-    + orientation_x_diff * orientation_x_diff
-    + orientation_y_diff * orientation_y_diff
-    + orientation_z_diff * orientation_z_diff
-  );
-  return 1 - logisticDistance(distance, 1);
+  return 1 - logisticDistance(distance(location, target_position_), 1);
 }
 
 /**
