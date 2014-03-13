@@ -639,10 +639,6 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
     if (score.score > best_score.score) {
       best_location = test_point;
       best_score = score;
-      //ROS_INFO("Found (%f, %f, %f), score=(v: %f, o: %f, z: %f, s: %f = %f)",
-      //  best_location.x, best_location.y, best_location.z,
-      //  best_score.visibility, best_score.orthogonality, best_score.zoom,
-      //  best_score.smoothness, best_score.score);
     }
   }
 
