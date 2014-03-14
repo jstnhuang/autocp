@@ -154,7 +154,6 @@ Q_OBJECT
   std::vector<Vector3> standard_viewpoints_;
 
   // Sensing.
-  void sense();
   void getTransformOrigin(std::string frame, Point* origin);
   rviz::BoolProperty* show_fps_;
 
@@ -171,13 +170,14 @@ Q_OBJECT
   Point head_focus_point_;
   void pointHeadCallback(const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* head_focus_weight_;
-  void fullMarkerCallback(
-      const visualization_msgs::InteractiveMarkerInit& im_init);
 
-  // Current marker.
-  ros::Subscriber marker_subscriber_;
+  // Markers.
+  ros::Subscriber full_marker_subscriber_;
+  ros::Subscriber marker_feedback_subscriber_;
   void markerCallback(
       const visualization_msgs::InteractiveMarkerFeedback& feedback);
+  void fullMarkerCallback(
+      const visualization_msgs::InteractiveMarkerInit& im_init);
   void decayWeights(float time_delta);
   // current_control_ is either the active control or the previous control,
   // depending on whether or not we move when a control is active.

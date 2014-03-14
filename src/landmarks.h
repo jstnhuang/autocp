@@ -50,10 +50,12 @@ class Landmarks {
   float GripperWeight();
   float HeadFocusWeight();
   float SegmentedObjectWeight();
+  int NumLandmarks();
  private:
   Landmark l_gripper_;
   Landmark r_gripper_;
   Landmark head_focus_;
+  int num_landmarks_; // Number of existing landmarks.
   std::vector<Landmark> segmented_objects_;
   // We save weights that are distributed between multiple objects. Weights
   // for single objects are just stored in the Landmark data structure.
@@ -68,7 +70,7 @@ float Landmarks::ComputeMetric(MetricFunc metric) {
   std::vector<Landmark> landmarks;
   LandmarksVector(&landmarks);
   for (const auto& landmark : landmarks) {
-    if (landmark.exists) {
+    if (landmark.exists && landmark.weight > 0) {
       normalizer += landmark.weight;
       result += landmark.weight * metric(landmark.position);
     }

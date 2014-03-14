@@ -10,7 +10,8 @@ Landmarks::Landmarks()
       head_focus_(),
       segmented_objects_(),
       gripper_weight_(0),
-      segmented_object_weight_(0) {
+      segmented_object_weight_(0),
+      num_landmarks_(0) {
 }
 
 Landmarks::~Landmarks() {
@@ -25,7 +26,7 @@ Point Landmarks::Center() {
   LandmarksVector(&landmarks);
   float normalizer = 0;
   for (const auto& landmark : landmarks) {
-    if (landmark.exists) {
+    if (landmark.exists && landmark.weight > 0) {
       normalizer += landmark.weight;
       Point weighted = scale(landmark.position, landmark.weight);
       center = add(center, weighted);
@@ -61,8 +62,14 @@ void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
 void Landmarks::UpdateLeftGripper(const Point* point) {
   if (point != NULL) {
     l_gripper_.position = *point;
+    if (!l_gripper_.exists) {
+      num_landmarks_++;
+    }
     l_gripper_.exists = true;
   } else {
+    if (l_gripper_.exists) {
+      num_landmarks_--;
+    }
     l_gripper_.exists = false;
   }
 }
@@ -74,8 +81,14 @@ void Landmarks::UpdateLeftGripper(const Point* point) {
 void Landmarks::UpdateRightGripper(const Point* point) {
   if (point != NULL) {
     r_gripper_.position = *point;
+    if (!r_gripper_.exists) {
+      num_landmarks_++;
+    }
     r_gripper_.exists = true;
   } else {
+    if (r_gripper_.exists) {
+      num_landmarks_--;
+    }
     r_gripper_.exists = false;
   }
 }
@@ -87,8 +100,14 @@ void Landmarks::UpdateRightGripper(const Point* point) {
 void Landmarks::UpdateHeadFocus(const Point* point) {
   if (point != NULL) {
     head_focus_.position = *point;
+    if (!head_focus_.exists) {
+      num_landmarks_++;
+    }
     head_focus_.exists = true;
   } else {
+    if (head_focus_.exists) {
+      num_landmarks_--;
+    }
     head_focus_.exists = false;
   }
 }
@@ -98,7 +117,9 @@ void Landmarks::UpdateHeadFocus(const Point* point) {
  * represent the fact that there are no segmented objects.
  */
 void Landmarks::UpdateSegmentedObjects(const std::vector<Point>& objects) {
-  float weight = segmented_object_weight_ / segmented_objects_.size();
+  float weight = segmented_object_weight_ / objects.size();
+  num_landmarks_ -= segmented_objects_.size();
+  num_landmarks_ += objects.size();
   segmented_objects_.clear();
   for (const auto& object : objects) {
     segmented_objects_.push_back(Landmark(object, weight, true));
@@ -145,5 +166,9 @@ float Landmarks::HeadFocusWeight() {
 
 float Landmarks::SegmentedObjectWeight() {
   return segmented_object_weight_;
+}
+
+int Landmarks::NumLandmarks() {
+  return num_landmarks_;
 }
 }

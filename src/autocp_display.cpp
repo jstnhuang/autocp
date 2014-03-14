@@ -62,12 +62,11 @@ AutoCPDisplay::AutoCPDisplay()
   be_orthogonal_weight_->setMin(0);
   be_orthogonal_weight_->setMax(1);
 
-  stay_visible_weight_ =
-      new rviz::FloatProperty(
-          "Marker visibility weight",
-          0.2,
-          "How much weight to assign to points where the current marker is visible.",
-          this, SLOT(updateWeights()));
+  stay_visible_weight_ = new rviz::FloatProperty(
+      "Marker visibility weight", 0.2,
+      "How much weight to assign to points where the current marker is "
+      "visible.",
+      this, SLOT(updateWeights()));
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
 
@@ -130,7 +129,7 @@ void AutoCPDisplay::onInitialize() {
       "head_traj_controller/point_head_action/goal", 5,
       &AutoCPDisplay::pointHeadCallback, this);
 
-  marker_subscriber_ = root_nh_.subscribe(
+  marker_feedback_subscriber_ = root_nh_.subscribe(
       "/pr2_marker_control_transparent/feedback", 5,
       &AutoCPDisplay::markerCallback, this);
 
@@ -139,8 +138,8 @@ void AutoCPDisplay::onInitialize() {
       &AutoCPDisplay::objectSegmentationCallback, this);
 
   // Just read the first message to get the initial head focus point.
-  auto full_subscriber = root_nh_.subscribe(
-      "/pr2_marker_control_transparent/update_full", 1,
+  full_marker_subscriber_ = root_nh_.subscribe(
+      "/pr2_marker_control_transparent/update_full", 5,
       &AutoCPDisplay::fullMarkerCallback, this);
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
@@ -224,16 +223,6 @@ void AutoCPDisplay::updateSmoothnessOption() {
 }
 
 // Sensing ---------------------------------------------------------------------
-/**
- * Update the points of interest.
- */
-void AutoCPDisplay::sense() {
-  getTransformOrigin("/l_wrist_roll_link", &left_gripper_origin_);
-  getTransformOrigin("/r_wrist_roll_link", &right_gripper_origin_);
-  landmarks_.UpdateLeftGripper(&left_gripper_origin_);
-  landmarks_.UpdateRightGripper(&right_gripper_origin_);
-}
-
 /**
  * Get the origin of the given transform.
  */
@@ -335,15 +324,22 @@ void AutoCPDisplay::markerCallback(
 }
 
 /**
- * Get the initial state of all the markers. Currently, all we do is read the
- * head focus point. We can get the location of the grippers in sense().
+ * Get the state of all the markers. This differs from the regular callback
+ * because we get data from this topic on startup, while markerCallback only
+ * gets called when a marker is being used.
  */
 void AutoCPDisplay::fullMarkerCallback(
     const visualization_msgs::InteractiveMarkerInit& im_init) {
+  landmarks_.UpdateHeadFocus(NULL);
+  landmarks_.UpdateRightGripper(NULL);
+  landmarks_.UpdateLeftGripper(NULL);
   for (const auto& marker : im_init.markers) {
     if (marker.name == "head_point_goal") {
       landmarks_.UpdateHeadFocus(&marker.pose.position);
-      return;
+    } else if (marker.name == "r_gripper_control") {
+      landmarks_.UpdateRightGripper(&marker.pose.position);
+    } else if (marker.name == "l_gripper_control") {
+      landmarks_.UpdateLeftGripper(&marker.pose.position);
     }
   }
 }
@@ -380,7 +376,9 @@ void AutoCPDisplay::decayWeights(float time_delta) {
  * Main loop that alternates between sensing and placing the camera.
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
-  sense();
+  if (landmarks_.NumLandmarks() == 0) {
+    return;
+  }
   chooseCameraPlacement(wall_dt);
 
   if (show_fps_->getBool()) {
