@@ -171,6 +171,10 @@ Q_OBJECT
   void pointHeadCallback(const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* head_focus_weight_;
 
+  // Head position.
+  rviz::FloatProperty* head_weight_;
+  void getHeadPosition(Point* point);
+
   // Markers.
   ros::Subscriber full_marker_subscriber_;
   ros::Subscriber marker_feedback_subscriber_;

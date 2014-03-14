@@ -33,8 +33,6 @@ struct Landmark {
 class Landmarks {
  public:
   Landmarks();
-  Landmarks(float gripper_weight, float head_focus_weight,
-            float segmented_object_weight);
   ~Landmarks();
   Point Center();
   void LandmarksVector(std::vector<Landmark>* landmarks);
@@ -42,18 +40,22 @@ class Landmarks {
   float ComputeMetric(MetricFunc metric);
   void UpdateLeftGripper(const Point* point);
   void UpdateRightGripper(const Point* point);
+  void UpdateHead(const Point* point);
   void UpdateHeadFocus(const Point* point);
   void UpdateSegmentedObjects(const std::vector<Point>& objects);
   void UpdateGripperWeight(float weight);
+  void UpdateHeadWeight(float weight);
   void UpdateHeadFocusWeight(float weight);
   void UpdateSegmentedObjectWeight(float weight);
   float GripperWeight();
+  float HeadWeight();
   float HeadFocusWeight();
   float SegmentedObjectWeight();
   int NumLandmarks();
  private:
   Landmark l_gripper_;
   Landmark r_gripper_;
+  Landmark head_;
   Landmark head_focus_;
   int num_landmarks_; // Number of existing landmarks.
   std::vector<Landmark> segmented_objects_;

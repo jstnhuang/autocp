@@ -33,6 +33,13 @@ AutoCPDisplay::AutoCPDisplay()
   gripper_weight_->setMin(0);
   gripper_weight_->setMax(1);
 
+  head_weight_ = new rviz::FloatProperty(
+      "Head weight", 0.25,
+      "How much weight to the location of the robot's head.", this,
+      SLOT(updateWeights()));
+  head_weight_->setMin(0);
+  head_weight_->setMax(1);
+
   head_focus_weight_ = new rviz::FloatProperty(
       "Head focus point weight", 0.25,
       "How much weight to assign to the location the robot is looking.", this,
@@ -142,6 +149,11 @@ void AutoCPDisplay::onInitialize() {
       "/pr2_marker_control_transparent/update_full", 5,
       &AutoCPDisplay::fullMarkerCallback, this);
 
+  // Get the head location.
+  Point head_position;
+  getHeadPosition(&head_position);
+  landmarks_.UpdateHead(&head_position);
+
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
@@ -204,6 +216,7 @@ void AutoCPDisplay::updateCameraOptions() {
  */
 void AutoCPDisplay::updateWeights() {
   landmarks_.UpdateGripperWeight(gripper_weight_->getFloat());
+  landmarks_.UpdateHeadWeight(head_weight_->getFloat());
   landmarks_.UpdateHeadFocusWeight(head_focus_weight_->getFloat());
   landmarks_.UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
 }
@@ -224,7 +237,7 @@ void AutoCPDisplay::updateSmoothnessOption() {
 
 // Sensing ---------------------------------------------------------------------
 /**
- * Get the origin of the given transform.
+ * Get the origin of the given transform relative to the fixed frame.
  */
 void AutoCPDisplay::getTransformOrigin(std::string frame, Point* origin) {
   ros::Duration timeout(5);
@@ -238,6 +251,16 @@ void AutoCPDisplay::getTransformOrigin(std::string frame, Point* origin) {
   origin->x = transform_origin.x();
   origin->y = transform_origin.y();
   origin->z = transform_origin.z();
+}
+
+/**
+ * Gets the position of the head relative to the fixed frame.
+ */
+void AutoCPDisplay::getHeadPosition(Point* head_position) {
+  getTransformOrigin("/head_tilt_link", head_position);
+  //head_position->x = 0;
+  //head_position->y = 0;
+  //head_position->z = 1.5;
 }
 
 /**

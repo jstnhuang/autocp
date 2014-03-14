@@ -46,6 +46,9 @@ void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
   if (r_gripper_.exists && r_gripper_.weight > 0) {
     landmarks->push_back(r_gripper_);
   }
+  if (head_.exists && head_.weight > 0) {
+    landmarks->push_back(head_);
+  }
   if (head_focus_.exists && head_focus_.weight > 0) {
     landmarks->push_back(head_focus_);
   }
@@ -90,6 +93,21 @@ void Landmarks::UpdateRightGripper(const Point* point) {
       num_landmarks_--;
     }
     r_gripper_.exists = false;
+  }
+}
+
+void Landmarks::UpdateHead(const Point* point) {
+  if (point != NULL) {
+    head_.position = *point;
+    if (!head_.exists) {
+      num_landmarks_++;
+    }
+    head_.exists = true;
+  } else {
+    if (head_.exists) {
+      num_landmarks_--;
+    }
+    head_.exists = false;
   }
 }
 
@@ -144,6 +162,13 @@ void Landmarks::UpdateHeadFocusWeight(float weight) {
 }
 
 /*
+ * Updates the weight of the head.
+ */
+void Landmarks::UpdateHeadWeight(float weight) {
+  head_.weight = weight;
+}
+
+/*
  * Updates the weight of the segmented objects. The provided weight is for all
  * the segmented objects. Each object ends up getting an equal share of the
  * weight.
@@ -158,6 +183,10 @@ void Landmarks::UpdateSegmentedObjectWeight(float weight) {
 
 float Landmarks::GripperWeight() {
   return gripper_weight_;
+}
+
+float Landmarks::HeadWeight() {
+  return head_.weight;
 }
 
 float Landmarks::HeadFocusWeight() {
