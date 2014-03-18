@@ -570,10 +570,8 @@ void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
   int num_viewpoints =
       static_cast<int>(static_cast<double>(occlusion_check_limit_->getInt())
           / num_landmarks);
-  if (num_viewpoints < 2) {
-    ROS_INFO("Sampling less than two viewpoints per frame. "
-             "There may be too many landmarks.");
-    num_viewpoints = 2;
+  if (num_viewpoints < 1) {
+    num_viewpoints = 1;
   }
   for (int i = 0; i < num_viewpoints; i++) {
     int index = rand() % standard_viewpoints_.size();
@@ -609,16 +607,21 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   std::vector<Vector3> viewpoints;
   std::vector<Score> scores;
   selectViewpoints(&viewpoints);
+  std::vector<Landmark> landmarks;
+  landmarks_.LandmarksVector(&landmarks);
+  for (const auto& landmark : landmarks) {
+    for (const auto& viewpoint_vector: viewpoints) {
+      Point test_point = add(landmark.position, viewpoint_vector);
+      test_points.push_back(test_point);
+    }
+  }
   Score null_score;
   null_score.visibility = -1;
   null_score.orthogonality = -1;
   null_score.zoom = -1;
   null_score.smoothness = -1;
   null_score.score = -1;
-  for (const auto& test_vector : viewpoints) {
-    Point test_point = add(camera_focus_, test_vector);
-    test_points.push_back(test_point);
-
+  for (const auto& test_point : test_points) {
     // Constraints
     // Never go below the ground plane
     if (test_point.z < 0) {
