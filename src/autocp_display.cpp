@@ -450,12 +450,10 @@ float AutoCPDisplay::orthogonalityScore(
 float AutoCPDisplay::zoomScore(const Point& candidate_position) {
   auto zoom_metric = [&] (const Point& point) -> float {
     float dist = distance(point, candidate_position);
-    if (dist < MIN_DISTANCE || dist > MAX_DISTANCE) {
+    if (dist < MIN_DISTANCE) {
       return 0;
-    } else {
-      float slope = 1.0 / (MAX_DISTANCE - MIN_DISTANCE);
-      return -slope * dist + (1 + MIN_DISTANCE * slope);
     }
+    return linearInterpolation(MIN_DISTANCE, 1, MAX_DISTANCE, 0, dist);
   };
   return landmarks_.ComputeMetric(zoom_metric);
 }
@@ -467,7 +465,8 @@ float AutoCPDisplay::zoomScore(const Point& candidate_position) {
  */
 float AutoCPDisplay::travelingScore(const Point& candidate_position) {
   auto camera_position = toPoint(camera_->getPosition());
-  return 1 - logisticDistance(distance(candidate_position, camera_position), 1);
+  auto dist = distance(candidate_position, camera_position);
+  return linearInterpolation(0, 1, 5, 0, dist);
 }
 
 /**
@@ -488,12 +487,6 @@ float AutoCPDisplay::crossingScore(const Point& candidate_position) {
   int candidate_x_sign = sign(candidate_position.x - control_position.x);
   int candidate_y_sign = sign(candidate_position.y - control_position.y);
   int candidate_z_sign = sign(candidate_position.z - control_position.z);
-
-  // Never go below the control.
-  //if (test_z_sign < 0) {
-  //  scores.push_back(null_score);
-  //  continue;
-  //}
 
   // If you're using an x control, don't cross the y=0 plane
   // If you're using a y control, don't cross the x=0 plane
