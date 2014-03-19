@@ -68,16 +68,19 @@ float length(const geometry_msgs::Vector3& v) {
 }
 
 /**
- * A function that squeezes an unbounded distance x into a (0, 1) value. Scale
- * determines the width of the function. To choose the scale, you want to have
- * an idea of what value of x should produce a result close to 1. If you use
- * 0.99 as an approximation of 1, then scale = 5.2933 / x.
+ * Returns the y value on the line segment between (x1, y1) and (x2, y2) at the
+ * given x position. If x < x1, then it returns y1, and if x > x2, it returns
+ * y2.
  */
-float logisticDistance(float x, float scale) {
-  if (scale * x > 6 || scale * x < -6) {
-    return 1;
+float linearInterpolation(float x1, float y1, float x2, float y2, float x) {
+  if (x < x1) {
+    return y1;
+  } else if (x > x2) {
+    return y2;
+  } else {
+    float slope = (y2 - y1) / (x2 - x1);
+    return y1 + slope * (x - x1);
   }
-  return fabs(2 / (1 + exp(scale * -x)) - 1);
 }
 
 /**
@@ -90,24 +93,6 @@ geometry_msgs::Vector3 makeVector3(float x, float y, float z) {
   result.y = y;
   result.z = z;
   return result;
-}
-
-/**
- * Like max, but handles negative numbers, e.g.,
- *   minimumMagnitude(-1, 2) = -2
- *   minimumMagnitude(1, 2) = 2
- *   minimumMagnitude(3, 2) = 3
- *   minimumMagnitude(-3, 2) = -3
- */
-float minimumMagnitude(float num, float magnitude) {
-  if (fabs(num) < magnitude) {
-    if (num < 0) {
-      num = -magnitude;
-    } else {
-      num = magnitude;
-    }
-  }
-  return num;
 }
 
 /*

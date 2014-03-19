@@ -18,9 +18,8 @@ float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2);
 float dotProduct(const geometry_msgs::Vector3& v1,
                  const geometry_msgs::Vector3& v2);
 float length(const geometry_msgs::Vector3& v);
-float logisticDistance(float x, float scale);
+float linearInterpolation(float x1, float y1, float x2, float y2, float x);
 geometry_msgs::Vector3 makeVector3(float x, float y, float z);
-float minimumMagnitude(float num, float magnitude);
 geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale);
 geometry_msgs::Vector3 scale(const geometry_msgs::Vector3& vector, float scale);
 geometry_msgs::Vector3 setLength(const geometry_msgs::Vector3& p1,
