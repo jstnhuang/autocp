@@ -645,9 +645,8 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
     }
   }
 
-  publishCandidateMarkers(test_points, test_foci, scores, time_delta);
   if (best_score.score > score_threshold_->getFloat() * current_score.score) {
-//    publishCandidateMarkers(test_points, test_foci, scores, time_delta);
+    publishCandidateMarkers(test_points, test_foci, scores, time_delta);
 
     ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f", best_position.x,
              best_position.y, best_position.z, best_score.score,
@@ -711,9 +710,12 @@ void AutoCPDisplay::publishCandidateMarkers(
     float time_delta) {
   for (int i = 0; i < test_points.size(); i++) {
     Marker marker;
+    Marker text;
     makeCameraMarker(test_points[i], test_foci[i], scores[i], i, time_delta,
                      &marker);
+    makeTextMarker(test_points[i], scores[i], i, &text);
     candidate_marker_pub_.publish(marker);
+    candidate_marker_pub_.publish(text);
   }
 }
 
@@ -739,9 +741,9 @@ void AutoCPDisplay::makeCameraMarker(const Point& position, const Point& focus,
   marker->pose.orientation.y = orientation.y;
   marker->pose.orientation.z = orientation.z;
   marker->pose.orientation.w = orientation.w;
-  marker->scale.x = 0.1;
-  marker->scale.y = 0.1;
-  marker->scale.z = 0.1;
+  marker->scale.x = 0.05;
+  marker->scale.y = 0.05;
+  marker->scale.z = 0.05;
   if (score.score < 0) {
     marker->color.r = 0;
     marker->color.g = 0;
@@ -753,6 +755,26 @@ void AutoCPDisplay::makeCameraMarker(const Point& position, const Point& focus,
   }
   marker->color.a = 1.0;
   marker->lifetime = ros::Duration();
+}
+
+void AutoCPDisplay::makeTextMarker(const Point& position, const Score& score,
+                                   int id, Marker* marker) {
+  marker->header.frame_id = fixed_frame_.toStdString();
+  marker->header.stamp = ros::Time::now();
+  marker->ns = "candidate_scores";
+  marker->id = id;
+  marker->type = Marker::TEXT_VIEW_FACING;
+  marker->action = Marker::ADD;
+  marker->pose.position.x = position.x;
+  marker->pose.position.y = position.y;
+  marker->pose.position.z = position.z - 0.1;
+  marker->scale.z = 0.05;
+  marker->color.r = 0;
+  marker->color.g = 0.48;
+  marker->color.b = 0.68;
+  marker->color.a = 1.0;
+  marker->lifetime = ros::Duration();
+  marker->text = score.toString();
 }
 
 /**

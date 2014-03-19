@@ -38,6 +38,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <stdio.h>
 
 namespace autocp {
 using geometry_msgs::Point;
@@ -95,7 +96,15 @@ struct Score {
   float travel;
   float crossing;
   float score;
+ public:
+  std::string toString() const {
+    char buffer[64];
+    snprintf(buffer, 64, "v: %.2f, o: %.2f, z: %.2f, t: %.2f, c: %.2f = %.2f",
+             visibility, orthogonality, zoom, travel, crossing, score);
+    return std::string(buffer);
+  }
 };
+
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 10;
 
@@ -138,6 +147,8 @@ Q_OBJECT
   void makeCameraMarker(const Point& position, const Point& focus,
                         const Score& score, int id, float time_delta,
                         Marker* marker);
+  void makeTextMarker(const Point& position, const Score& score, int id,
+                      Marker* marker);
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
