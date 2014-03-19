@@ -76,6 +76,7 @@ void Landmarks::UpdateLeftGripper(const Point* point) {
     }
     l_gripper_.exists = false;
   }
+  UpdateGripperWeight(gripper_weight_);
 }
 
 /*
@@ -95,6 +96,7 @@ void Landmarks::UpdateRightGripper(const Point* point) {
     }
     r_gripper_.exists = false;
   }
+  UpdateGripperWeight(gripper_weight_);
 }
 
 void Landmarks::UpdateHead(const Point* point) {
@@ -151,8 +153,15 @@ void Landmarks::UpdateSegmentedObjects(const std::vector<Point>& objects) {
  */
 void Landmarks::UpdateGripperWeight(float weight) {
   gripper_weight_ = weight;
-  l_gripper_.weight = gripper_weight_ / 2;
-  r_gripper_.weight = gripper_weight_ / 2;
+  // If one gripper doesn't exist, then the other gets all the weight.
+  // Otherwise, they share the weight equally.
+  if (!l_gripper_.exists || !r_gripper_.exists) {
+    l_gripper_.weight = gripper_weight_;
+    r_gripper_.weight = gripper_weight_;
+  } else {
+    l_gripper_.weight = gripper_weight_ / 2;
+    r_gripper_.weight = gripper_weight_ / 2;
+  }
 }
 
 /*
