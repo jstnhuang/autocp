@@ -106,7 +106,7 @@ struct Score {
 };
 
 static const float MIN_DISTANCE = 0.5;
-static const float MAX_DISTANCE = 10;
+static const float MAX_DISTANCE = 5;
 
 static const float R2 = 0.70710678118;  // sqrt(2) / 2
 
