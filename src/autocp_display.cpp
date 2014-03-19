@@ -431,12 +431,12 @@ float AutoCPDisplay::visibilityScore(const Point& candidate_position,
  */
 float AutoCPDisplay::orthogonalityScore(
     const Point& candidate_position,
-    const Point& control_candidate_position) {
+    const Point& control_position) {
   if (current_control_ == NULL) {
     ROS_INFO("Warning: tried to get orthogonality score without a control.");
     return 0;
   }
-  Vector3 candidate_position_vector = vectorBetween(control_candidate_position,
+  Vector3 candidate_position_vector = vectorBetween(control_position,
                                                     candidate_position);
   Vector3 projection = computeControlProjection(*current_control_,
                                                 candidate_position_vector);
