@@ -57,12 +57,12 @@ class Landmarks {
   Landmark r_gripper_;
   Landmark head_;
   Landmark head_focus_;
-  int num_landmarks_; // Number of existing landmarks.
   std::vector<Landmark> segmented_objects_;
   // We save weights that are distributed between multiple objects. Weights
   // for single objects are just stored in the Landmark data structure.
   float gripper_weight_;
   float segmented_object_weight_;
+  int num_landmarks_; // Number of existing landmarks.
 };
 
 template<typename MetricFunc>
