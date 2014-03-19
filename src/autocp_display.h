@@ -100,7 +100,8 @@ struct Score {
   float visibility;
   float orthogonality;
   float zoom;
-  float smoothness;
+  float travel;
+  float crossing;
   float score;
 };
 static const float MIN_DISTANCE = 0.5;
@@ -159,6 +160,10 @@ Q_OBJECT
 
   // Landmarks container.
   Landmarks landmarks_;
+
+  // Weights
+  rviz::FloatProperty* crossing_weight_property_;
+  float crossing_weight_;
 
   // Grippers.
   Point left_gripper_origin_;
@@ -227,12 +232,15 @@ Q_OBJECT
                                    const Vector3& vector);
 
   // Score functions.
-  float visibilityScore(const Point& location);
-  float orthogonalityScore(const Point& location,
+  float visibilityScore(const Point& candidate_position);
+  float orthogonalityScore(const Point& candidate_position,
                            const Point& control_location);
-  float zoomScore(const Point& location);
-  float smoothnessScore(const Point& location);
+  float zoomScore(const Point& candidate_position);
+  float travelingScore(const Point& candidate_position);
+  float crossingScore(const Point& candidate_position);
   Score computeLocationScore(const Point& location);
+
+  // Camera placement logic.
   void selectViewpoints(std::vector<Vector3>* viewpoints);
   bool chooseCameraLocation(Point* location, float time_delta);
   static void setCameraPlacement(
