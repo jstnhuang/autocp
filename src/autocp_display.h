@@ -147,8 +147,10 @@ Q_OBJECT
   void makeCameraMarker(const Point& position, const Point& focus,
                         const Score& score, int id, float time_delta,
                         Marker* marker);
+  void flushMarkers(std::string ns, int max_id);
   void makeTextMarker(const Point& position, const Score& score, int id,
                       Marker* marker);
+  int num_prev_markers_;
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.

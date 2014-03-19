@@ -170,6 +170,7 @@ void AutoCPDisplay::onInitialize() {
   current_control_ = NULL;
   active_control_ = NULL;
   previous_control_ = NULL;
+  num_prev_markers_ = 0;
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
@@ -701,6 +702,9 @@ void AutoCPDisplay::publishCandidateMarkers(
     const std::vector<Point>& test_foci,
     const std::vector<Score>& scores,
     float time_delta) {
+  flushMarkers("candidates", num_prev_markers_);
+  flushMarkers("candidate_scores", num_prev_markers_);
+
   for (int i = 0; i < test_points.size(); i++) {
     Marker marker;
     Marker text;
@@ -709,6 +713,22 @@ void AutoCPDisplay::publishCandidateMarkers(
     makeTextMarker(test_points[i], scores[i], i, &text);
     candidate_marker_pub_.publish(marker);
     candidate_marker_pub_.publish(text);
+  }
+  num_prev_markers_ = test_points.size();
+}
+
+/**
+ * Delete all markers in the given namespace, with ids = 0, 1, ..., max_id.
+ */
+void AutoCPDisplay::flushMarkers(std::string ns, int max_id) {
+  for (int i = 0; i < max_id; i++) {
+    Marker marker;
+    marker.header.frame_id = fixed_frame_.toStdString();
+    marker.header.stamp = ros::Time::now();
+    marker.ns = ns;
+    marker.id = i;
+    marker.action = Marker::DELETE;
+    candidate_marker_pub_.publish(marker);
   }
 }
 
