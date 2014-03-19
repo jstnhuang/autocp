@@ -7,6 +7,7 @@ using namespace geometry_msgs;
 Landmarks::Landmarks()
     : l_gripper_(),
       r_gripper_(),
+      head_(),
       head_focus_(),
       segmented_objects_(),
       gripper_weight_(0),
