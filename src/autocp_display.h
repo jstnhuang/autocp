@@ -74,23 +74,15 @@ struct ClickedControl {
 
 // Maps built by observing /pr2_marker_control_transparent/feedback
 // TODO(jstn): Are these fixed or do they depend on other factors?
-static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
-    { "_u1", Control6Dof::X },
-    { "_u5", Control6Dof::Y },
-    { "_u3", Control6Dof::Z },
-    { "_u4", Control6Dof::PITCH },
-    { "_u0", Control6Dof::ROLL },
-    { "_u2", Control6Dof::YAW }
-};
+static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = { { "_u1",
+    Control6Dof::X }, { "_u5", Control6Dof::Y }, { "_u3", Control6Dof::Z }, {
+    "_u4", Control6Dof::PITCH }, { "_u0", Control6Dof::ROLL }, { "_u2",
+    Control6Dof::YAW } };
 
-static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
-    { "_u0", Control6Dof::X },
-    { "_u4", Control6Dof::Y },
-    { "_u2", Control6Dof::Z },
-    { "_u3", Control6Dof::PITCH },
-    { "", Control6Dof::ROLL },
-    { "_u1", Control6Dof::YAW }
-};
+static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = { { "_u0",
+    Control6Dof::X }, { "_u4", Control6Dof::Y }, { "_u2", Control6Dof::Z }, {
+    "_u3", Control6Dof::PITCH }, { "", Control6Dof::ROLL }, { "_u1",
+    Control6Dof::YAW } };
 
 /**
  * Represents the score of a camera pose. It contains all the components of the
@@ -110,10 +102,6 @@ static const float MAX_DISTANCE = 10;
 static const float R2 = 0.70710678118;  // sqrt(2) / 2
 
 static const float OCCLUSION_THRESHOLD = 0.25;
-
-// Number of seconds for a landmark's weight to decay back to normal.
-static const float CONTROL_DECAY_TIME = 2;
-static const float CONTROL_IMPORTANCE_FACTOR = 2;
 
 class AutoCPDisplay : public rviz::Display {
 Q_OBJECT
@@ -139,15 +127,17 @@ Q_OBJECT
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
   Point target_position_;
-  Point camera_focus_;
+  Point target_focus_;
 
   // Debugging
   ros::Publisher candidate_marker_pub_;
   void publishCandidateMarkers(const std::vector<Point>& viewpoints,
+                               const std::vector<Point>& foci,
                                const std::vector<Score>& scores,
                                float time_delta);
-  void makeCameraMarker(const Point& position, const Score& score, int id,
-                        float time_delta, Marker* marker);
+  void makeCameraMarker(const Point& position, const Point& focus,
+                        const Score& score, int id, float time_delta,
+                        Marker* marker);
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
@@ -187,7 +177,6 @@ Q_OBJECT
       const visualization_msgs::InteractiveMarkerFeedback& feedback);
   void fullMarkerCallback(
       const visualization_msgs::InteractiveMarkerInit& im_init);
-  void decayWeights(float time_delta);
   // current_control_ is either the active control or the previous control,
   // depending on whether or not we move when a control is active.
   ClickedControl* current_control_;
@@ -227,18 +216,19 @@ Q_OBJECT
   ros::Publisher camera_placement_publisher_;
   Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
-  void chooseCameraFocus(Point* focus);
   Vector3 computeControlProjection(const ClickedControl& control,
                                    const Vector3& vector);
 
   // Score functions.
-  float visibilityScore(const Point& candidate_position);
+  float visibilityScore(const Point& candidate_position,
+                        const Point& candidate_focus);
   float orthogonalityScore(const Point& candidate_position,
                            const Point& control_location);
   float zoomScore(const Point& candidate_position);
   float travelingScore(const Point& candidate_position);
   float crossingScore(const Point& candidate_position);
-  Score computeLocationScore(const Point& location);
+  Score computeLocationScore(const Point& candidate_position,
+                             const Point& candidate_focus);
 
   // Camera placement logic.
   void selectViewpoints(std::vector<Vector3>* viewpoints);

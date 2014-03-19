@@ -1,5 +1,7 @@
 #include "autocp_display.h"
 #include "utils.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <sys/time.h>
@@ -199,6 +201,8 @@ void AutoCPDisplay::initializeStandardViewpoints() {
       standard_viewpoints_.push_back(scale(viewpoint, scales[j]));
     }
   }
+
+  std::random_shuffle(standard_viewpoints_.begin(), standard_viewpoints_.end());
 }
 
 // Parameter update handlers ---------------------------------------------------
@@ -316,23 +320,12 @@ void AutoCPDisplay::markerCallback(
   try {
     if (marker_name == "head_point_goal") {
       control = POINT_HEAD_CONTROLS.at(control_name);
-      // Boost weight for this marker. Possible TODO: move this into its own
-      // method.
-      float updated_weight = head_focus_weight_->getFloat()
-          * CONTROL_IMPORTANCE_FACTOR;
-      landmarks_.UpdateHeadFocusWeight(updated_weight);
     } else if (marker_name == "l_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
       world_position = left_gripper_origin_;
-      float updated_weight = gripper_weight_->getFloat()
-          * CONTROL_IMPORTANCE_FACTOR;
-      landmarks_.UpdateGripperWeight(updated_weight);
     } else if (marker_name == "r_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
       world_position = right_gripper_origin_;
-      float updated_weight = gripper_weight_->getFloat()
-          * CONTROL_IMPORTANCE_FACTOR;
-      landmarks_.UpdateGripperWeight(updated_weight);
     } else if (marker_name == "l_posture_control") {
       control = Control6Dof::ROLL;
     } else if (marker_name == "r_posture_control") {
@@ -372,33 +365,6 @@ void AutoCPDisplay::fullMarkerCallback(
   }
 }
 
-/**
- * Check if the weight on the current control is larger than it should be. If
- * so, linearly decays the weight back to where it should be over
- * CONTROL_DECAY_TIME seconds.
- */
-void AutoCPDisplay::decayWeights(float time_delta) {
-  if (current_control_ == NULL) {
-    return;
-  }
-  if (current_control_->marker == "head_point_goal"
-      && landmarks_.HeadFocusWeight() > head_focus_weight_->getFloat()) {
-    float max_step = head_focus_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
-    float step = max_step * time_delta / CONTROL_DECAY_TIME;
-    float updated_weight = std::max(landmarks_.HeadFocusWeight() - step,
-                                    head_focus_weight_->getFloat());
-    landmarks_.UpdateHeadFocusWeight(updated_weight);
-  } else if ((current_control_->marker == "l_gripper_control"
-      || current_control_->marker == "r_gripper_control")
-      && landmarks_.GripperWeight() > gripper_weight_->getFloat()) {
-    float max_step = gripper_weight_->getFloat() * CONTROL_IMPORTANCE_FACTOR;
-    float step = max_step * time_delta / CONTROL_DECAY_TIME;
-    float updated_weight = std::max(landmarks_.GripperWeight() - step,
-                                    gripper_weight_->getFloat());
-    landmarks_.UpdateGripperWeight(updated_weight);
-  }
-}
-
 // Camera placement logic ------------------------------------------------------
 /**
  * Main loop that alternates between sensing and placing the camera.
@@ -421,8 +387,6 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
     active_control_ = NULL;
   }
   updateSmoothnessOption();
-
-  decayWeights(wall_dt);
 }
 
 /**
@@ -430,7 +394,6 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  //chooseCameraFocus(&camera_focus_);
   if (!only_move_on_idle_->getBool() || active_control_ == NULL) {
     chooseCameraLocation(&target_position_, time_delta);
   }
@@ -438,28 +401,20 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
                                             target_position_, time_delta);
 
   view_controller_msgs::CameraPlacement camera_placement;
-  setCameraPlacement(next_position, camera_focus_, ros::Duration(time_delta),
+  setCameraPlacement(next_position, target_focus_, ros::Duration(time_delta),
                      &camera_placement);
 
   camera_placement_publisher_.publish(camera_placement);
 }
 
 /**
- * Choose a final focus point for the camera. The final focus point is the
- * weighted mean of the current focus points.
- */
-void AutoCPDisplay::chooseCameraFocus(Point* focus) {
-  Point center = landmarks_.Center();
-  *focus = center;
-}
-
-/**
  * Visibility score. Returns the weighted average visibility of all the
  * landmarks.
  */
-float AutoCPDisplay::visibilityScore(const Point& candidate_position) {
+float AutoCPDisplay::visibilityScore(const Point& candidate_position,
+                                     const Point& candidate_focus) {
   auto occlusion_metric = [&] (const Point& point) -> float {
-    if (isVisibleFrom(point, candidate_position, camera_focus_)) {
+    if (isVisibleFrom(point, candidate_position, candidate_focus)) {
       return 1;
     } else {
       return 0;
@@ -523,6 +478,7 @@ float AutoCPDisplay::travelingScore(const Point& candidate_position) {
 float AutoCPDisplay::crossingScore(const Point& candidate_position) {
   if (current_control_ == NULL) {
     ROS_INFO("Warning: tried to compute crossing score without a control.");
+    return 0;
   }
   Point camera_position = getCameraPosition();
   Point control_position = current_control_->world_position;
@@ -562,13 +518,14 @@ float AutoCPDisplay::crossingScore(const Point& candidate_position) {
 /**
  * Computes a score for the location.
  */
-Score AutoCPDisplay::computeLocationScore(const Point& location) {
+Score AutoCPDisplay::computeLocationScore(const Point& candidate_position,
+                                          const Point& candidate_focus) {
   Score result;
   float score_numerator = 0;
   float score_denominator = 0;
 
   // Visibility score.
-  float visibility_score = visibilityScore(location);
+  float visibility_score = visibilityScore(candidate_position, candidate_focus);
   float visibility_weight = stay_visible_weight_->getFloat();
   score_numerator += visibility_weight * visibility_score;
   score_denominator += visibility_weight;
@@ -578,7 +535,8 @@ Score AutoCPDisplay::computeLocationScore(const Point& location) {
   Point control_location;
   if (current_control_ != NULL) {
     control_location = current_control_->world_position;
-    float ortho_score = orthogonalityScore(location, control_location);
+    float ortho_score = orthogonalityScore(candidate_position,
+                                           control_location);
     float ortho_weight = be_orthogonal_weight_->getFloat();
     score_numerator += ortho_weight * ortho_score;
     score_denominator += ortho_weight;
@@ -588,14 +546,14 @@ Score AutoCPDisplay::computeLocationScore(const Point& location) {
   }
 
   // Zoom score.
-  float zoom_score = zoomScore(location);
+  float zoom_score = zoomScore(candidate_position);
   float zoom_weight = zoom_weight_->getFloat();
   score_numerator += zoom_weight * zoom_score;
   score_denominator += zoom_weight;
   result.zoom = zoom_score;
 
   // Travel score.
-  float travel_score = travelingScore(location);
+  float travel_score = travelingScore(candidate_position);
   float travel_weight = stay_in_place_weight_->getFloat();
   score_numerator += travel_weight * travel_score;
   score_denominator += travel_weight;
@@ -603,7 +561,7 @@ Score AutoCPDisplay::computeLocationScore(const Point& location) {
 
   // Crossing score.
   if (current_control_ != NULL) {
-    float crossing_score = crossingScore(location);
+    float crossing_score = crossingScore(candidate_position);
     score_numerator += crossing_weight_ * crossing_score;
     score_denominator += crossing_weight_;
     result.crossing = crossing_score;
@@ -623,10 +581,11 @@ Score AutoCPDisplay::computeLocationScore(const Point& location) {
 
 /*
  * Randomly select some viewpoints. The number of
- * viewpoints to select should be occlusion_check_limit_ / # of landmarks.
+ * viewpoints to select should be occlusion_check_limit_ / (# of landmarks)^2.
  */
 void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
-  int num_landmarks = landmarks_.NumLandmarks() + 1; // +1 for camera focus.
+  int num_landmarks = landmarks_.NumLandmarks() + 1; // +1 for center.
+  num_landmarks *= num_landmarks;
   int num_viewpoints = static_cast<int>(
       static_cast<double>(occlusion_check_limit_->getInt()) / num_landmarks);
   if (num_viewpoints < 1) {
@@ -647,67 +606,64 @@ void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
 bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   bool new_location_found = false;
 
-  Score current_score = computeLocationScore(target_position_);
+  Score current_score = computeLocationScore(target_position_, target_focus_);
   Score best_score = current_score;
-  Point best_location = target_position_;
-
-  // If the user is using a control, precompute the quadrant the camera is in
-  // relative to the control. The camera must stay in this quadrant.
-  Point control_position;
-  if (current_control_ != NULL) {
-    control_position = current_control_->world_position;
-  }
+  Point best_position = target_position_;
+  Point best_focus = target_focus_;
 
   std::vector<Point> test_points;
+  std::vector<Point> test_foci;
+
   std::vector<Vector3> viewpoints;
-  std::vector<Score> scores;
   selectViewpoints(&viewpoints);
+
   std::vector<Landmark> landmarks;
   landmarks_.LandmarksVector(&landmarks);
   std::vector<Point> landmark_positions;
   for (const auto& landmark : landmarks) {
     landmark_positions.push_back(landmark.position);
   }
-  landmark_positions.push_back(camera_focus_);
-  test_points.push_back(camera_focus_);
+  Point center = landmarks_.Center();
+  landmark_positions.push_back(center);
+
+  std::vector<Score> scores;
 
   for (const auto& landmark_position : landmark_positions) {
     for (const auto& viewpoint_vector : viewpoints) {
       auto test_point = add(landmark_position, viewpoint_vector);
       test_points.push_back(test_point);
+      test_foci.push_back(landmark_position);
 
-      Score score = computeLocationScore(test_point);
+      Score score = computeLocationScore(test_point, landmark_position);
       scores.push_back(score);
 
       if (score.score > best_score.score) {
-        best_location = test_point;
+        best_position = test_point;
+        best_focus = landmark_position;
         best_score = score;
       }
     }
   }
 
+  publishCandidateMarkers(test_points, test_foci, scores, time_delta);
   if (best_score.score > score_threshold_->getFloat() * current_score.score) {
-    publishCandidateMarkers(test_points, scores, time_delta);
+//    publishCandidateMarkers(test_points, test_foci, scores, time_delta);
 
-    ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f", best_location.x,
-             best_location.y, best_location.z, best_score.score,
+    ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f", best_position.x,
+             best_position.y, best_position.z, best_score.score,
              current_score.score);
     ROS_INFO("viewpoints were: ");
-    ROS_INFO("  %f %f %f (v: %f, o: %f, z: %f, t: %f, c:%f = %f)",
-             best_location.x, best_location.y, best_location.z,
-             current_score.visibility, current_score.orthogonality,
-             current_score.zoom, current_score.travel, current_score.crossing,
-             current_score.score);
-    for (int i = 0; i < viewpoints.size(); i++) {
-      auto viewpoint = add(camera_focus_, viewpoints[i]);
+    for (int i = 0; i < test_points.size(); i++) {
+      auto test_point = test_points[i];
       auto vpscore = scores[i];
       ROS_INFO("  %f %f %f (v: %f, o: %f, z: %f, t: %f, c: %f = %f)",
-               viewpoint.x, viewpoint.y, viewpoint.z, vpscore.visibility,
+               test_point.x, test_point.y, test_point.z, vpscore.visibility,
                vpscore.orthogonality, vpscore.zoom, vpscore.travel,
                vpscore.crossing, vpscore.score);
     }
     new_location_found = true;
-    target_position_ = best_location;
+    target_position_ = best_position;
+    target_focus_ = best_focus;
   }
 
   return new_location_found;
@@ -749,11 +705,14 @@ void AutoCPDisplay::setCameraPlacement(
  * Publish markers for each
  */
 void AutoCPDisplay::publishCandidateMarkers(
-    const std::vector<Point>& test_points, const std::vector<Score>& scores,
+    const std::vector<Point>& test_points,
+    const std::vector<Point>& test_foci,
+    const std::vector<Score>& scores,
     float time_delta) {
   for (int i = 0; i < test_points.size(); i++) {
     Marker marker;
-    makeCameraMarker(test_points[i], scores[i], i, time_delta, &marker);
+    makeCameraMarker(test_points[i], test_foci[i], scores[i], i, time_delta,
+                     &marker);
     candidate_marker_pub_.publish(marker);
   }
 }
@@ -762,10 +721,11 @@ void AutoCPDisplay::publishCandidateMarkers(
  * Creates an arrow marker pointing towards the focus point. It is colored green
  * if the score is 1, red if the score is 0, and something in between otherwise.
  */
-void AutoCPDisplay::makeCameraMarker(const Point& position, const Score& score,
-                                     int id, float time_delta, Marker* marker) {
+void AutoCPDisplay::makeCameraMarker(const Point& position, const Point& focus,
+                                     const Score& score, int id,
+                                     float time_delta, Marker* marker) {
   Quaternion orientation;
-  focusToOrientation(position, camera_focus_, &orientation);
+  focusToOrientation(position, focus, &orientation);
   marker->header.frame_id = fixed_frame_.toStdString();
   marker->header.stamp = ros::Time::now();
   marker->ns = "candidates";
