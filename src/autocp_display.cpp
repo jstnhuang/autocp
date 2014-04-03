@@ -165,8 +165,8 @@ void AutoCPDisplay::onInitialize() {
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   sm_ = vm_->getSceneManager();
-  raycaster_ = new Raycaster(sm_);
   camera_ = vm_->getRenderPanel()->getCamera();
+  visibility_checker_ = new VisibilityChecker(sm_, camera_);
   viewport_ = camera_->getViewport();
   target_position_ = getCameraPosition();
   current_control_ = NULL;
@@ -416,8 +416,19 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
  */
 float AutoCPDisplay::visibilityScore(const Point& candidate_position,
                                      const Point& candidate_focus) {
+  Ogre::Vector3 position(candidate_position.x, candidate_position.y,
+                         candidate_position.z);
+  Ogre::Vector3 focus(candidate_focus.x, candidate_focus.y, candidate_focus.z);
+  Viewpoint viewpoint(position, focus);
   auto occlusion_metric = [&] (const Point& point) -> float {
-    if (isVisibleFrom(point, candidate_position, candidate_focus)) {
+    Ogre::Vector3 p(point.x, point.y, point.z);
+    Ogre::Vector3 hit;
+
+    bool is_visible = visibility_checker_->IsVisible(p, viewpoint);
+    Marker marker;
+    makePointMarker(toPoint(hit), 0, &marker);
+    candidate_marker_pub_.publish(marker);
+    if (is_visible) {
       return 1;
     } else {
       return 0;
@@ -607,12 +618,12 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   Score current_score = computeLocationScore(target_position_, target_focus_);
 
   // DEBUG
-//  auto camera_position = getCameraPosition();
-//  Score current_score = computeLocationScore(camera_position, target_focus_);
-//  location->x = camera_position.x;
-//  location->y = camera_position.y;
-//  location->z = camera_position.z;
-//  return true;
+  //auto camera_position = getCameraPosition();
+  //Score current_score = computeLocationScore(camera_position, target_focus_);
+  //location->x = camera_position.x;
+  //location->y = camera_position.y;
+  //location->z = camera_position.z;
+  //return true;
 
   Score best_score = current_score;
   Point best_position = target_position_;
@@ -871,83 +882,83 @@ Point AutoCPDisplay::interpolatePosition(const Point& start, const Point& end,
  * Returns the x, y coordinates on the viewport of the given point. The origin
  * is in the top left corner.
  */
-void AutoCPDisplay::projectWorldToViewport(const Point& point, float* screen_x,
-                                           float* screen_y) {
-  // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
-  // is in the bottom left corner.
-  Ogre::Vector4 point4(point.x, point.y, point.z, 1);
-  Ogre::Vector4 projected = camera_->getProjectionMatrix()
-      * camera_->getViewMatrix() * point4;
-  projected = projected / projected.w;
-
-  *screen_x = (projected.x + 1) / 2;
-  *screen_y = (1 - projected.y) / 2;
-}
-
-/*
- * Returns true if the given (x, y) coordinates are visible on screen.
- */
-bool AutoCPDisplay::isOnScreen(float screen_x, float screen_y) {
-  if (screen_x < 0 || screen_y < 0 || screen_x > 1 || screen_y > 1) {
-    return false;
-  } else {
-    return true;
-  }
-}
-
-/*
- * Returns true if the given point is visible from the current camera pose.
- */
-bool AutoCPDisplay::isVisible(const Point& point) {
-  float screen_x;
-  float screen_y;
-  projectWorldToViewport(point, &screen_x, &screen_y);
-  if (isOnScreen(screen_x, screen_y)) {
-    Ogre::Ray ray;
-    camera_->getCameraToViewportRay(screen_x, screen_y, &ray);
-    Ogre::Vector3 result;
-    if (raycaster_->RaycastAABB(ray, &result)) {
-      auto result_point = toPoint(result);
-      auto dist = distance(result_point, point);
-      //Marker marker;
-      //makePointMarker(result_point, 0, &marker);
-      //candidate_marker_pub_.publish(marker);
-      //ROS_INFO("point: %.2f %.2f %.2f, distance: %f", result.x, result.y, result.z, dist);
-      if (dist < OCCLUSION_THRESHOLD) {
-        //ROS_INFO("visible");
-        return true;
-      } else { // Hit something, but too far away from the target.
-        //ROS_INFO("not visible");
-        return false;
-      }
-    } else {
-      // No hits. The ray should hit the target, but if it doesn't, that usually
-      // indicates visibility. This is because if the target is occluded, the
-      // ray is likely to have hit the occluding object.
-      //ROS_INFO("visible no hits");
-      return true;
-    }
-  } else { // Not on screen
-    return false;
-  }
-}
-
-/*
- * Returns true if the given point is visible from the given camera position and
- * focus point.
- */
-bool AutoCPDisplay::isVisibleFrom(const Point& point,
-                                  const Point& camera_position,
-                                  const Point& camera_focus) {
-  Ogre::Vector3 old_position = camera_->getPosition();
-  Ogre::Vector3 old_direction = camera_->getDirection();
-  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
-  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
-  bool result = isVisible(point);
-  camera_->setPosition(old_position);
-  camera_->setDirection(old_direction);
-  return result;
-}
+//void AutoCPDisplay::projectWorldToViewport(const Point& point, float* screen_x,
+//                                           float* screen_y) {
+//  // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
+//  // is in the bottom left corner.
+//  Ogre::Vector4 point4(point.x, point.y, point.z, 1);
+//  Ogre::Vector4 projected = camera_->getProjectionMatrix()
+//      * camera_->getViewMatrix() * point4;
+//  projected = projected / projected.w;
+//
+//  *screen_x = (projected.x + 1) / 2;
+//  *screen_y = (1 - projected.y) / 2;
+//}
+//
+///*
+// * Returns true if the given (x, y) coordinates are visible on screen.
+// */
+//bool AutoCPDisplay::isOnScreen(float screen_x, float screen_y) {
+//  if (screen_x < 0 || screen_y < 0 || screen_x > 1 || screen_y > 1) {
+//    return false;
+//  } else {
+//    return true;
+//  }
+//}
+//
+///*
+// * Returns true if the given point is visible from the current camera pose.
+// */
+//bool AutoCPDisplay::isVisible(const Point& point) {
+//  float screen_x;
+//  float screen_y;
+//  projectWorldToViewport(point, &screen_x, &screen_y);
+//  if (isOnScreen(screen_x, screen_y)) {
+//    Ogre::Ray ray;
+//    camera_->getCameraToViewportRay(screen_x, screen_y, &ray);
+//    Ogre::Vector3 result;
+//    if (visibility_checker->RaycastAABB(ray, &result)) {
+//      auto result_point = toPoint(result);
+//      auto dist = distance(result_point, point);
+//      //Marker marker;
+//      //makePointMarker(result_point, 0, &marker);
+//      //candidate_marker_pub_.publish(marker);
+//      //ROS_INFO("point: %.2f %.2f %.2f, distance: %f", result.x, result.y, result.z, dist);
+//      if (dist < OCCLUSION_THRESHOLD) {
+//        //ROS_INFO("visible");
+//        return true;
+//      } else { // Hit something, but too far away from the target.
+//        //ROS_INFO("not visible");
+//        return false;
+//      }
+//    } else {
+//      // No hits. The ray should hit the target, but if it doesn't, that usually
+//      // indicates visibility. This is because if the target is occluded, the
+//      // ray is likely to have hit the occluding object.
+//      //ROS_INFO("visible no hits");
+//      return true;
+//    }
+//  } else { // Not on screen
+//    return false;
+//  }
+//}
+//
+///*
+// * Returns true if the given point is visible from the given camera position and
+// * focus point.
+// */
+//bool AutoCPDisplay::isVisibleFrom(const Point& point,
+//                                  const Point& camera_position,
+//                                  const Point& camera_focus) {
+//  Ogre::Vector3 old_position = camera_->getPosition();
+//  Ogre::Vector3 old_direction = camera_->getDirection();
+//  camera_->setPosition(camera_position.x, camera_position.y, camera_position.z);
+//  camera_->lookAt(camera_focus.x, camera_focus.y, camera_focus.z);
+//  bool result = isVisible(point);
+//  camera_->setPosition(old_position);
+//  camera_->setDirection(old_direction);
+//  return result;
+//}
 
 /**
  * Compute the projection of the vector onto the orthogonal plane or line

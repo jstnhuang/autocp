@@ -11,11 +11,14 @@ namespace autocp {
  * Input:
  *   scene_manager: The OGRE scene manager we're operating within.
  */
-VisibilityChecker::VisibilityChecker(Ogre::SceneManager* scene_manager) {
+VisibilityChecker::VisibilityChecker(Ogre::SceneManager* scene_manager,
+                                     Ogre::Camera* camera) {
   scene_manager_ = scene_manager;
   ray_scene_query_ = scene_manager_->createRayQuery(
       Ogre::Ray(),
       Ogre::SceneManager::WORLD_GEOMETRY_TYPE_MASK);
+  ray_scene_query_->setSortByDistance(true);
+  camera_ = camera;
 }
 
 /*
@@ -41,17 +44,19 @@ bool VisibilityChecker::IsVisible(const Ogre::Vector3& point,
                                   const Viewpoint& viewpoint) {
   float screen_x;
   float screen_y;
-  auto camera = scene_manager_->createCamera("IsVisible");
-  camera->setPosition(viewpoint.position);
-  camera->lookAt(viewpoint.focus);
-  GetScreenPosition(point, *camera, &screen_x, &screen_y);
+  auto old_position = camera_->getPosition();
+  auto old_direction = camera_->getDirection();
+  camera_->setPosition(viewpoint.position);
+  camera_->lookAt(viewpoint.focus);
+  GetScreenPosition(point, &screen_x, &screen_y);
   bool result = false;
   if (IsOnScreen(screen_x, screen_y)) {
     Ogre::Ray ray;
-    camera->getCameraToViewportRay(screen_x, screen_y, &ray);
+    camera_->getCameraToViewportRay(screen_x, screen_y, &ray);
     Ogre::Vector3 hit;
     if (RaycastAABB(ray, &hit)) {
-      if (point.distance(hit) < OCCLUSION_THRESHOLD) {
+      auto dist = point.distance(hit);
+      if (dist < kOcclusionThreshold) {
         result = true;
       } else { // Hit something, but too far away from the target.
         result = false;
@@ -65,14 +70,14 @@ bool VisibilityChecker::IsVisible(const Ogre::Vector3& point,
   } else { // Not on screen
     result= false;
   }
-  scene_manager_->destroyCamera(camera);
+  camera_->setPosition(old_position);
+  camera_->setDirection(old_direction);
   return result;
 }
 
 /*
  * Gets the (x, y) position on the screen of the given 3D point.
- *
- * The coordinates are in the range [0, 1], with the origin in the top left
+ * * The coordinates are in the range [0, 1], with the origin in the top left
  * corner. The x-axis is width of the screen, and y-axis is the height.
  *
  * Input:
@@ -84,13 +89,12 @@ bool VisibilityChecker::IsVisible(const Ogre::Vector3& point,
  *   screen_y: The y position of the point on the screen.
  */
 void VisibilityChecker::GetScreenPosition(const Ogre::Vector3& point,
-                                          const Ogre::Camera& camera,
                                           float* screen_x, float* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
   Ogre::Vector4 point4(point.x, point.y, point.z, 1);
-  Ogre::Vector4 projected = camera.getProjectionMatrix()
-      * camera.getViewMatrix() * point4;
+  Ogre::Vector4 projected = camera_->getProjectionMatrix()
+      * camera_->getViewMatrix() * point4;
   projected = projected / projected.w;
 
   *screen_x = (projected.x + 1) / 2;
@@ -142,7 +146,7 @@ bool VisibilityChecker::RaycastAABB(const Ogre::Ray& ray, Ogre::Vector3* hit) {
   int first_nonzero = -1;
   for (int i = 0; i < query_results.size(); i++) {
     auto result = query_results[i];
-    if (result.distance > 0) {
+    if (result.distance > 0 && first_nonzero == -1) {
       first_nonzero = i;
       break;
     }

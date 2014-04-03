@@ -33,8 +33,9 @@
 #include <visualization_msgs/InteractiveMarkerInit.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
+#include "viewpoint.h"
 #include "landmarks.h"
-#include "raycast.h"
+#include "visibility.h"
 
 #include <math.h>
 #include <map>
@@ -115,17 +116,10 @@ struct Score {
   }
 };
 
-struct Viewpoint {
-  Ogre::Vector3 position;
-  Ogre::Vector3 focus;
-};
-
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 5;
 
 static const float R2 = 0.70710678118;  // sqrt(2) / 2
-
-static const float OCCLUSION_THRESHOLD = 0.15;
 
 class AutoCPDisplay : public rviz::Display {
 Q_OBJECT
@@ -236,13 +230,7 @@ Q_OBJECT
   rviz::FloatProperty* stay_visible_weight_;
 
   // Visibility factors.
-  Raycaster* raycaster_;
-  void projectWorldToViewport(const Point& point, float* screen_x,
-                              float* screen_y);
-  bool isOnScreen(float screen_x, float screen_y);
-  bool isVisible(const Point& point);
-  bool isVisibleFrom(const Point& point, const Point& camera_position,
-                     const Point& focus);
+  VisibilityChecker* visibility_checker_;
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
