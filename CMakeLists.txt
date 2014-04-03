@@ -29,6 +29,8 @@ set(SOURCE_FILES
   src/utils.cpp
   src/landmarks.h
   src/landmarks.cpp
+  src/visibility.h
+  src/visibility.cpp
   src/autocp_display.cpp
   ${MOC_FILES}
 )

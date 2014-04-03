@@ -14,6 +14,7 @@
 #include <geometry_msgs/Point.h>
 #include <OGRE/OgreCamera.h>
 #include <OGRE/OgreViewport.h>
+#include <OGRE/OgreManualObject.h>
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
@@ -33,6 +34,7 @@
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
 #include "landmarks.h"
+#include "raycast.h"
 
 #include <math.h>
 #include <map>
@@ -113,12 +115,17 @@ struct Score {
   }
 };
 
+struct Viewpoint {
+  Ogre::Vector3 position;
+  Ogre::Vector3 focus;
+};
+
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 5;
 
 static const float R2 = 0.70710678118;  // sqrt(2) / 2
 
-static const float OCCLUSION_THRESHOLD = 0.25;
+static const float OCCLUSION_THRESHOLD = 0.15;
 
 class AutoCPDisplay : public rviz::Display {
 Q_OBJECT
@@ -141,6 +148,7 @@ Q_OBJECT
   ros::NodeHandle root_nh_;
   tf::TransformListener tf_listener_;
   rviz::VisualizationManager* vm_;
+  Ogre::SceneManager* sm_;
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
   Point target_position_;
@@ -158,6 +166,8 @@ Q_OBJECT
   void flushMarkers(std::string ns, int max_id);
   void makeTextMarker(const Point& position, const Score& score, int id,
                       Marker* marker);
+  void makeRayMarker(const Ogre::Ray& ray, int id, Marker* marker);
+  void makePointMarker(const Point& point, int id, Marker* marker);
   int num_prev_markers_;
 
   // Canonical viewpoint locations, expressed as an offset from the current
@@ -226,8 +236,10 @@ Q_OBJECT
   rviz::FloatProperty* stay_visible_weight_;
 
   // Visibility factors.
-  void projectWorldToViewport(const Point& point, int* screen_x, int* screen_y);
-  bool isOnScreen(int screen_x, int screen_y);
+  Raycaster* raycaster_;
+  void projectWorldToViewport(const Point& point, float* screen_x,
+                              float* screen_y);
+  bool isOnScreen(float screen_x, float screen_y);
   bool isVisible(const Point& point);
   bool isVisibleFrom(const Point& point, const Point& camera_position,
                      const Point& focus);

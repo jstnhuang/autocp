@@ -113,11 +113,11 @@ AutoCPDisplay::AutoCPDisplay()
       SLOT(updateSmoothnessOption()));
 
   occlusion_check_limit_ = new rviz::IntProperty(
-      "Occlusion check limit", 15,
+      "Occlusion check limit", 1000,
       "The number of occlusions to check each frame.", this,
       SLOT(updateCameraOptions()));
   occlusion_check_limit_->setMin(0);
-  occlusion_check_limit_->setMax(100);
+  occlusion_check_limit_->setMax(10000);
 
   show_fps_ = new rviz::BoolProperty(
       "Show FPS", false, "Whether or not to show the frames per second.", this,
@@ -164,6 +164,8 @@ void AutoCPDisplay::onInitialize() {
   landmarks_.UpdateHead(&head_position);
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
+  sm_ = vm_->getSceneManager();
+  raycaster_ = new Raycaster(sm_);
   camera_ = vm_->getRenderPanel()->getCamera();
   viewport_ = camera_->getViewport();
   target_position_ = getCameraPosition();
@@ -195,7 +197,7 @@ void AutoCPDisplay::initializeStandardViewpoints() {
 
   // Add scaled versions of the standard viewpoints.
   int num_standard = standard_viewpoints_.size();
-  std::vector<int> scales = { 2, 3 };
+  std::vector<float> scales = { 0.5, 1.5, 2, 2.5, 3 };
   for (int i = 0; i < num_standard; i++) {
     auto viewpoint = standard_viewpoints_[i];
     for (int j = 0; j < scales.size(); j++) {
@@ -584,6 +586,8 @@ void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
       static_cast<double>(occlusion_check_limit_->getInt()) / num_landmarks);
   if (num_viewpoints < 1) {
     num_viewpoints = 1;
+  } else if (num_viewpoints > standard_viewpoints_.size()) {
+    num_viewpoints = standard_viewpoints_.size();
   }
   for (int i = 0; i < num_viewpoints; i++) {
     int index = rand() % standard_viewpoints_.size();
@@ -601,6 +605,15 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   bool new_location_found = false;
 
   Score current_score = computeLocationScore(target_position_, target_focus_);
+
+  // DEBUG
+//  auto camera_position = getCameraPosition();
+//  Score current_score = computeLocationScore(camera_position, target_focus_);
+//  location->x = camera_position.x;
+//  location->y = camera_position.y;
+//  location->z = camera_position.z;
+//  return true;
+
   Score best_score = current_score;
   Point best_position = target_position_;
   Point best_focus = target_focus_;
@@ -695,7 +708,7 @@ void AutoCPDisplay::setCameraPlacement(
 }
 
 /**
- * Publish markers for each
+ * Publish markers for each candidate viewpoint.
  */
 void AutoCPDisplay::publishCandidateMarkers(
     const std::vector<Point>& test_points,
@@ -770,6 +783,45 @@ void AutoCPDisplay::makeCameraMarker(const Point& position, const Point& focus,
   marker->lifetime = ros::Duration();
 }
 
+void AutoCPDisplay::makeRayMarker(const Ogre::Ray& ray, int id, Marker* marker) {
+  Quaternion orientation;
+  auto origin = toPoint(ray.getOrigin());
+  auto direction = toPoint(ray.getDirection());
+  marker->header.frame_id = fixed_frame_.toStdString();
+  marker->header.stamp = ros::Time::now();
+  marker->ns = "rays";
+  marker->id = id;
+  marker->type = Marker::ARROW;
+  marker->action = Marker::ADD;
+  marker->points = std::vector<Point> {origin, add(origin, direction)};
+  marker->scale.x = 0.05;
+  marker->scale.y = 0.05;
+  marker->scale.z = 0.05;
+  marker->color.r = 1.0;
+  marker->color.g = 0.0;
+  marker->color.b = 0.0;
+  marker->color.a = 1.0;
+  marker->lifetime = ros::Duration();
+}
+
+void AutoCPDisplay::makePointMarker(const Point& point, int id, Marker* marker) {
+  marker->header.frame_id = fixed_frame_.toStdString();
+  marker->header.stamp = ros::Time::now();
+  marker->ns = "points";
+  marker->id = id;
+  marker->type = Marker::SPHERE;
+  marker->action = Marker::ADD;
+  marker->pose.position = point;
+  marker->scale.x = 0.1;
+  marker->scale.y = 0.1;
+  marker->scale.z = 0.1;
+  marker->color.r = 0.0;
+  marker->color.g = 0.0;
+  marker->color.b = 1.0;
+  marker->color.a = 1.0;
+  marker->lifetime = ros::Duration();
+}
+
 void AutoCPDisplay::makeTextMarker(const Point& position, const Score& score,
                                    int id, Marker* marker) {
   marker->header.frame_id = fixed_frame_.toStdString();
@@ -819,8 +871,8 @@ Point AutoCPDisplay::interpolatePosition(const Point& start, const Point& end,
  * Returns the x, y coordinates on the viewport of the given point. The origin
  * is in the top left corner.
  */
-void AutoCPDisplay::projectWorldToViewport(const Point& point, int* screen_x,
-                                           int* screen_y) {
+void AutoCPDisplay::projectWorldToViewport(const Point& point, float* screen_x,
+                                           float* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
   Ogre::Vector4 point4(point.x, point.y, point.z, 1);
@@ -828,19 +880,15 @@ void AutoCPDisplay::projectWorldToViewport(const Point& point, int* screen_x,
       * camera_->getViewMatrix() * point4;
   projected = projected / projected.w;
 
-  // Using the current viewport.
-  *screen_x = static_cast<int>(round(
-      viewport_->getActualWidth() * (projected.x + 1) / 2));
-  *screen_y = static_cast<int>(round(
-      viewport_->getActualHeight() * (1 - projected.y) / 2));
+  *screen_x = (projected.x + 1) / 2;
+  *screen_y = (1 - projected.y) / 2;
 }
 
 /*
  * Returns true if the given (x, y) coordinates are visible on screen.
  */
-bool AutoCPDisplay::isOnScreen(int screen_x, int screen_y) {
-  if (screen_x < 0 || screen_y < 0 || screen_x > viewport_->getActualWidth()
-      || screen_y > viewport_->getActualHeight()) {
+bool AutoCPDisplay::isOnScreen(float screen_x, float screen_y) {
+  if (screen_x < 0 || screen_y < 0 || screen_x > 1 || screen_y > 1) {
     return false;
   } else {
     return true;
@@ -851,24 +899,35 @@ bool AutoCPDisplay::isOnScreen(int screen_x, int screen_y) {
  * Returns true if the given point is visible from the current camera pose.
  */
 bool AutoCPDisplay::isVisible(const Point& point) {
-  int screen_x;
-  int screen_y;
+  float screen_x;
+  float screen_y;
   projectWorldToViewport(point, &screen_x, &screen_y);
   if (isOnScreen(screen_x, screen_y)) {
-    float occlusion_distance = 0;
-    Ogre::Vector3 occluding_vector;
-    bool success = context_->getSelectionManager()->get3DPoint(
-        viewport_, screen_x, screen_y, occluding_vector);
-    Point occluding_point = toPoint(occluding_vector);
-    if (success) {
-      occlusion_distance = distance(occluding_point, point);
-    }
-    if (occlusion_distance < OCCLUSION_THRESHOLD) {
-      return true;
+    Ogre::Ray ray;
+    camera_->getCameraToViewportRay(screen_x, screen_y, &ray);
+    Ogre::Vector3 result;
+    if (raycaster_->RaycastAABB(ray, &result)) {
+      auto result_point = toPoint(result);
+      auto dist = distance(result_point, point);
+      //Marker marker;
+      //makePointMarker(result_point, 0, &marker);
+      //candidate_marker_pub_.publish(marker);
+      //ROS_INFO("point: %.2f %.2f %.2f, distance: %f", result.x, result.y, result.z, dist);
+      if (dist < OCCLUSION_THRESHOLD) {
+        //ROS_INFO("visible");
+        return true;
+      } else { // Hit something, but too far away from the target.
+        //ROS_INFO("not visible");
+        return false;
+      }
     } else {
-      return false;
+      // No hits. The ray should hit the target, but if it doesn't, that usually
+      // indicates visibility. This is because if the target is occluded, the
+      // ray is likely to have hit the occluding object.
+      //ROS_INFO("visible no hits");
+      return true;
     }
-  } else {
+  } else { // Not on screen
     return false;
   }
 }
