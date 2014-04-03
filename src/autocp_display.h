@@ -146,6 +146,7 @@ Q_OBJECT
   Ogre::Camera* camera_;
   Ogre::Viewport* viewport_;
   Point target_position_;
+  Point current_focus_;
   Point target_focus_;
 
   // Debugging
@@ -246,7 +247,7 @@ Q_OBJECT
   float orthogonalityScore(const Point& candidate_position,
                            const Point& control_location);
   float zoomScore(const Point& candidate_position);
-  float travelingScore(const Point& candidate_position);
+  float travelingScore(const Viewpoint& viewpoint);
   float crossingScore(const Point& candidate_position);
   Score computeLocationScore(const Point& candidate_position,
                              const Point& candidate_focus);
@@ -258,8 +259,8 @@ Q_OBJECT
       const Point& location, const Point& focus,
       const ros::Duration& time_from_start,
       view_controller_msgs::CameraPlacement* camera_placement);
-  Point interpolatePosition(const Point& start, const Point& end,
-                            float time_delta);
+  Point interpolatePoint(const Point& start, const Point& end,
+                            float speed, float time_delta);
   // Utilities
   void focusToOrientation(const Point& position, const Point& focus,
                           Quaternion* orientation);

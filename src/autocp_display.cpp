@@ -173,6 +173,7 @@ void AutoCPDisplay::onInitialize() {
   active_control_ = NULL;
   previous_control_ = NULL;
   num_prev_markers_ = 0;
+  current_focus_ = head_position;
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
@@ -400,11 +401,17 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   if (!only_move_on_idle_->getBool() || active_control_ == NULL) {
     chooseCameraLocation(&target_position_, time_delta);
   }
-  Point next_position = interpolatePosition(getCameraPosition(),
-                                            target_position_, time_delta);
+  Point next_position = interpolatePoint(getCameraPosition(),
+                                         target_position_,
+                                         camera_speed_->getFloat(), time_delta);
+  current_focus_ = interpolatePoint(current_focus_, target_focus_, 0.5,
+                                       time_delta);
+  Marker marker;
+  makePointMarker(current_focus_, 0, &marker);
+  candidate_marker_pub_.publish(marker);
 
   view_controller_msgs::CameraPlacement camera_placement;
-  setCameraPlacement(next_position, target_focus_, ros::Duration(time_delta),
+  setCameraPlacement(next_position, current_focus_, ros::Duration(time_delta),
                      &camera_placement);
 
   camera_placement_publisher_.publish(camera_placement);
@@ -477,10 +484,12 @@ float AutoCPDisplay::zoomScore(const Point& candidate_position) {
  * moved a lot, and a number in between mediated by the logisticDistance
  * function.
  */
-float AutoCPDisplay::travelingScore(const Point& candidate_position) {
-  auto camera_position = toPoint(camera_->getPosition());
-  auto dist = distance(candidate_position, camera_position);
-  return linearInterpolation(0, 1, 5, 0, dist);
+float AutoCPDisplay::travelingScore(const Viewpoint& viewpoint) {
+  auto position_distance = camera_->getPosition().distance(viewpoint.position);
+  Ogre::Vector3 focus(current_focus_.x, current_focus_.y, current_focus_.z);
+  auto focus_distance = focus.distance(viewpoint.focus);
+  auto average_distance = (position_distance + focus_distance) / 2;
+  return linearInterpolation(0, 1, 5, 0, average_distance);
 }
 
 /**
@@ -527,6 +536,13 @@ float AutoCPDisplay::crossingScore(const Point& candidate_position) {
  */
 Score AutoCPDisplay::computeLocationScore(const Point& candidate_position,
                                           const Point& candidate_focus) {
+  // TODO: adopt viewpoint everywhere.
+  // TODO: adopt Ogre::Vector3 everywhere.
+  Ogre::Vector3 candidate_pos(candidate_position.x, candidate_position.y,
+                              candidate_position.z);
+  Ogre::Vector3 candidate_foc(candidate_focus.x, candidate_focus.y,
+                              candidate_focus.z);
+  Viewpoint viewpoint(candidate_pos, candidate_foc);
   Score result;
   float score_numerator = 0;
   float score_denominator = 0;
@@ -560,7 +576,7 @@ Score AutoCPDisplay::computeLocationScore(const Point& candidate_position,
   result.zoom = zoom_score;
 
   // Travel score.
-  float travel_score = travelingScore(candidate_position);
+  float travel_score = travelingScore(viewpoint);
   float travel_weight = stay_in_place_weight_->getFloat();
   score_numerator += travel_weight * travel_score;
   score_denominator += travel_weight;
@@ -666,18 +682,9 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   if (best_score.score > score_threshold_->getFloat() * current_score.score) {
     publishCandidateMarkers(test_points, test_foci, scores, time_delta);
 
-    ROS_INFO("Moving to (%f, %f, %f), score=%f, prev=%f", best_position.x,
-             best_position.y, best_position.z, best_score.score,
+    ROS_INFO("Moving to (%f, %f, %f), score=%s, prev=%f", best_position.x,
+             best_position.y, best_position.z, best_score.toString().c_str(),
              current_score.score);
-    ROS_INFO("viewpoints were: ");
-    for (int i = 0; i < test_points.size(); i++) {
-      auto test_point = test_points[i];
-      auto vpscore = scores[i];
-      ROS_INFO("  %f %f %f (v: %f, o: %f, z: %f, t: %f, c: %f = %f)",
-               test_point.x, test_point.y, test_point.z, vpscore.visibility,
-               vpscore.orthogonality, vpscore.zoom, vpscore.travel,
-               vpscore.crossing, vpscore.score);
-    }
     new_location_found = true;
     target_position_ = best_position;
     target_focus_ = best_focus;
@@ -865,9 +872,9 @@ Point AutoCPDisplay::getCameraPosition() {
  * Interpolates between the start and end positions, subject to the camera speed
  * and size of this time step.
  */
-Point AutoCPDisplay::interpolatePosition(const Point& start, const Point& end,
-                                         float time_delta) {
-  float max_distance = camera_speed_->getFloat() * time_delta;
+Point AutoCPDisplay::interpolatePoint(const Point& start, const Point& end,
+                                      float speed, float time_delta) {
+  float max_distance = speed * time_delta;
   if (max_distance > distance(start, end)) {
     return end;
   } else {
