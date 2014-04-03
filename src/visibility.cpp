@@ -39,7 +39,34 @@ VisibilityChecker::~VisibilityChecker() {
  */
 bool VisibilityChecker::IsVisible(const Ogre::Vector3& point,
                                   const Viewpoint& viewpoint) {
-
+  float screen_x;
+  float screen_y;
+  auto camera = scene_manager_->createCamera("IsVisible");
+  camera->setPosition(viewpoint.position);
+  camera->lookAt(viewpoint.focus);
+  GetScreenPosition(point, *camera, &screen_x, &screen_y);
+  bool result = false;
+  if (IsOnScreen(screen_x, screen_y)) {
+    Ogre::Ray ray;
+    camera->getCameraToViewportRay(screen_x, screen_y, &ray);
+    Ogre::Vector3 hit;
+    if (RaycastAABB(ray, &hit)) {
+      if (point.distance(hit) < OCCLUSION_THRESHOLD) {
+        result = true;
+      } else { // Hit something, but too far away from the target.
+        result = false;
+      }
+    } else {
+      // No hits. The ray should hit the target, but if it doesn't, that usually
+      // indicates visibility. This is because if the target is occluded, the
+      // ray is likely to have hit the occluding object.
+      result = true;
+    }
+  } else { // Not on screen
+    result= false;
+  }
+  scene_manager_->destroyCamera(camera);
+  return result;
 }
 
 /*
@@ -50,26 +77,24 @@ bool VisibilityChecker::IsVisible(const Ogre::Vector3& point,
  *
  * Input:
  *   point: The 3D point whose screen position we want.
- *   viewpoint: The viewpoint we're looking from.
+ *   camera: The camera we're looking from.
  *
  * Output:
  *   screen_x: The x position of the point on the screen.
  *   screen_y: The y position of the point on the screen.
  */
 void VisibilityChecker::GetScreenPosition(const Ogre::Vector3& point,
-                                          const Viewpoint& viewpoint,
+                                          const Ogre::Camera& camera,
                                           float* screen_x, float* screen_y) {
   // This projection returns x and y in the range of [-1, 1]. The (-1, -1) point
   // is in the bottom left corner.
-  auto camera = scene_manager_->createCamera("GetScreenPosition");
   Ogre::Vector4 point4(point.x, point.y, point.z, 1);
-  Ogre::Vector4 projected = camera->getProjectionMatrix()
-      * camera->getViewMatrix() * point4;
+  Ogre::Vector4 projected = camera.getProjectionMatrix()
+      * camera.getViewMatrix() * point4;
   projected = projected / projected.w;
 
   *screen_x = (projected.x + 1) / 2;
   *screen_y = (1 - projected.y) / 2;
-  scene_manager_->destroyCamera(camera);
 }
 
 /*
