@@ -80,11 +80,11 @@ struct ClickedControl {
 // TODO(jstn): Are these fixed or do they depend on other factors?
 static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
   { "_u1", Control6Dof::X },
-  { "_u5", Control6Dof::Y },
-  { "_u3", Control6Dof::Z },
-  { "_u4", Control6Dof::PITCH },
+  { "_u3", Control6Dof::Y },
+  { "_u5", Control6Dof::Z },
+  { "_u2", Control6Dof::PITCH },
   { "_u0", Control6Dof::ROLL },
-  { "_u2", Control6Dof::YAW }
+  { "_u4", Control6Dof::YAW }
 };
 
 static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
@@ -238,7 +238,7 @@ Q_OBJECT
   ros::Publisher camera_placement_publisher_;
   Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
-  Vector3 computeControlProjection(const ClickedControl& control,
+  Vector3 computeControlProjection(const ClickedControl* control,
                                    const Vector3& vector);
 
   // Score functions.

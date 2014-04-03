@@ -244,7 +244,7 @@ void AutoCPDisplay::updateWeights() {
  * about.
  */
 void AutoCPDisplay::updateSmoothnessOption() {
-  if (only_move_on_idle_) {
+  if (only_move_on_idle_->getBool()) {
     current_control_ = previous_control_;
   } else {
     current_control_ = active_control_;
@@ -458,7 +458,7 @@ float AutoCPDisplay::orthogonalityScore(
   }
   Vector3 candidate_position_vector = vectorBetween(control_position,
                                                     candidate_position);
-  Vector3 projection = computeControlProjection(*current_control_,
+  Vector3 projection = computeControlProjection(current_control_,
                                                 candidate_position_vector);
   return fabs(cosineAngle(candidate_position_vector, projection));
 }
@@ -889,28 +889,28 @@ Point AutoCPDisplay::interpolatePoint(const Point& start, const Point& end,
  * Compute the projection of the vector onto the orthogonal plane or line
  * defined by the current control.
  */
-Vector3 AutoCPDisplay::computeControlProjection(const ClickedControl& control,
+Vector3 AutoCPDisplay::computeControlProjection(const ClickedControl* control,
                                                 const Vector3& vector) {
-  if (current_control_ == NULL) {
+  if (control == NULL) {
     ROS_INFO("Error: tried to compute projection of null control.");
   }
   Vector3 projection;
   projection.x = vector.x;
   projection.y = vector.y;
   projection.z = vector.z;
-  if (current_control_->control == Control6Dof::X) {
+  if (control->control == Control6Dof::X) {
     projection.x = 0;
-  } else if (current_control_->control == Control6Dof::Y) {
+  } else if (control->control == Control6Dof::Y) {
     projection.y = 0;
-  } else if (current_control_->control == Control6Dof::Z) {
+  } else if (control->control == Control6Dof::Z) {
     projection.z = 0;
-  } else if (current_control_->control == Control6Dof::PITCH) {
+  } else if (control->control == Control6Dof::PITCH) {
     projection.x = 0;
     projection.z = 0;
-  } else if (current_control_->control == Control6Dof::ROLL) {
+  } else if (control->control == Control6Dof::ROLL) {
     projection.y = 0;
     projection.z = 0;
-  } else if (current_control_->control == Control6Dof::YAW) {
+  } else if (control->control == Control6Dof::YAW) {
     projection.x = 0;
     projection.y = 0;
   } else {
