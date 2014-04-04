@@ -489,7 +489,7 @@ float AutoCPDisplay::travelingScore(const Viewpoint& viewpoint) {
   Ogre::Vector3 focus(current_focus_.x, current_focus_.y, current_focus_.z);
   auto focus_distance = focus.distance(viewpoint.focus);
   auto average_distance = (position_distance + focus_distance) / 2;
-  return linearInterpolation(0, 1, 5, 0, average_distance);
+  return linearInterpolation(0, 1, 2, 0, average_distance);
 }
 
 /**
@@ -631,7 +631,17 @@ void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
 bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   bool new_location_found = false;
 
-  Score current_score = computeLocationScore(target_position_, target_focus_);
+  auto camera_position = getCameraPosition();
+  Score current_score = computeLocationScore(camera_position, target_focus_);
+  Score best_score = current_score;
+  Point best_position = camera_position;
+  Point best_focus = target_focus_;
+
+  Score target_score = computeLocationScore(target_position_, target_focus_);
+  if (target_score.score > best_score.score) {
+    best_score = target_score;
+    best_position = target_position_;
+  }
 
   // DEBUG
   //auto camera_position = getCameraPosition();
@@ -640,10 +650,6 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   //location->y = camera_position.y;
   //location->z = camera_position.z;
   //return true;
-
-  Score best_score = current_score;
-  Point best_position = target_position_;
-  Point best_focus = target_focus_;
 
   std::vector<Point> test_points;
   std::vector<Point> test_foci;
@@ -679,13 +685,12 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
     }
   }
 
-  if (best_score.score > score_threshold_->getFloat() * current_score.score) {
+  if (distance(target_position_, best_position) > 0.01) {
     publishCandidateMarkers(test_points, test_foci, scores, time_delta);
-
-    ROS_INFO("Moving to (%f, %f, %f), score=%s, prev=%f", best_position.x,
-             best_position.y, best_position.z, best_score.toString().c_str(),
-             current_score.score);
     new_location_found = true;
+    ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=%.2f",
+             best_position.x, best_position.y, best_position.z,
+             best_score.toString().c_str(), current_score.score);
     target_position_ = best_position;
     target_focus_ = best_focus;
   }
