@@ -5,6 +5,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <OGRE/OgreVector3.h>
 #include <math.h>
+#include "viewpoint.h"
 
 namespace autocp {
 geometry_msgs::Point add(const geometry_msgs::Point& p,
@@ -30,6 +31,8 @@ geometry_msgs::Point toPoint(const geometry_msgs::Vector3& v);
 geometry_msgs::Vector3 toVector3(const geometry_msgs::Point & p);
 geometry_msgs::Vector3 vectorBetween(const geometry_msgs::Point& from,
                                      const geometry_msgs::Point& to);
+void ViewpointToOrientation(const Viewpoint& viewpoint,
+                            Ogre::Quaternion* orientation);
 }
 
 #endif

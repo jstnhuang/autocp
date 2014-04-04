@@ -188,4 +188,14 @@ geometry_msgs::Vector3 vectorBetween(const geometry_msgs::Point& from,
   result.z = to.z - from.z;
   return result;
 }
+
+/**
+ * Converts a position/focus point into an orientation from the position.
+ */
+void ViewpointToOrientation(const Viewpoint& viewpoint,
+                            Ogre::Quaternion* orientation) {
+  Ogre::Vector3 diff = viewpoint.focus - viewpoint.position;
+  auto ogre_orientation = Ogre::Vector3::UNIT_X.getRotationTo(diff);
+  *orientation = Ogre::Vector3::UNIT_X.getRotationTo(diff);
+}
 }
