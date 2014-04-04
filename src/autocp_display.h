@@ -33,9 +33,12 @@
 #include <visualization_msgs/InteractiveMarkerInit.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
-#include "viewpoint.h"
+
 #include "landmarks.h"
+#include "score.h"
+#include "viewpoint.h"
 #include "visibility.h"
+#include "visualization.h"
 
 #include <math.h>
 #include <map>
@@ -96,26 +99,6 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
   { "_u1", Control6Dof::YAW }
 };
 
-/**
- * Represents the score of a camera pose. It contains all the components of the
- * score as well as the final score, for debugging purposes.
- */
-struct Score {
-  float visibility;
-  float orthogonality;
-  float zoom;
-  float travel;
-  float crossing;
-  float score;
- public:
-  std::string toString() const {
-    char buffer[64];
-    snprintf(buffer, 64, "v: %.2f, o: %.2f, z: %.2f, t: %.2f, c: %.2f = %.2f",
-             visibility, orthogonality, zoom, travel, crossing, score);
-    return std::string(buffer);
-  }
-};
-
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 5;
 
@@ -148,22 +131,7 @@ Q_OBJECT
   Point target_position_;
   Point current_focus_;
   Point target_focus_;
-
-  // Debugging
-  ros::Publisher candidate_marker_pub_;
-  void publishCandidateMarkers(const std::vector<Point>& viewpoints,
-                               const std::vector<Point>& foci,
-                               const std::vector<Score>& scores,
-                               float time_delta);
-  void makeCameraMarker(const Point& position, const Point& focus,
-                        const Score& score, int id, float time_delta,
-                        Marker* marker);
-  void flushMarkers(std::string ns, int max_id);
-  void makeTextMarker(const Point& position, const Score& score, int id,
-                      Marker* marker);
-  void makeRayMarker(const Ogre::Ray& ray, int id, Marker* marker);
-  void makePointMarker(const Point& point, int id, Marker* marker);
-  int num_prev_markers_;
+  Visualization* visualization_;
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
@@ -261,9 +229,6 @@ Q_OBJECT
       view_controller_msgs::CameraPlacement* camera_placement);
   Point interpolatePoint(const Point& start, const Point& end,
                             float speed, float time_delta);
-  // Utilities
-  void focusToOrientation(const Point& position, const Point& focus,
-                          Quaternion* orientation);
 };
 }  // namespace autocp
 

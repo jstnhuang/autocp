@@ -124,7 +124,6 @@ AutoCPDisplay::AutoCPDisplay()
       SLOT(updateCameraOptions()));
 
   initializeStandardViewpoints();
-  candidate_marker_pub_ = root_nh_.advertise<Marker>("autocp_markers", 1);
 }
 
 /**
@@ -172,8 +171,8 @@ void AutoCPDisplay::onInitialize() {
   current_control_ = NULL;
   active_control_ = NULL;
   previous_control_ = NULL;
-  num_prev_markers_ = 0;
   current_focus_ = head_position;
+  visualization_ = new Visualization(root_nh_, fixed_frame_.toStdString());
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
@@ -406,9 +405,8 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
                                          camera_speed_->getFloat(), time_delta);
   current_focus_ = interpolatePoint(current_focus_, target_focus_, 0.5,
                                        time_delta);
-  Marker marker;
-  makePointMarker(current_focus_, 0, &marker);
-  candidate_marker_pub_.publish(marker);
+  visualization_->ShowFocus(Ogre::Vector3(current_focus_.x, current_focus_.y,
+                                          current_focus_.z));
 
   view_controller_msgs::CameraPlacement camera_placement;
   setCameraPlacement(next_position, current_focus_, ros::Duration(time_delta),
@@ -432,9 +430,6 @@ float AutoCPDisplay::visibilityScore(const Point& candidate_position,
     Ogre::Vector3 hit;
 
     bool is_visible = visibility_checker_->IsVisible(p, viewpoint);
-    Marker marker;
-    makePointMarker(toPoint(hit), 0, &marker);
-    candidate_marker_pub_.publish(marker);
     if (is_visible) {
       return 1;
     } else {
@@ -631,13 +626,25 @@ void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
 bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   bool new_location_found = false;
 
+  std::vector<Viewpoint> test_viewpoints;
+  std::vector<Score> scores;
+
+  Ogre::Vector3 target_focus_v3(target_focus_.x, target_focus_.y,
+                                target_focus_.z);
+
   auto camera_position = getCameraPosition();
+  Viewpoint current_viewpoint(Ogre::Vector3(camera_position.x, camera_position.y, camera_position.z), target_focus_v3);
   Score current_score = computeLocationScore(camera_position, target_focus_);
   Score best_score = current_score;
   Point best_position = camera_position;
   Point best_focus = target_focus_;
+  test_viewpoints.push_back(current_viewpoint);
+  scores.push_back(current_score);
 
   Score target_score = computeLocationScore(target_position_, target_focus_);
+  Viewpoint target_viewpoint(Ogre::Vector3(target_position_.x, target_position_.y, target_position_.z), target_focus_v3);
+  test_viewpoints.push_back(target_viewpoint);
+  scores.push_back(target_score);
   if (target_score.score > best_score.score) {
     best_score = target_score;
     best_position = target_position_;
@@ -651,9 +658,6 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   //location->z = camera_position.z;
   //return true;
 
-  std::vector<Point> test_points;
-  std::vector<Point> test_foci;
-
   std::vector<Vector3> viewpoints;
   selectViewpoints(&viewpoints);
 
@@ -666,13 +670,14 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   Point center = landmarks_.Center();
   landmark_positions.push_back(center);
 
-  std::vector<Score> scores;
 
   for (const auto& landmark_position : landmark_positions) {
     for (const auto& viewpoint_vector : viewpoints) {
       auto test_point = add(landmark_position, viewpoint_vector);
-      test_points.push_back(test_point);
-      test_foci.push_back(landmark_position);
+      Ogre::Vector3 test_point_v3 = Ogre::Vector3(test_point.x, test_point.y,
+                                                  test_point.z);
+      Viewpoint viewpoint(test_point_v3, target_focus_v3);
+      test_viewpoints.push_back(viewpoint);
 
       Score score = computeLocationScore(test_point, landmark_position);
       scores.push_back(score);
@@ -686,7 +691,7 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
   }
 
   if (distance(target_position_, best_position) > 0.01) {
-    publishCandidateMarkers(test_points, test_foci, scores, time_delta);
+    visualization_->ShowViewpoints(test_viewpoints, scores);
     new_location_found = true;
     ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=%.2f",
              best_position.x, best_position.y, best_position.z,
@@ -728,141 +733,6 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.vector.x = 0.0;
   camera_placement->up.vector.y = 0.0;
   camera_placement->up.vector.z = 1.0;
-}
-
-/**
- * Publish markers for each candidate viewpoint.
- */
-void AutoCPDisplay::publishCandidateMarkers(
-    const std::vector<Point>& test_points,
-    const std::vector<Point>& test_foci,
-    const std::vector<Score>& scores,
-    float time_delta) {
-  flushMarkers("candidates", num_prev_markers_);
-  flushMarkers("candidate_scores", num_prev_markers_);
-
-  for (int i = 0; i < test_points.size(); i++) {
-    Marker marker;
-    Marker text;
-    makeCameraMarker(test_points[i], test_foci[i], scores[i], i, time_delta,
-                     &marker);
-    makeTextMarker(test_points[i], scores[i], i, &text);
-    candidate_marker_pub_.publish(marker);
-    candidate_marker_pub_.publish(text);
-  }
-  num_prev_markers_ = test_points.size();
-}
-
-/**
- * Delete all markers in the given namespace, with ids = 0, 1, ..., max_id.
- */
-void AutoCPDisplay::flushMarkers(std::string ns, int max_id) {
-  for (int i = 0; i < max_id; i++) {
-    Marker marker;
-    marker.header.frame_id = fixed_frame_.toStdString();
-    marker.header.stamp = ros::Time::now();
-    marker.ns = ns;
-    marker.id = i;
-    marker.action = Marker::DELETE;
-    candidate_marker_pub_.publish(marker);
-  }
-}
-
-/**
- * Creates an arrow marker pointing towards the focus point. It is colored green
- * if the score is 1, red if the score is 0, and something in between otherwise.
- */
-void AutoCPDisplay::makeCameraMarker(const Point& position, const Point& focus,
-                                     const Score& score, int id,
-                                     float time_delta, Marker* marker) {
-  Quaternion orientation;
-  focusToOrientation(position, focus, &orientation);
-  marker->header.frame_id = fixed_frame_.toStdString();
-  marker->header.stamp = ros::Time::now();
-  marker->ns = "candidates";
-  marker->id = id;
-  marker->type = Marker::ARROW;
-  marker->action = Marker::ADD;
-  marker->pose.position.x = position.x;
-  marker->pose.position.y = position.y;
-  marker->pose.position.z = position.z;
-  marker->pose.orientation.x = orientation.x;
-  marker->pose.orientation.y = orientation.y;
-  marker->pose.orientation.z = orientation.z;
-  marker->pose.orientation.w = orientation.w;
-  marker->scale.x = 0.05;
-  marker->scale.y = 0.05;
-  marker->scale.z = 0.05;
-  if (score.score < 0) {
-    marker->color.r = 0;
-    marker->color.g = 0;
-    marker->color.b = 0;
-  } else {
-    marker->color.r = 1.0 - score.score;
-    marker->color.g = score.score;
-    marker->color.b = 0.0f;
-  }
-  marker->color.a = 1.0;
-  marker->lifetime = ros::Duration();
-}
-
-void AutoCPDisplay::makeRayMarker(const Ogre::Ray& ray, int id, Marker* marker) {
-  Quaternion orientation;
-  auto origin = toPoint(ray.getOrigin());
-  auto direction = toPoint(ray.getDirection());
-  marker->header.frame_id = fixed_frame_.toStdString();
-  marker->header.stamp = ros::Time::now();
-  marker->ns = "rays";
-  marker->id = id;
-  marker->type = Marker::ARROW;
-  marker->action = Marker::ADD;
-  marker->points = std::vector<Point> {origin, add(origin, direction)};
-  marker->scale.x = 0.05;
-  marker->scale.y = 0.05;
-  marker->scale.z = 0.05;
-  marker->color.r = 1.0;
-  marker->color.g = 0.0;
-  marker->color.b = 0.0;
-  marker->color.a = 1.0;
-  marker->lifetime = ros::Duration();
-}
-
-void AutoCPDisplay::makePointMarker(const Point& point, int id, Marker* marker) {
-  marker->header.frame_id = fixed_frame_.toStdString();
-  marker->header.stamp = ros::Time::now();
-  marker->ns = "points";
-  marker->id = id;
-  marker->type = Marker::SPHERE;
-  marker->action = Marker::ADD;
-  marker->pose.position = point;
-  marker->scale.x = 0.1;
-  marker->scale.y = 0.1;
-  marker->scale.z = 0.1;
-  marker->color.r = 0.0;
-  marker->color.g = 0.0;
-  marker->color.b = 1.0;
-  marker->color.a = 1.0;
-  marker->lifetime = ros::Duration();
-}
-
-void AutoCPDisplay::makeTextMarker(const Point& position, const Score& score,
-                                   int id, Marker* marker) {
-  marker->header.frame_id = fixed_frame_.toStdString();
-  marker->header.stamp = ros::Time::now();
-  marker->ns = "candidate_scores";
-  marker->id = id;
-  marker->type = Marker::TEXT_VIEW_FACING;
-  marker->action = Marker::ADD;
-  marker->pose.position.x = position.x;
-  marker->pose.position.y = position.y;
-  marker->pose.position.z = position.z - 0.1;
-  marker->scale.z = 0.05;
-  marker->color.r = 0;
-  marker->color.g = 0.48;
-  marker->color.b = 0.68;
-  marker->color.a = 1.0;
-  marker->lifetime = ros::Duration();
-  marker->text = score.toString();
 }
 
 /**
@@ -923,22 +793,6 @@ Vector3 AutoCPDisplay::computeControlProjection(const ClickedControl* control,
     return projection;
   }
   return projection;
-}
-
-/**
- * Converts a position/focus point into an orientation from the position.
- */
-void AutoCPDisplay::focusToOrientation(const Point& position,
-                                       const Point& focus,
-                                       Quaternion* orientation) {
-  Ogre::Vector3 start(position.x, position.y, position.z);
-  Ogre::Vector3 end(focus.x, focus.y, focus.z);
-  Ogre::Vector3 diff = end - start;
-  auto ogre_orientation = Ogre::Vector3::UNIT_X.getRotationTo(diff);
-  orientation->x = ogre_orientation.x;
-  orientation->y = ogre_orientation.y;
-  orientation->z = ogre_orientation.z;
-  orientation->w = ogre_orientation.w;
 }
 
 }  // namespace autocp
