@@ -12,6 +12,7 @@ using visualization_msgs::Marker;
  *
  * Input:
  *   root_node_handle: The root node handle of the display.
+ *   fixed_frame: The frame all markers should have.
  */
 Visualization::Visualization(const ros::NodeHandle& root_node_handle,
                              std::string fixed_frame) {
@@ -22,6 +23,14 @@ Visualization::Visualization(const ros::NodeHandle& root_node_handle,
   num_candidate_viewpoints_ = 0;
 }
 
+/*
+ * Visualizes candidate viewpoints, by showing markers representing cameras and
+ * text displaying the score breakdown.
+ *
+ * Input:
+ *   viewpoints: The vector of viewpoints to visualize.
+ *   scores: The vector of scores associated with each viewpoint.
+ */
 void Visualization::ShowViewpoints(const std::vector<Viewpoint>& viewpoints,
                                    const std::vector<Score>& scores) {
   FlushCandidateViewpoints();
@@ -38,6 +47,12 @@ void Visualization::ShowViewpoints(const std::vector<Viewpoint>& viewpoints,
   }
 }
 
+/*
+ * Visualizes a focus point, represented as a blue sphere.
+ *
+ * Input:
+ *   focus: The focus point.
+ */
 void Visualization::ShowFocus(const Ogre::Vector3& focus) {
   FlushFoci();
   Marker marker;
@@ -46,6 +61,9 @@ void Visualization::ShowFocus(const Ogre::Vector3& focus) {
   num_foci_++;
 }
 
+/*
+ * Deletes the previously visualized candidate viewpoints.
+ */
 void Visualization::FlushCandidateViewpoints() {
   FlushMarkers(kCandidateViewpointNamespace, num_candidate_viewpoints_);
   FlushMarkers(kCandidateTextNamespace, num_candidate_viewpoints_);
@@ -53,13 +71,20 @@ void Visualization::FlushCandidateViewpoints() {
 
 }
 
+/*
+ * Deletes the previously visualized foci.
+ */
 void Visualization::FlushFoci() {
   FlushMarkers(kFociNamespace, num_foci_);
   num_foci_ = 0;
 }
 
 /**
- * Delete all markers in the given namespace, with ids = 0, 1, ..., max_id.
+ * Deletes all markers in the given namespace, with IDs up to max_id.
+ *
+ * Input:
+ *   ns: The namespace of the markers to delete.
+ *   max_id: Markers with IDs 0, 1, ..., max_id are deleted.
  */
 void Visualization::FlushMarkers(std::string ns, int max_id) {
   for (int i = 0; i < max_id; i++) {
@@ -74,8 +99,15 @@ void Visualization::FlushMarkers(std::string ns, int max_id) {
 }
 
 /**
- * Creates an arrow marker pointing towards the focus point. It is colored green
+ * Creates an arrow marker representing the viewpoint. It is colored green
  * if the score is 1, red if the score is 0, and something in between otherwise.
+ *
+ * Input:
+ *   viewpoint: The viewpoint to visualize.
+ *   score: The score of the viewpoint.
+ *
+ * Output:
+ *   marker: The resulting marker.
  */
 void Visualization::MakeCameraMarker(const Viewpoint& viewpoint,
                                      const Score& score, Marker* marker) {
@@ -110,6 +142,16 @@ void Visualization::MakeCameraMarker(const Viewpoint& viewpoint,
   marker->lifetime = ros::Duration();
 }
 
+/**
+ * Creates a text marker displaying the viewpoint score.
+ *
+ * Input:
+ *   viewpoint: The viewpoint whose score we want to show.
+ *   score: The score of the viewpoint.
+ *
+ * Output:
+ *   marker: The resulting marker.
+ */
 void Visualization::MakeTextMarker(const Viewpoint& viewpoint,
                                    const Score& score, Marker* marker) {
   marker->header.frame_id = fixed_frame_;
@@ -129,7 +171,15 @@ void Visualization::MakeTextMarker(const Viewpoint& viewpoint,
   marker->lifetime = ros::Duration();
   marker->text = score.toString();
 }
-
+/**
+ * Creates a spherical marker representing a focus point.
+ *
+ * Input:
+ *   focus: The focus point to visualize.
+ *
+ * Output:
+ *   marker: The resulting marker.
+ */
 void Visualization::MakeFocusMarker(const Ogre::Vector3& focus,
                                     Marker* marker) {
   marker->header.frame_id = fixed_frame_;
