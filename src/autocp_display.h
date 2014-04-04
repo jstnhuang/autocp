@@ -11,9 +11,7 @@
 #ifndef AUTOCP_DISPLAY_H
 #define AUTOCP_DISPLAY_H
 
-#include <geometry_msgs/Point.h>
 #include <OGRE/OgreCamera.h>
-#include <OGRE/OgreViewport.h>
 #include <OGRE/OgreManualObject.h>
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <ros/ros.h>
@@ -34,6 +32,8 @@
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
 
+#include "control_6dof.h"
+#include "clicked_control.h"
 #include "landmarks.h"
 #include "score.h"
 #include "viewpoint.h"
@@ -47,33 +47,6 @@
 #include <stdio.h>
 
 namespace autocp {
-
-enum class Control6Dof {
-  X,
-  Y,
-  Z,
-  PITCH,
-  ROLL,
-  YAW
-};
-
-struct ClickedControl {
-  std::string marker;
-  Control6Dof control;
-  geometry_msgs::Pose pose;
-  // Position of the object the marker is controlling.
-  Ogre::Vector3 world_position;
-
-  ClickedControl(std::string marker, Control6Dof control,
-                 geometry_msgs::Pose pose, Ogre::Vector3 world_position) {
-    this->marker = marker;
-    this->control = control;
-    this->pose = pose;
-    this->world_position = world_position;
-  }
-  ~ClickedControl() {
-  }
-};
 
 // Maps built by observing /pr2_marker_control_transparent/feedback
 // TODO(jstn): Are these fixed or do they depend on other factors?
