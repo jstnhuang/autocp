@@ -710,37 +710,6 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.vector.z = 1.0;
 }
 
-void AutoCPDisplay::interpolateViewpoint(const Viewpoint& start,
-                                         const Viewpoint& end,
-                                         float position_speed,
-                                         float focus_speed,
-                                         float time_delta,
-                                         Viewpoint* result) {
-  interpolatePoint(start.position, end.position, position_speed, time_delta,
-                   &(result->position));
-  interpolatePoint(start.focus, end.focus, focus_speed, time_delta,
-                   &(result->focus));
-}
-
-/**
- * Interpolates between the start and end positions, subject to the camera speed
- * and size of this time step.
- */
-void AutoCPDisplay::interpolatePoint(const Ogre::Vector3& start,
-                                     const Ogre::Vector3& end,
-                                     float speed, float time_delta,
-                                     Ogre::Vector3* result) {
-  float step_distance = speed * time_delta;
-  if (step_distance > start.distance(end)) {
-    *result = end;
-  } else {
-    Ogre::Vector3 step = (end - start);
-    step.normalise();
-    step *= step_distance;
-    *result = start + step;
-  }
-}
-
 /**
  * Compute the projection of the vector onto the orthogonal plane or line
  * defined by the current control.

@@ -127,9 +127,6 @@ Q_OBJECT
   Viewpoint current_viewpoint_;
   Viewpoint target_viewpoint_;
 
-  //Ogre::Vector3 target_position_;
-  //Ogre::Vector3 current_focus_;
-  //Ogre::Vector3 target_focus_;
   Visualization* visualization_;
 
   // Canonical viewpoint locations, expressed as an offset from the current
@@ -226,13 +223,8 @@ Q_OBJECT
       const Viewpoint& viewpoint,
       const ros::Duration& time_from_start,
       view_controller_msgs::CameraPlacement* camera_placement);
-
-  void interpolateViewpoint(const Viewpoint& start, const Viewpoint& end,
-                        float position_speed, float focus_speed,
-                        float time_delta, Viewpoint* result);
-  void interpolatePoint(const Ogre::Vector3& start, const Ogre::Vector3& end,
-                        float speed, float time_delta, Ogre::Vector3* result);
 };
+
 }  // namespace autocp
 
 #endif  // AUTOCP_DISPLAY_H

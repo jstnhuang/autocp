@@ -8,29 +8,13 @@
 #include "viewpoint.h"
 
 namespace autocp {
-geometry_msgs::Point add(const geometry_msgs::Point& p,
-                         const geometry_msgs::Vector3& v);
-geometry_msgs::Point add(const geometry_msgs::Point& a,
-                         const geometry_msgs::Point& b);
-geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v);
-//float cosineAngle(const geometry_msgs::Vector3& v1,
-//                  const geometry_msgs::Vector3& v2);
-//float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2);
-float dotProduct(const geometry_msgs::Vector3& v1,
-                 const geometry_msgs::Vector3& v2);
-float length(const geometry_msgs::Vector3& v);
+void interpolateViewpoint(const Viewpoint& start, const Viewpoint& end,
+                          float position_speed, float focus_speed,
+                          float time_delta, Viewpoint* result);
+void interpolatePoint(const Ogre::Vector3& start, const Ogre::Vector3& end,
+                      float speed, float time_delta, Ogre::Vector3* result);
 float linearInterpolation(float x1, float y1, float x2, float y2, float x);
-geometry_msgs::Vector3 makeVector3(float x, float y, float z);
-geometry_msgs::Point scale(const geometry_msgs::Point& point, float scale);
-geometry_msgs::Vector3 scale(const geometry_msgs::Vector3& vector, float scale);
-geometry_msgs::Vector3 setLength(const geometry_msgs::Vector3& p1,
-                                 float new_length);
 int sign(float x);
-geometry_msgs::Point toPoint(const Ogre::Vector3& v);
-geometry_msgs::Point toPoint(const geometry_msgs::Vector3& v);
-geometry_msgs::Vector3 toVector3(const geometry_msgs::Point & p);
-geometry_msgs::Vector3 vectorBetween(const geometry_msgs::Point& from,
-                                     const geometry_msgs::Point& to);
 void ViewpointToOrientation(const Viewpoint& viewpoint,
                             Ogre::Quaternion* orientation);
 }
