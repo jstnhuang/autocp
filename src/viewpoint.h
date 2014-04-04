@@ -1,7 +1,7 @@
-#include <OGRE/OgreVector3.h>
-
 #ifndef VIEWPOINT_H
 #define VIEWPOINT_H
+
+#include <OGRE/OgreVector3.h>
 
 namespace autocp {
 struct Viewpoint {
