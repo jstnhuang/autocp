@@ -6,7 +6,7 @@
 #define VISIBILITY_H
 
 #include <OGRE/OgreSceneManager.h>
-#include "viewpoint.h"
+#include "models/viewpoint.h"
 
 namespace autocp {
 

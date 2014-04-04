@@ -1,4 +1,4 @@
-#include "viewpoint.h"
+#include "models/viewpoint.h"
 
 namespace autocp {
 /**

@@ -7,9 +7,10 @@
 
 #include <visualization_msgs/Marker.h>
 #include <ros/ros.h>
-#include "score.h"
+
+#include "models/score.h"
+#include "models/viewpoint.h"
 #include "utils.h"
-#include "viewpoint.h"
 
 namespace autocp {
 using visualization_msgs::Marker;

@@ -32,11 +32,11 @@
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
 
-#include "control_6dof.h"
-#include "clicked_control.h"
+#include "models/control_6dof.h"
+#include "models/clicked_control.h"
+#include "models/score.h"
+#include "models/viewpoint.h"
 #include "landmarks.h"
-#include "score.h"
-#include "viewpoint.h"
 #include "visibility.h"
 #include "visualization.h"
 

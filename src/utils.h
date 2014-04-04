@@ -5,7 +5,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <OGRE/OgreVector3.h>
 #include <math.h>
-#include "viewpoint.h"
+#include "models/viewpoint.h"
 
 namespace autocp {
 void interpolateViewpoint(const Viewpoint& start, const Viewpoint& end,
