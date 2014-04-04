@@ -38,6 +38,8 @@ set(SOURCE_FILES
   src/visibility.h
   src/visibility.cpp
   src/autocp_display.cpp
+  src/autocp_sensing.h
+  src/autocp_sensing.cpp
   ${MOC_FILES}
 )
 

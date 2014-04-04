@@ -36,7 +36,7 @@
 #include "models/clicked_control.h"
 #include "models/score.h"
 #include "models/viewpoint.h"
-#include "landmarks.h"
+#include "autocp_sensing.h"
 #include "visibility.h"
 #include "visualization.h"
 
@@ -47,26 +47,6 @@
 #include <stdio.h>
 
 namespace autocp {
-
-// Maps built by observing /pr2_marker_control_transparent/feedback
-// TODO(jstn): Are these fixed or do they depend on other factors?
-static const std::map<std::string, Control6Dof> POINT_HEAD_CONTROLS = {
-  { "_u1", Control6Dof::X },
-  { "_u5", Control6Dof::Y },
-  { "_u3", Control6Dof::Z },
-  { "_u2", Control6Dof::PITCH },
-  { "_u0", Control6Dof::ROLL },
-  { "_u4", Control6Dof::YAW }
-};
-
-static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
-  { "_u0", Control6Dof::X },
-  { "_u4", Control6Dof::Y },
-  { "_u2", Control6Dof::Z },
-  { "_u3", Control6Dof::PITCH },
-  { "", Control6Dof::ROLL },
-  { "_u1", Control6Dof::YAW }
-};
 
 static const float MIN_DISTANCE = 0.5;
 static const float MAX_DISTANCE = 5;
@@ -100,75 +80,36 @@ Q_OBJECT
   Viewpoint current_viewpoint_;
   Viewpoint target_viewpoint_;
 
+  AutoCPSensing* sensing_;
   Visualization* visualization_;
+  VisibilityChecker* visibility_checker_;
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
   void initializeStandardViewpoints();
   std::vector<Ogre::Vector3> standard_viewpoints_;
 
-  // Sensing.
-  void getTransformOrigin(std::string frame, Ogre::Vector3* origin);
   rviz::BoolProperty* show_fps_;
 
-  // Landmarks container.
-  Landmarks landmarks_;
 
-  // Weights
-  rviz::FloatProperty* crossing_weight_property_;
-  float crossing_weight_;
-
-  // Grippers.
-  Ogre::Vector3 left_gripper_origin_;
-  Ogre::Vector3 right_gripper_origin_;
+  // Landmark weights.
   rviz::FloatProperty* gripper_weight_;
-
-  // Head focus.
-  ros::Subscriber point_head_subscriber_;
-  Ogre::Vector3 head_focus_point_;
-  void pointHeadCallback(const pr2_controllers_msgs::PointHeadActionGoal& goal);
-  rviz::FloatProperty* head_focus_weight_;
-
-  // Head position.
   rviz::FloatProperty* head_weight_;
-  void getHeadPosition(Ogre::Vector3* point);
-
-  // Markers.
-  ros::Subscriber full_marker_subscriber_;
-  ros::Subscriber marker_feedback_subscriber_;
-  void markerCallback(
-      const visualization_msgs::InteractiveMarkerFeedback& feedback);
-  void fullMarkerCallback(
-      const visualization_msgs::InteractiveMarkerInit& im_init);
-  // current_control_ is either the active control or the previous control,
-  // depending on whether or not we move when a control is active.
-  ClickedControl* current_control_;
-  ClickedControl* active_control_;
-  ClickedControl* previous_control_;
-
-  // Segmented objects factor.
-  ros::Subscriber object_segmentation_subscriber_;
+  rviz::FloatProperty* head_focus_weight_;
   rviz::FloatProperty* segmented_object_weight_;
-  std::vector<Ogre::Vector3> segmented_object_positions_;
-  void objectSegmentationCallback(
-      const manipulation_msgs::GraspableObjectList& list);
 
-  // Zoom factors.
+  // Property weights.
+  rviz::FloatProperty* stay_in_place_weight_;
+  rviz::FloatProperty* be_orthogonal_weight_;
+  rviz::FloatProperty* stay_visible_weight_;
   rviz::FloatProperty* zoom_weight_;
+  rviz::FloatProperty* crossing_weight_property_;
 
-  // Smoothness factors.
+  // Smoothness controls.
   rviz::FloatProperty* camera_speed_;
   rviz::FloatProperty* score_threshold_;
   rviz::BoolProperty* only_move_on_idle_;
   rviz::IntProperty* occlusion_check_limit_;
-
-  // Location weights
-  rviz::FloatProperty* stay_in_place_weight_;
-  rviz::FloatProperty* be_orthogonal_weight_;
-  rviz::FloatProperty* stay_visible_weight_;
-
-  // Visibility factors.
-  VisibilityChecker* visibility_checker_;
 
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;

@@ -12,7 +12,8 @@ namespace autocp {
  * Constructor. Hooks up the display properties.
  */
 AutoCPDisplay::AutoCPDisplay()
-    : root_nh_(""), current_viewpoint_(), target_viewpoint_() {
+    : root_nh_(""), current_viewpoint_(), target_viewpoint_(), sensing_(NULL),
+      visualization_(NULL) {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -118,8 +119,6 @@ AutoCPDisplay::AutoCPDisplay()
   show_fps_ = new rviz::BoolProperty(
       "Show FPS", false, "Whether or not to show the frames per second.", this,
       SLOT(updateCameraOptions()));
-
-  initializeStandardViewpoints();
 }
 
 /**
@@ -133,44 +132,23 @@ AutoCPDisplay::~AutoCPDisplay() {
  */
 void AutoCPDisplay::onInitialize() {
   Display::onInitialize();
+  sensing_ = new AutoCPSensing(root_nh_, &tf_listener_,
+                               fixed_frame_.toStdString());
+  sensing_->Initialize();
   updateTopic();
   updateWeights();
-
-  point_head_subscriber_ = root_nh_.subscribe(
-      "head_traj_controller/point_head_action/goal", 5,
-      &AutoCPDisplay::pointHeadCallback, this);
-
-  marker_feedback_subscriber_ = root_nh_.subscribe(
-      "/pr2_marker_control_transparent/feedback", 5,
-      &AutoCPDisplay::markerCallback, this);
-
-  object_segmentation_subscriber_ = root_nh_.subscribe(
-      "/interactive_object_recognition_result", 5,
-      &AutoCPDisplay::objectSegmentationCallback, this);
-
-  // Just read the first message to get the initial head focus point.
-  full_marker_subscriber_ = root_nh_.subscribe(
-      "/pr2_marker_control_transparent/update_full", 5,
-      &AutoCPDisplay::fullMarkerCallback, this);
-
-  // Get the head location.
-  Ogre::Vector3 head_position;
-  getHeadPosition(&head_position);
-  landmarks_.UpdateHead(&head_position);
 
   vm_ = static_cast<rviz::VisualizationManager*>(context_);
   sm_ = vm_->getSceneManager();
   camera_ = vm_->getRenderPanel()->getCamera();
   visibility_checker_ = new VisibilityChecker(sm_, camera_);
 
-  current_control_ = NULL;
-  active_control_ = NULL;
-  previous_control_ = NULL;
-
-  current_viewpoint_ = Viewpoint(camera_->getPosition(), head_position);
+  current_viewpoint_ = Viewpoint(camera_->getPosition(),
+                                 *(sensing_->head_position()));
   target_viewpoint_ = current_viewpoint_;
 
   visualization_ = new Visualization(root_nh_, fixed_frame_.toStdString());
+  initializeStandardViewpoints();
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
@@ -224,161 +202,14 @@ void AutoCPDisplay::updateCameraOptions() {
 }
 
 /**
- * Update the weight vector, and normalize so that the max is 1.
+ * Updates the weights.
  */
 void AutoCPDisplay::updateWeights() {
-  landmarks_.UpdateGripperWeight(gripper_weight_->getFloat());
-  landmarks_.UpdateHeadWeight(head_weight_->getFloat());
-  landmarks_.UpdateHeadFocusWeight(head_focus_weight_->getFloat());
-  landmarks_.UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
-  crossing_weight_ = crossing_weight_property_->getFloat();
-}
-
-/**
- * If we are only going to move the camera when no controls are being used, then
- * the control we care about is the last control that was used. If we will move
- * the camera when a control is being used, then that's the control we care
- * about.
- */
-void AutoCPDisplay::updateSmoothnessOption() {
-  if (only_move_on_idle_->getBool()) {
-    current_control_ = previous_control_;
-  } else {
-    current_control_ = active_control_;
-  }
-}
-
-// Sensing ---------------------------------------------------------------------
-/**
- * Get the origin of the given transform relative to the fixed frame.
- */
-void AutoCPDisplay::getTransformOrigin(std::string frame,
-                                       Ogre::Vector3* origin) {
-  ros::Duration timeout(5);
-  tf_listener_.waitForTransform(fixed_frame_.toStdString(), frame, ros::Time(0),
-                                timeout);
-  tf::StampedTransform transform;
-  tf_listener_.lookupTransform(fixed_frame_.toStdString(), frame, ros::Time(0),
-                               transform);
-  tf::Vector3 transform_origin = transform.getOrigin();
-
-  *origin = Ogre::Vector3(transform_origin.x(), transform_origin.y(),
-                          transform_origin.z());
-}
-
-/**
- * Gets the position of the head relative to the fixed frame.
- */
-void AutoCPDisplay::getHeadPosition(Ogre::Vector3* head_position) {
-  getTransformOrigin("/head_tilt_link", head_position);
-}
-
-/**
- * Get the target point for the head.
- */
-void AutoCPDisplay::pointHeadCallback(
-    const pr2_controllers_msgs::PointHeadActionGoal& action_goal) {
-  auto ros_point = action_goal.goal.target.point;
-  head_focus_point_ = Ogre::Vector3(ros_point.x, ros_point.y, ros_point.z);
-  landmarks_.UpdateHeadFocus(&head_focus_point_);
-}
-
-/**
- * When an object is segmented, compute the average point in the point cloud and
- * update the segmented_object_positions_ vector.
- */
-void AutoCPDisplay::objectSegmentationCallback(
-    const manipulation_msgs::GraspableObjectList& list) {
-  segmented_object_positions_.clear();
-  for (const auto& obj : list.graspable_objects) {
-    Ogre::Vector3 obj_location(0, 0, 0);
-    for (const auto& point : obj.cluster.points) {
-      obj_location.x += point.x;
-      obj_location.y += point.y;
-      obj_location.z += point.z;
-    }
-    obj_location /= obj.cluster.points.size();
-    segmented_object_positions_.push_back(obj_location);
-  }
-  landmarks_.UpdateSegmentedObjects(segmented_object_positions_);
-}
-
-/**
- * Get the location of the interactive marker currently being used.
- */
-void AutoCPDisplay::markerCallback(
-    const visualization_msgs::InteractiveMarkerFeedback& feedback) {
-  if (feedback.event_type
-      != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
-    return;
-  }
-  std::string marker_name = static_cast<std::string>(feedback.marker_name);
-  std::string control_name = static_cast<std::string>(feedback.control_name);
-
-  Control6Dof control;
-  auto ros_position = feedback.pose.position;
-  auto world_position = Ogre::Vector3(ros_position.x, ros_position.y,
-                                      ros_position.z);
-  try {
-    if (marker_name == "head_point_goal") {
-      control = POINT_HEAD_CONTROLS.at(control_name);
-    } else if (marker_name == "l_gripper_control") {
-      control = GRIPPER_CONTROLS.at(control_name);
-      world_position = Ogre::Vector3(left_gripper_origin_.x,
-                                     left_gripper_origin_.y,
-                                     left_gripper_origin_.z);
-    } else if (marker_name == "r_gripper_control") {
-      control = GRIPPER_CONTROLS.at(control_name);
-      world_position = Ogre::Vector3(right_gripper_origin_.x,
-                                     right_gripper_origin_.y,
-                                     right_gripper_origin_.z);
-    } else if (marker_name == "l_posture_control") {
-      control = Control6Dof::ROLL;
-    } else if (marker_name == "r_posture_control") {
-      control = Control6Dof::ROLL;
-    } else {
-      ROS_INFO("Unknown marker %s", marker_name.c_str());
-      return;
-    }
-
-    active_control_ = new ClickedControl {
-      marker_name,
-      control,
-      feedback.pose,
-      world_position
-    };
-    updateSmoothnessOption();
-  } catch (const std::out_of_range& e) {
-    ROS_INFO("Unknown control %s for marker %s", control_name.c_str(),
-             marker_name.c_str());
-  }
-}
-
-/**
- * Get the state of all the markers. This differs from the regular callback
- * because we get data from this topic on startup, while markerCallback only
- * gets called when a marker is being used.
- */
-void AutoCPDisplay::fullMarkerCallback(
-    const visualization_msgs::InteractiveMarkerInit& im_init) {
-  landmarks_.UpdateHeadFocus(NULL);
-  landmarks_.UpdateRightGripper(NULL);
-  landmarks_.UpdateLeftGripper(NULL);
-  for (const auto& marker : im_init.markers) {
-    if (marker.name == "head_point_goal") {
-      auto ros_position = marker.pose.position;
-      Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
-      landmarks_.UpdateHeadFocus(&position);
-    } else if (marker.name == "r_gripper_control") {
-      auto ros_position = marker.pose.position;
-      Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
-      landmarks_.UpdateRightGripper(&position);
-    } else if (marker.name == "l_gripper_control") {
-      auto ros_position = marker.pose.position;
-      Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
-      landmarks_.UpdateLeftGripper(&position);
-    }
-  }
+  auto landmarks = sensing_->landmarks();
+  landmarks->UpdateGripperWeight(gripper_weight_->getFloat());
+  landmarks->UpdateHeadWeight(head_weight_->getFloat());
+  landmarks->UpdateHeadFocusWeight(head_focus_weight_->getFloat());
+  landmarks->UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
 }
 
 // Camera placement logic ------------------------------------------------------
@@ -386,7 +217,8 @@ void AutoCPDisplay::fullMarkerCallback(
  * Main loop that alternates between sensing and placing the camera.
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
-  if (landmarks_.NumLandmarks() == 0) {
+  sensing_->Update();
+  if (sensing_->landmarks()->NumLandmarks() == 0) {
     return;
   }
   current_viewpoint_.position = camera_->getPosition();
@@ -395,15 +227,6 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
-
-  if (active_control_ != NULL) {
-    if (previous_control_ != NULL) {
-      delete previous_control_;
-    }
-    previous_control_ = active_control_;
-    active_control_ = NULL;
-  }
-  updateSmoothnessOption();
 }
 
 /**
@@ -411,7 +234,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  if (!only_move_on_idle_->getBool() || active_control_ == NULL) {
+  if (!only_move_on_idle_->getBool() || sensing_->IsControlActive()) {
     chooseCameraViewpoint(&target_viewpoint_);
   }
   Viewpoint next_viewpoint;
@@ -440,7 +263,7 @@ float AutoCPDisplay::visibilityScore(const Viewpoint& viewpoint) {
       return 0;
     }
   };
-  return landmarks_.ComputeMetric(occlusion_metric);
+  return sensing_->landmarks()->ComputeMetric(occlusion_metric);
 }
 
 /**
@@ -473,7 +296,7 @@ float AutoCPDisplay::zoomScore(const Viewpoint& viewpoint) {
     }
     return linearInterpolation(MIN_DISTANCE, 1, MAX_DISTANCE, 0, distance);
   };
-  return landmarks_.ComputeMetric(zoom_metric);
+  return sensing_->landmarks()->ComputeMetric(zoom_metric);
 }
 
 /**
@@ -543,8 +366,10 @@ void AutoCPDisplay::computeViewpointScore(const Viewpoint& viewpoint,
   score->visibility = visibility_score;
 
   // Orthogonality score.
-  if (current_control_ != NULL) {
-    float ortho_score = orthogonalityScore(viewpoint, *current_control_);
+  auto current_control = sensing_->current_control(
+      only_move_on_idle_->getBool());
+  if (current_control != NULL) {
+    float ortho_score = orthogonalityScore(viewpoint, *current_control);
     float ortho_weight = be_orthogonal_weight_->getFloat();
     score_numerator += ortho_weight * ortho_score;
     score_denominator += ortho_weight;
@@ -568,10 +393,11 @@ void AutoCPDisplay::computeViewpointScore(const Viewpoint& viewpoint,
   score->travel = travel_score;
 
   // Crossing score.
-  if (current_control_ != NULL) {
-    float crossing_score = crossingScore(viewpoint, *current_control_);
-    score_numerator += crossing_weight_ * crossing_score;
-    score_denominator += crossing_weight_;
+  if (current_control != NULL) {
+    float crossing_score = crossingScore(viewpoint, *current_control);
+    float crossing_weight = crossing_weight_property_->getFloat();
+    score_numerator += crossing_weight * crossing_score;
+    score_denominator += crossing_weight;
     score->crossing = crossing_score;
   } else {
     score->crossing = -1;
@@ -591,13 +417,14 @@ void AutoCPDisplay::computeViewpointScore(const Viewpoint& viewpoint,
  */
 void AutoCPDisplay::selectViewpoints(std::vector<Viewpoint>* viewpoints) {
 // Get landmark positions, including the center.
+  auto landmarks_object = sensing_->landmarks();
   std::vector<Landmark> landmarks;
-  landmarks_.LandmarksVector(&landmarks);
+  landmarks_object->LandmarksVector(&landmarks);
   std::vector<Ogre::Vector3> landmark_positions;
   for (const auto& landmark : landmarks) {
     landmark_positions.push_back(landmark.position);
   }
-  Ogre::Vector3 center = landmarks_.Center();
+  Ogre::Vector3 center = landmarks_object->Center();
   landmark_positions.push_back(center);
 
   int num_landmarks = landmark_positions.size();
