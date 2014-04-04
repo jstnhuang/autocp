@@ -171,6 +171,7 @@ void Visualization::MakeTextMarker(const Viewpoint& viewpoint,
   marker->lifetime = ros::Duration();
   marker->text = score.toString();
 }
+
 /**
  * Creates a spherical marker representing a focus point.
  *
@@ -188,7 +189,9 @@ void Visualization::MakeFocusMarker(const Ogre::Vector3& focus,
   marker->id = num_foci_;
   marker->type = Marker::SPHERE;
   marker->action = Marker::ADD;
-  marker->pose.position = toPoint(focus);
+  marker->pose.position.x = focus.x;
+  marker->pose.position.y = focus.y;
+  marker->pose.position.z = focus.z;
   marker->scale.x = 0.1;
   marker->scale.y = 0.1;
   marker->scale.z = 0.1;
