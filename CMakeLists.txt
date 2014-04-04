@@ -25,9 +25,12 @@ qt4_wrap_cpp(MOC_FILES
 ## Here we specify the list of source files, including the output of
 ## the previous command which is stored in ``${MOC_FILES}``.
 set(SOURCE_FILES
+  src/score.h
   src/viewpoint.h
   src/utils.h
   src/utils.cpp
+  src/visualization.h
+  src/visualization.cpp
   src/landmarks.h
   src/landmarks.cpp
   src/visibility.h
