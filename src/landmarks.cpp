@@ -21,19 +21,18 @@ Landmarks::~Landmarks() {
 /*
  * Returns the weighted center of all the landmarks.
  */
-Point Landmarks::Center() {
-  Point center;
+ Ogre::Vector3 Landmarks::Center() {
+  Ogre::Vector3 center;
   std::vector<Landmark> landmarks;
   LandmarksVector(&landmarks);
   float normalizer = 0;
   for (const auto& landmark : landmarks) {
     if (landmark.exists && landmark.weight > 0) {
       normalizer += landmark.weight;
-      Point weighted = scale(landmark.position, landmark.weight);
-      center = add(center, weighted);
+      center += landmark.weight * landmark.position;
     }
   }
-  center = scale(center, 1 / normalizer);
+  center /= normalizer;
   return center;
 }
 
@@ -63,7 +62,7 @@ void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
  * Updates the position of the left gripper. A NULL input pointer represents a
  * point that doesn't exist.
  */
-void Landmarks::UpdateLeftGripper(const Point* point) {
+void Landmarks::UpdateLeftGripper(const Ogre::Vector3* point) {
   if (point != NULL) {
     l_gripper_.position = *point;
     if (!l_gripper_.exists) {
@@ -83,7 +82,7 @@ void Landmarks::UpdateLeftGripper(const Point* point) {
  * Updates the position of the right gripper. A NULL input pointer represents a
  * point that doesn't exist.
  */
-void Landmarks::UpdateRightGripper(const Point* point) {
+void Landmarks::UpdateRightGripper(const Ogre::Vector3* point) {
   if (point != NULL) {
     r_gripper_.position = *point;
     if (!r_gripper_.exists) {
@@ -99,7 +98,7 @@ void Landmarks::UpdateRightGripper(const Point* point) {
   UpdateGripperWeight(gripper_weight_);
 }
 
-void Landmarks::UpdateHead(const Point* point) {
+void Landmarks::UpdateHead(const Ogre::Vector3* point) {
   if (point != NULL) {
     head_.position = *point;
     if (!head_.exists) {
@@ -118,7 +117,7 @@ void Landmarks::UpdateHead(const Point* point) {
  * Updates the position of the head focus. A NULL input pointer represents a
  * point that doesn't exist.
  */
-void Landmarks::UpdateHeadFocus(const Point* point) {
+void Landmarks::UpdateHeadFocus(const Ogre::Vector3* point) {
   if (point != NULL) {
     head_focus_.position = *point;
     if (!head_focus_.exists) {
@@ -137,7 +136,8 @@ void Landmarks::UpdateHeadFocus(const Point* point) {
  * Updates the position of the segmented objects. An empty vector can be used to
  * represent the fact that there are no segmented objects.
  */
-void Landmarks::UpdateSegmentedObjects(const std::vector<Point>& objects) {
+void Landmarks::UpdateSegmentedObjects(
+    const std::vector<Ogre::Vector3>& objects) {
   float weight = segmented_object_weight_ / objects.size();
   num_landmarks_ -= segmented_objects_.size();
   num_landmarks_ += objects.size();

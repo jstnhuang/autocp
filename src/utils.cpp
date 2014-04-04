@@ -39,18 +39,18 @@ geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v) {
 /**
  * Returns the cosine of the angle between the two vectors.
  */
-float cosineAngle(const geometry_msgs::Vector3& v1,
-                  const geometry_msgs::Vector3& v2) {
-  return dotProduct(v1, v2) / (length(v1) * length(v2));
-}
+//float cosineAngle(const geometry_msgs::Vector3& v1,
+//                  const geometry_msgs::Vector3& v2) {
+//  return dotProduct(v1, v2) / (length(v1) * length(v2));
+//}
 
-float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2) {
-  geometry_msgs::Vector3 difference;
-  difference.x = p1.x - p2.x;
-  difference.y = p1.y - p2.y;
-  difference.z = p1.z - p2.z;
-  return length(difference);
-}
+//float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2) {
+//  geometry_msgs::Vector3 difference;
+//  difference.x = p1.x - p2.x;
+//  difference.y = p1.y - p2.y;
+//  difference.z = p1.z - p2.z;
+//  return length(difference);
+//}
 
 /**
  * Returns the dot product of two vectors.

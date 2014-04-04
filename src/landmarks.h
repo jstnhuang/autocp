@@ -3,13 +3,12 @@
 
 #include <functional>
 #include <vector>
-#include <geometry_msgs/Point.h>
+#include <OGRE/OgreVector3.h>
 
 namespace autocp {
-using namespace geometry_msgs;
 
 struct Landmark {
-  Point position;
+  Ogre::Vector3 position;
   float weight;
   bool exists;
   Landmark()
@@ -17,7 +16,7 @@ struct Landmark {
         weight(0),
         exists(false) {
   }
-  Landmark(Point position, float weight, bool exists)
+  Landmark(Ogre::Vector3 position, float weight, bool exists)
       : position(position),
         weight(weight),
         exists(exists) {
@@ -34,15 +33,15 @@ class Landmarks {
  public:
   Landmarks();
   ~Landmarks();
-  Point Center();
+  Ogre::Vector3 Center();
   void LandmarksVector(std::vector<Landmark>* landmarks);
   template<typename MetricFunc>
   float ComputeMetric(MetricFunc metric);
-  void UpdateLeftGripper(const Point* point);
-  void UpdateRightGripper(const Point* point);
-  void UpdateHead(const Point* point);
-  void UpdateHeadFocus(const Point* point);
-  void UpdateSegmentedObjects(const std::vector<Point>& objects);
+  void UpdateLeftGripper(const Ogre::Vector3* point);
+  void UpdateRightGripper(const Ogre::Vector3* point);
+  void UpdateHead(const Ogre::Vector3* point);
+  void UpdateHeadFocus(const Ogre::Vector3* point);
+  void UpdateSegmentedObjects(const std::vector<Ogre::Vector3>& objects);
   void UpdateGripperWeight(float weight);
   void UpdateHeadWeight(float weight);
   void UpdateHeadFocusWeight(float weight);

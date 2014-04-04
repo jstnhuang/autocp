@@ -7,16 +7,12 @@
 #include <sys/time.h>
 
 namespace autocp {
-using geometry_msgs::Point;
-using geometry_msgs::Vector3;
-using geometry_msgs::Quaternion;
-using visualization_msgs::Marker;
 
 /**
  * Constructor. Hooks up the display properties.
  */
 AutoCPDisplay::AutoCPDisplay()
-    : root_nh_("") {
+    : root_nh_(""), current_viewpoint_(), target_viewpoint_() {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -158,7 +154,7 @@ void AutoCPDisplay::onInitialize() {
       &AutoCPDisplay::fullMarkerCallback, this);
 
   // Get the head location.
-  Point head_position;
+  Ogre::Vector3 head_position;
   getHeadPosition(&head_position);
   landmarks_.UpdateHead(&head_position);
 
@@ -166,34 +162,36 @@ void AutoCPDisplay::onInitialize() {
   sm_ = vm_->getSceneManager();
   camera_ = vm_->getRenderPanel()->getCamera();
   visibility_checker_ = new VisibilityChecker(sm_, camera_);
-  viewport_ = camera_->getViewport();
-  target_position_ = getCameraPosition();
+
   current_control_ = NULL;
   active_control_ = NULL;
   previous_control_ = NULL;
-  current_focus_ = head_position;
+
+  current_viewpoint_ = Viewpoint(camera_->getPosition(), head_position);
+  target_viewpoint_ = current_viewpoint_;
+
   visualization_ = new Visualization(root_nh_, fixed_frame_.toStdString());
 }
 
 void AutoCPDisplay::initializeStandardViewpoints() {
   // Lower plane.
-  standard_viewpoints_.push_back(makeVector3(1, 0, 0));
-  standard_viewpoints_.push_back(makeVector3(R2, R2, 0));
-  standard_viewpoints_.push_back(makeVector3(0, 1, 0));
-  standard_viewpoints_.push_back(makeVector3(-R2, R2, 0));
-  standard_viewpoints_.push_back(makeVector3(-1, 0, 0));
-  standard_viewpoints_.push_back(makeVector3(-R2, -R2, 0));
-  standard_viewpoints_.push_back(makeVector3(0, -1, 0));
-  standard_viewpoints_.push_back(makeVector3(R2, -R2, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(1, 0, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(R2, R2, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(0, 1, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(-R2, R2, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(-1, 0, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(-R2, -R2, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(0, -1, 0));
+  standard_viewpoints_.push_back(Ogre::Vector3(R2, -R2, 0));
   // 45 degrees up.
-  standard_viewpoints_.push_back(makeVector3(R2, 0, R2));
-  standard_viewpoints_.push_back(makeVector3(0.5, 0.5, R2));
-  standard_viewpoints_.push_back(makeVector3(0, R2, R2));
-  standard_viewpoints_.push_back(makeVector3(-0.5, 0.5, R2));
-  standard_viewpoints_.push_back(makeVector3(-R2, 0, R2));
-  standard_viewpoints_.push_back(makeVector3(-0.5, -0.5, R2));
-  standard_viewpoints_.push_back(makeVector3(0, -R2, R2));
-  standard_viewpoints_.push_back(makeVector3(0.5, -0.5, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(R2, 0, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(0.5, 0.5, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(0, R2, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(-0.5, 0.5, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(-R2, 0, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(-0.5, -0.5, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(0, -R2, R2));
+  standard_viewpoints_.push_back(Ogre::Vector3(0.5, -0.5, R2));
 
   // Add scaled versions of the standard viewpoints.
   int num_standard = standard_viewpoints_.size();
@@ -201,7 +199,7 @@ void AutoCPDisplay::initializeStandardViewpoints() {
   for (int i = 0; i < num_standard; i++) {
     auto viewpoint = standard_viewpoints_[i];
     for (int j = 0; j < scales.size(); j++) {
-      standard_viewpoints_.push_back(scale(viewpoint, scales[j]));
+      standard_viewpoints_.push_back(viewpoint *scales[j]);
     }
   }
 
@@ -254,7 +252,8 @@ void AutoCPDisplay::updateSmoothnessOption() {
 /**
  * Get the origin of the given transform relative to the fixed frame.
  */
-void AutoCPDisplay::getTransformOrigin(std::string frame, Point* origin) {
+void AutoCPDisplay::getTransformOrigin(std::string frame,
+                                       Ogre::Vector3* origin) {
   ros::Duration timeout(5);
   tf_listener_.waitForTransform(fixed_frame_.toStdString(), frame, ros::Time(0),
                                 timeout);
@@ -263,15 +262,14 @@ void AutoCPDisplay::getTransformOrigin(std::string frame, Point* origin) {
                                transform);
   tf::Vector3 transform_origin = transform.getOrigin();
 
-  origin->x = transform_origin.x();
-  origin->y = transform_origin.y();
-  origin->z = transform_origin.z();
+  *origin = Ogre::Vector3(transform_origin.x(), transform_origin.y(),
+                          transform_origin.z());
 }
 
 /**
  * Gets the position of the head relative to the fixed frame.
  */
-void AutoCPDisplay::getHeadPosition(Point* head_position) {
+void AutoCPDisplay::getHeadPosition(Ogre::Vector3* head_position) {
   getTransformOrigin("/head_tilt_link", head_position);
 }
 
@@ -280,7 +278,8 @@ void AutoCPDisplay::getHeadPosition(Point* head_position) {
  */
 void AutoCPDisplay::pointHeadCallback(
     const pr2_controllers_msgs::PointHeadActionGoal& action_goal) {
-  head_focus_point_ = action_goal.goal.target.point;
+  auto ros_point = action_goal.goal.target.point;
+  head_focus_point_ = Ogre::Vector3(ros_point.x, ros_point.y, ros_point.z);
   landmarks_.UpdateHeadFocus(&head_focus_point_);
 }
 
@@ -292,15 +291,13 @@ void AutoCPDisplay::objectSegmentationCallback(
     const manipulation_msgs::GraspableObjectList& list) {
   segmented_object_positions_.clear();
   for (const auto& obj : list.graspable_objects) {
-    Point obj_location;
+    Ogre::Vector3 obj_location(0, 0, 0);
     for (const auto& point : obj.cluster.points) {
       obj_location.x += point.x;
       obj_location.y += point.y;
       obj_location.z += point.z;
     }
-    obj_location.x /= obj.cluster.points.size();
-    obj_location.y /= obj.cluster.points.size();
-    obj_location.z /= obj.cluster.points.size();
+    obj_location /= obj.cluster.points.size();
     segmented_object_positions_.push_back(obj_location);
   }
   landmarks_.UpdateSegmentedObjects(segmented_object_positions_);
@@ -319,16 +316,22 @@ void AutoCPDisplay::markerCallback(
   std::string control_name = static_cast<std::string>(feedback.control_name);
 
   Control6Dof control;
-  Point world_position = feedback.pose.position;
+  auto ros_position = feedback.pose.position;
+  auto world_position = Ogre::Vector3(ros_position.x, ros_position.y,
+                                      ros_position.z);
   try {
     if (marker_name == "head_point_goal") {
       control = POINT_HEAD_CONTROLS.at(control_name);
     } else if (marker_name == "l_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
-      world_position = left_gripper_origin_;
+      world_position = Ogre::Vector3(left_gripper_origin_.x,
+                                     left_gripper_origin_.y,
+                                     left_gripper_origin_.z);
     } else if (marker_name == "r_gripper_control") {
       control = GRIPPER_CONTROLS.at(control_name);
-      world_position = right_gripper_origin_;
+      world_position = Ogre::Vector3(right_gripper_origin_.x,
+                                     right_gripper_origin_.y,
+                                     right_gripper_origin_.z);
     } else if (marker_name == "l_posture_control") {
       control = Control6Dof::ROLL;
     } else if (marker_name == "r_posture_control") {
@@ -338,8 +341,12 @@ void AutoCPDisplay::markerCallback(
       return;
     }
 
-    active_control_ = new ClickedControl { marker_name, control, feedback.pose,
-        world_position };
+    active_control_ = new ClickedControl {
+      marker_name,
+      control,
+      feedback.pose,
+      world_position
+    };
     updateSmoothnessOption();
   } catch (const std::out_of_range& e) {
     ROS_INFO("Unknown control %s for marker %s", control_name.c_str(),
@@ -359,11 +366,17 @@ void AutoCPDisplay::fullMarkerCallback(
   landmarks_.UpdateLeftGripper(NULL);
   for (const auto& marker : im_init.markers) {
     if (marker.name == "head_point_goal") {
-      landmarks_.UpdateHeadFocus(&marker.pose.position);
+      auto ros_position = marker.pose.position;
+      Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
+      landmarks_.UpdateHeadFocus(&position);
     } else if (marker.name == "r_gripper_control") {
-      landmarks_.UpdateRightGripper(&marker.pose.position);
+      auto ros_position = marker.pose.position;
+      Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
+      landmarks_.UpdateRightGripper(&position);
     } else if (marker.name == "l_gripper_control") {
-      landmarks_.UpdateLeftGripper(&marker.pose.position);
+      auto ros_position = marker.pose.position;
+      Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
+      landmarks_.UpdateLeftGripper(&position);
     }
   }
 }
@@ -376,6 +389,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (landmarks_.NumLandmarks() == 0) {
     return;
   }
+  current_viewpoint_.position = camera_->getPosition();
   chooseCameraPlacement(wall_dt);
 
   if (show_fps_->getBool()) {
@@ -398,38 +412,28 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   if (!only_move_on_idle_->getBool() || active_control_ == NULL) {
-    chooseCameraLocation(&target_position_, time_delta);
+    chooseCameraViewpoint(&target_viewpoint_);
   }
-  Point next_position = interpolatePoint(getCameraPosition(),
-                                         target_position_,
-                                         camera_speed_->getFloat(), time_delta);
-  current_focus_ = interpolatePoint(current_focus_, target_focus_, 0.5,
-                                       time_delta);
-  visualization_->ShowFocus(Ogre::Vector3(current_focus_.x, current_focus_.y,
-                                          current_focus_.z));
+  Viewpoint next_viewpoint;
+  interpolateViewpoint(current_viewpoint_, target_viewpoint_,
+                       camera_speed_->getFloat(), 0.5, time_delta,
+                       &next_viewpoint);
+  visualization_->ShowFocus(next_viewpoint.focus);
 
   view_controller_msgs::CameraPlacement camera_placement;
-  setCameraPlacement(next_position, current_focus_, ros::Duration(time_delta),
+  setCameraPlacement(next_viewpoint, ros::Duration(time_delta),
                      &camera_placement);
-
   camera_placement_publisher_.publish(camera_placement);
+  current_viewpoint_ = next_viewpoint;
 }
 
 /**
  * Visibility score. Returns the weighted average visibility of all the
  * landmarks.
  */
-float AutoCPDisplay::visibilityScore(const Point& candidate_position,
-                                     const Point& candidate_focus) {
-  Ogre::Vector3 position(candidate_position.x, candidate_position.y,
-                         candidate_position.z);
-  Ogre::Vector3 focus(candidate_focus.x, candidate_focus.y, candidate_focus.z);
-  Viewpoint viewpoint(position, focus);
-  auto occlusion_metric = [&] (const Point& point) -> float {
-    Ogre::Vector3 p(point.x, point.y, point.z);
-    Ogre::Vector3 hit;
-
-    bool is_visible = visibility_checker_->IsVisible(p, viewpoint);
+float AutoCPDisplay::visibilityScore(const Viewpoint& viewpoint) {
+  auto occlusion_metric = [&] (const Ogre::Vector3& point) -> float {
+    bool is_visible = visibility_checker_->IsVisible(point, viewpoint);
     if (is_visible) {
       return 1;
     } else {
@@ -444,18 +448,16 @@ float AutoCPDisplay::visibilityScore(const Point& candidate_position,
  * movement of the current control, 0 if it is perfectly parallel, and the
  * absolute value of the cosine of the angle otherwise.
  */
-float AutoCPDisplay::orthogonalityScore(
-    const Point& candidate_position,
-    const Point& control_position) {
-  if (current_control_ == NULL) {
-    ROS_INFO("Warning: tried to get orthogonality score without a control.");
-    return 0;
-  }
-  Vector3 candidate_position_vector = vectorBetween(control_position,
-                                                    candidate_position);
-  Vector3 projection = computeControlProjection(current_control_,
-                                                candidate_position_vector);
-  return fabs(cosineAngle(candidate_position_vector, projection));
+float AutoCPDisplay::orthogonalityScore(const Viewpoint& candidate_position,
+                                        const ClickedControl& control) {
+  auto candidate_position_vector =
+      candidate_position.position - control.world_position;
+  Ogre::Vector3 projection;
+  computeControlProjection(control, candidate_position_vector,
+                           &projection);
+  float cosineAngle = candidate_position_vector.dotProduct(projection);
+  float magProd = candidate_position_vector.length() * projection.length();
+  return fabs(cosineAngle / magProd);
 }
 
 /**
@@ -463,13 +465,13 @@ float AutoCPDisplay::orthogonalityScore(
  * linearly interpolated value if we are in between. Close and far are defined
  * by MIN_DISTANCE and MAX_DISTANCE.
  */
-float AutoCPDisplay::zoomScore(const Point& candidate_position) {
-  auto zoom_metric = [&] (const Point& point) -> float {
-    float dist = distance(point, candidate_position);
-    if (dist < MIN_DISTANCE) {
+float AutoCPDisplay::zoomScore(const Viewpoint& viewpoint) {
+  auto zoom_metric = [&] (const Ogre::Vector3& point) -> float {
+    auto distance = point.distance(viewpoint.position);
+    if (distance < MIN_DISTANCE) {
       return 0;
     }
-    return linearInterpolation(MIN_DISTANCE, 1, MAX_DISTANCE, 0, dist);
+    return linearInterpolation(MIN_DISTANCE, 1, MAX_DISTANCE, 0, distance);
   };
   return landmarks_.ComputeMetric(zoom_metric);
 }
@@ -479,10 +481,12 @@ float AutoCPDisplay::zoomScore(const Point& candidate_position) {
  * moved a lot, and a number in between mediated by the logisticDistance
  * function.
  */
-float AutoCPDisplay::travelingScore(const Viewpoint& viewpoint) {
-  auto position_distance = camera_->getPosition().distance(viewpoint.position);
-  Ogre::Vector3 focus(current_focus_.x, current_focus_.y, current_focus_.z);
-  auto focus_distance = focus.distance(viewpoint.focus);
+float AutoCPDisplay::travelingScore(const Viewpoint& current_viewpoint,
+                                    const Viewpoint& candidate_viewpoint) {
+  auto position_distance = current_viewpoint_.position.distance(
+      candidate_viewpoint.position);
+  auto focus_distance = current_viewpoint_.focus.distance(
+      candidate_viewpoint.focus);
   auto average_distance = (position_distance + focus_distance) / 2;
   return linearInterpolation(0, 1, 2, 0, average_distance);
 }
@@ -492,33 +496,30 @@ float AutoCPDisplay::travelingScore(const Viewpoint& viewpoint) {
  * the direction of motion when a user is using an interactive marker, and 1
  * otherwise.
  */
-float AutoCPDisplay::crossingScore(const Point& candidate_position) {
-  if (current_control_ == NULL) {
-    ROS_INFO("Warning: tried to compute crossing score without a control.");
-    return 0;
-  }
-  Point camera_position = getCameraPosition();
-  Point control_position = current_control_->world_position;
+float AutoCPDisplay::crossingScore(const Viewpoint& viewpoint,
+                                   const ClickedControl& control) {
+  auto camera_position = camera_->getPosition();
+  auto control_position = control.world_position;
   int current_x_sign = sign(camera_position.x - control_position.x);
   int current_y_sign = sign(camera_position.y - control_position.y);
   int current_z_sign = sign(camera_position.z - control_position.z);
-  int candidate_x_sign = sign(candidate_position.x - control_position.x);
-  int candidate_y_sign = sign(candidate_position.y - control_position.y);
-  int candidate_z_sign = sign(candidate_position.z - control_position.z);
+  int candidate_x_sign = sign(viewpoint.position.x - control_position.x);
+  int candidate_y_sign = sign(viewpoint.position.y - control_position.y);
+  int candidate_z_sign = sign(viewpoint.position.z - control_position.z);
 
   // If you're using an x control, don't cross the y=0 plane
   // If you're using a y control, don't cross the x=0 plane
-  if (current_control_->control == Control6Dof::X
-      || current_control_->control == Control6Dof::PITCH) {
+  if (control.control == Control6Dof::X
+      || control.control == Control6Dof::PITCH) {
     if (candidate_y_sign != current_y_sign) {
       return 0;
     }
-  } else if (current_control_->control == Control6Dof::Y
-      || current_control_->control == Control6Dof::ROLL) {
+  } else if (control.control == Control6Dof::Y
+      || control.control == Control6Dof::ROLL) {
     if (candidate_x_sign != current_x_sign) {
       return 0;
     }
-  } else if (current_control_->control == Control6Dof::YAW){
+  } else if (control.control == Control6Dof::YAW){
     if (candidate_z_sign != current_z_sign) {
       return 0;
     }
@@ -529,92 +530,97 @@ float AutoCPDisplay::crossingScore(const Point& candidate_position) {
 /**
  * Computes a score for the location.
  */
-Score AutoCPDisplay::computeLocationScore(const Point& candidate_position,
-                                          const Point& candidate_focus) {
-  // TODO: adopt viewpoint everywhere.
-  // TODO: adopt Ogre::Vector3 everywhere.
-  Ogre::Vector3 candidate_pos(candidate_position.x, candidate_position.y,
-                              candidate_position.z);
-  Ogre::Vector3 candidate_foc(candidate_focus.x, candidate_focus.y,
-                              candidate_focus.z);
-  Viewpoint viewpoint(candidate_pos, candidate_foc);
-  Score result;
+void AutoCPDisplay::computeViewpointScore(const Viewpoint& viewpoint,
+                                          Score* score) {
   float score_numerator = 0;
   float score_denominator = 0;
 
   // Visibility score.
-  float visibility_score = visibilityScore(candidate_position, candidate_focus);
+  float visibility_score = visibilityScore(viewpoint);
   float visibility_weight = stay_visible_weight_->getFloat();
   score_numerator += visibility_weight * visibility_score;
   score_denominator += visibility_weight;
-  result.visibility = visibility_score;
+  score->visibility = visibility_score;
 
   // Orthogonality score.
-  Point control_location;
   if (current_control_ != NULL) {
-    control_location = current_control_->world_position;
-    float ortho_score = orthogonalityScore(candidate_position,
-                                           control_location);
+    float ortho_score = orthogonalityScore(viewpoint, *current_control_);
     float ortho_weight = be_orthogonal_weight_->getFloat();
     score_numerator += ortho_weight * ortho_score;
     score_denominator += ortho_weight;
-    result.orthogonality = ortho_score;
+    score->orthogonality = ortho_score;
   } else {
-    result.orthogonality = -1;
+    score->orthogonality = -1;
   }
 
   // Zoom score.
-  float zoom_score = zoomScore(candidate_position);
+  float zoom_score = zoomScore(viewpoint);
   float zoom_weight = zoom_weight_->getFloat();
   score_numerator += zoom_weight * zoom_score;
   score_denominator += zoom_weight;
-  result.zoom = zoom_score;
+  score->zoom = zoom_score;
 
   // Travel score.
-  float travel_score = travelingScore(viewpoint);
+  float travel_score = travelingScore(current_viewpoint_, viewpoint);
   float travel_weight = stay_in_place_weight_->getFloat();
   score_numerator += travel_weight * travel_score;
   score_denominator += travel_weight;
-  result.travel = travel_score;
+  score->travel = travel_score;
 
   // Crossing score.
   if (current_control_ != NULL) {
-    float crossing_score = crossingScore(candidate_position);
+    float crossing_score = crossingScore(viewpoint, *current_control_);
     score_numerator += crossing_weight_ * crossing_score;
     score_denominator += crossing_weight_;
-    result.crossing = crossing_score;
+    score->crossing = crossing_score;
   } else {
-    result.crossing = -1;
+    score->crossing = -1;
   }
 
   if (score_denominator != 0) {
-    result.score = score_numerator / score_denominator;
-    return result;
+    score->score = score_numerator / score_denominator;
   } else {
     ROS_INFO("Warning: score function took nothing into account.");
-    result.score = -1;
-    return result;
+    score->score = -1;
   }
 }
 
 /*
  * Randomly select some viewpoints. The number of
- * viewpoints to select should be occlusion_check_limit_ / (# of landmarks)^2.
+ * viewpoints to select should be occlusion_check_limit_ / (# of landmarks)
  */
-void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
-  int num_landmarks = landmarks_.NumLandmarks() + 1; // +1 for center.
-  num_landmarks *= num_landmarks;
+void AutoCPDisplay::selectViewpoints(std::vector<Viewpoint>* viewpoints) {
+// Get landmark positions, including the center.
+  std::vector<Landmark> landmarks;
+  landmarks_.LandmarksVector(&landmarks);
+  std::vector<Ogre::Vector3> landmark_positions;
+  for (const auto& landmark : landmarks) {
+    landmark_positions.push_back(landmark.position);
+  }
+  Ogre::Vector3 center = landmarks_.Center();
+  landmark_positions.push_back(center);
+
+  int num_landmarks = landmark_positions.size();
+  int check_limit = occlusion_check_limit_->getInt();
   int num_viewpoints = static_cast<int>(
-      static_cast<double>(occlusion_check_limit_->getInt()) / num_landmarks);
+      static_cast<float>(check_limit) / num_landmarks);
   if (num_viewpoints < 1) {
     num_viewpoints = 1;
   } else if (num_viewpoints > standard_viewpoints_.size()) {
     num_viewpoints = standard_viewpoints_.size();
   }
+
+  // Select a random subset of viewpoints.
   for (int i = 0; i < num_viewpoints; i++) {
-    int index = rand() % standard_viewpoints_.size();
-    auto viewpoint = standard_viewpoints_[index];
-    viewpoints->push_back(standard_viewpoints_[index]);
+    int rand_num = rand();
+    int viewpoint_index = rand_num % standard_viewpoints_.size();
+    int landmark_index = rand_num % num_landmarks;
+
+    auto offset = standard_viewpoints_[viewpoint_index];
+    auto landmark_position = landmark_positions[landmark_index];
+
+    Viewpoint viewpoint(landmark_position + offset, landmark_position);
+    viewpoints->push_back(viewpoint);
   }
 }
 
@@ -623,84 +629,53 @@ void AutoCPDisplay::selectViewpoints(std::vector<Vector3>* viewpoints) {
  * viewpoints and selects the highest scoring one. Returns true if a new
  * location was found.
  */
-bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
-  bool new_location_found = false;
-
+void AutoCPDisplay::chooseCameraViewpoint(Viewpoint* target_viewpoint) {
   std::vector<Viewpoint> test_viewpoints;
   std::vector<Score> scores;
 
-  Ogre::Vector3 target_focus_v3(target_focus_.x, target_focus_.y,
-                                target_focus_.z);
-
-  auto camera_position = getCameraPosition();
-  Viewpoint current_viewpoint(Ogre::Vector3(camera_position.x, camera_position.y, camera_position.z), target_focus_v3);
-  Score current_score = computeLocationScore(camera_position, target_focus_);
+  // Assume that the current position is the best, to start with.
+  Score current_score;
+  computeViewpointScore(current_viewpoint_, &current_score);
   Score best_score = current_score;
-  Point best_position = camera_position;
-  Point best_focus = target_focus_;
-  test_viewpoints.push_back(current_viewpoint);
+  Viewpoint best_viewpoint = current_viewpoint_;
+  test_viewpoints.push_back(current_viewpoint_);
   scores.push_back(current_score);
 
-  Score target_score = computeLocationScore(target_position_, target_focus_);
-  Viewpoint target_viewpoint(Ogre::Vector3(target_position_.x, target_position_.y, target_position_.z), target_focus_v3);
-  test_viewpoints.push_back(target_viewpoint);
+  // The current viewpoint doesn't need to overcome the score threshold.
+  *target_viewpoint = best_viewpoint;
+
+  Score target_score;
+  computeViewpointScore(*target_viewpoint, &target_score);
+  test_viewpoints.push_back(*target_viewpoint);
   scores.push_back(target_score);
   if (target_score.score > best_score.score) {
     best_score = target_score;
-    best_position = target_position_;
+    best_viewpoint = *target_viewpoint;
   }
 
-  // DEBUG
-  //auto camera_position = getCameraPosition();
-  //Score current_score = computeLocationScore(camera_position, target_focus_);
-  //location->x = camera_position.x;
-  //location->y = camera_position.y;
-  //location->z = camera_position.z;
-  //return true;
-
-  std::vector<Vector3> viewpoints;
+  std::vector<Viewpoint> viewpoints;
   selectViewpoints(&viewpoints);
 
-  std::vector<Landmark> landmarks;
-  landmarks_.LandmarksVector(&landmarks);
-  std::vector<Point> landmark_positions;
-  for (const auto& landmark : landmarks) {
-    landmark_positions.push_back(landmark.position);
-  }
-  Point center = landmarks_.Center();
-  landmark_positions.push_back(center);
+  for (const auto& viewpoint : viewpoints) {
+    Score score;
+    computeViewpointScore(viewpoint, &score);
+    test_viewpoints.push_back(viewpoint);
+    scores.push_back(score);
 
-
-  for (const auto& landmark_position : landmark_positions) {
-    for (const auto& viewpoint_vector : viewpoints) {
-      auto test_point = add(landmark_position, viewpoint_vector);
-      Ogre::Vector3 test_point_v3 = Ogre::Vector3(test_point.x, test_point.y,
-                                                  test_point.z);
-      Viewpoint viewpoint(test_point_v3, target_focus_v3);
-      test_viewpoints.push_back(viewpoint);
-
-      Score score = computeLocationScore(test_point, landmark_position);
-      scores.push_back(score);
-
-      if (score.score > best_score.score) {
-        best_position = test_point;
-        best_focus = landmark_position;
-        best_score = score;
-      }
+    if (score.score > best_score.score) {
+      best_viewpoint = viewpoint;
+      best_score = score;
     }
   }
 
-  if (distance(target_position_, best_position) > 0.01) {
+  if (best_score.score > score_threshold_->getFloat() * current_score.score) {
     visualization_->ShowViewpoints(test_viewpoints, scores);
-    new_location_found = true;
+    auto best_position = best_viewpoint.position;
     ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=%.2f",
              best_position.x, best_position.y, best_position.z,
              best_score.toString().c_str(), current_score.score);
-    target_position_ = best_position;
-    target_focus_ = best_focus;
+    *target_viewpoint = best_viewpoint;
   }
-
-  return new_location_found;
 }
 
 // Utilities -------------------------------------------------------------------
@@ -708,7 +683,7 @@ bool AutoCPDisplay::chooseCameraLocation(Point* location, float time_delta) {
  * Convenience method to set the camera placement.
  */
 void AutoCPDisplay::setCameraPlacement(
-    const Point& location, const Point& focus,
+    const Viewpoint& viewpoint,
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement) {
   camera_placement->target_frame = "<Fixed Frame>";
@@ -722,41 +697,47 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.header.stamp = ros::Time::now();
   camera_placement->up.header.frame_id = "<Fixed Frame>";
 
-  camera_placement->eye.point.x = location.x;
-  camera_placement->eye.point.y = location.y;
-  camera_placement->eye.point.z = location.z;
+  camera_placement->eye.point.x = viewpoint.position.x;
+  camera_placement->eye.point.y = viewpoint.position.y;
+  camera_placement->eye.point.z = viewpoint.position.z;
 
-  camera_placement->focus.point.x = focus.x;
-  camera_placement->focus.point.y = focus.y;
-  camera_placement->focus.point.z = focus.z;
+  camera_placement->focus.point.x = viewpoint.focus.x;
+  camera_placement->focus.point.y = viewpoint.focus.y;
+  camera_placement->focus.point.z = viewpoint.focus.z;
 
   camera_placement->up.vector.x = 0.0;
   camera_placement->up.vector.y = 0.0;
   camera_placement->up.vector.z = 1.0;
 }
 
-/**
- * Returns the current camera position.
- */
-Point AutoCPDisplay::getCameraPosition() {
-  Ogre::Vector3 camera_position = camera_->getPosition();
-  return toPoint(camera_position);
+void AutoCPDisplay::interpolateViewpoint(const Viewpoint& start,
+                                         const Viewpoint& end,
+                                         float position_speed,
+                                         float focus_speed,
+                                         float time_delta,
+                                         Viewpoint* result) {
+  interpolatePoint(start.position, end.position, position_speed, time_delta,
+                   &(result->position));
+  interpolatePoint(start.focus, end.focus, focus_speed, time_delta,
+                   &(result->focus));
 }
 
 /**
  * Interpolates between the start and end positions, subject to the camera speed
  * and size of this time step.
  */
-Point AutoCPDisplay::interpolatePoint(const Point& start, const Point& end,
-                                      float speed, float time_delta) {
-  float max_distance = speed * time_delta;
-  if (max_distance > distance(start, end)) {
-    return end;
+void AutoCPDisplay::interpolatePoint(const Ogre::Vector3& start,
+                                     const Ogre::Vector3& end,
+                                     float speed, float time_delta,
+                                     Ogre::Vector3* result) {
+  float step_distance = speed * time_delta;
+  if (step_distance > start.distance(end)) {
+    *result = end;
   } else {
-    Vector3 v = vectorBetween(start, end);
-    v = setLength(v, max_distance);
-    Point next = add(start, v);
-    return next;
+    Ogre::Vector3 step = (end - start);
+    step.normalise();
+    step *= step_distance;
+    *result = start + step;
   }
 }
 
@@ -764,35 +745,31 @@ Point AutoCPDisplay::interpolatePoint(const Point& start, const Point& end,
  * Compute the projection of the vector onto the orthogonal plane or line
  * defined by the current control.
  */
-Vector3 AutoCPDisplay::computeControlProjection(const ClickedControl* control,
-                                                const Vector3& vector) {
-  if (control == NULL) {
-    ROS_INFO("Error: tried to compute projection of null control.");
-  }
-  Vector3 projection;
-  projection.x = vector.x;
-  projection.y = vector.y;
-  projection.z = vector.z;
-  if (control->control == Control6Dof::X) {
-    projection.x = 0;
-  } else if (control->control == Control6Dof::Y) {
-    projection.y = 0;
-  } else if (control->control == Control6Dof::Z) {
-    projection.z = 0;
-  } else if (control->control == Control6Dof::PITCH) {
-    projection.x = 0;
-    projection.z = 0;
-  } else if (control->control == Control6Dof::ROLL) {
-    projection.y = 0;
-    projection.z = 0;
-  } else if (control->control == Control6Dof::YAW) {
-    projection.x = 0;
-    projection.y = 0;
+void AutoCPDisplay::computeControlProjection(
+    const ClickedControl& control,
+    const Ogre::Vector3& vector,
+    Ogre::Vector3* projection) {
+  projection->x = vector.x;
+  projection->y = vector.y;
+  projection->z = vector.z;
+  if (control.control == Control6Dof::X) {
+    projection->x = 0;
+  } else if (control.control == Control6Dof::Y) {
+    projection->y = 0;
+  } else if (control.control == Control6Dof::Z) {
+    projection->z = 0;
+  } else if (control.control == Control6Dof::PITCH) {
+    projection->x = 0;
+    projection->z = 0;
+  } else if (control.control == Control6Dof::ROLL) {
+    projection->y = 0;
+    projection->z = 0;
+  } else if (control.control == Control6Dof::YAW) {
+    projection->x = 0;
+    projection->y = 0;
   } else {
     ROS_ERROR("Tried to compute orthogonal projection of an unknown control.");
-    return projection;
   }
-  return projection;
 }
 
 }  // namespace autocp

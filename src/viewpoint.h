@@ -7,6 +7,10 @@ namespace autocp {
 struct Viewpoint {
   Ogre::Vector3 position;
   Ogre::Vector3 focus;
+  Viewpoint() {
+    this->position = Ogre::Vector3(0, 0, 0);
+    this->focus = Ogre::Vector3(0, 0, 0);
+  }
   Viewpoint(const Ogre::Vector3& position, const Ogre::Vector3& focus) {
     this->position = position;
     this->focus = focus;

@@ -13,9 +13,9 @@ geometry_msgs::Point add(const geometry_msgs::Point& p,
 geometry_msgs::Point add(const geometry_msgs::Point& a,
                          const geometry_msgs::Point& b);
 geometry_msgs::Vector3 copyVector(const geometry_msgs::Vector3& v);
-float cosineAngle(const geometry_msgs::Vector3& v1,
-                  const geometry_msgs::Vector3& v2);
-float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2);
+//float cosineAngle(const geometry_msgs::Vector3& v1,
+//                  const geometry_msgs::Vector3& v2);
+//float distance(const geometry_msgs::Point& p1, const geometry_msgs::Point& p2);
 float dotProduct(const geometry_msgs::Vector3& v1,
                  const geometry_msgs::Vector3& v2);
 float length(const geometry_msgs::Vector3& v);

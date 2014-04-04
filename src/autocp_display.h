@@ -47,10 +47,6 @@
 #include <stdio.h>
 
 namespace autocp {
-using geometry_msgs::Point;
-using geometry_msgs::Quaternion;
-using geometry_msgs::Vector3;
-using visualization_msgs::Marker;
 
 enum class Control6Dof {
   X,
@@ -66,10 +62,10 @@ struct ClickedControl {
   Control6Dof control;
   geometry_msgs::Pose pose;
   // Position of the object the marker is controlling.
-  Point world_position;
+  Ogre::Vector3 world_position;
 
   ClickedControl(std::string marker, Control6Dof control,
-                 geometry_msgs::Pose pose, Point world_position) {
+                 geometry_msgs::Pose pose, Ogre::Vector3 world_position) {
     this->marker = marker;
     this->control = control;
     this->pose = pose;
@@ -127,19 +123,22 @@ Q_OBJECT
   rviz::VisualizationManager* vm_;
   Ogre::SceneManager* sm_;
   Ogre::Camera* camera_;
-  Ogre::Viewport* viewport_;
-  Point target_position_;
-  Point current_focus_;
-  Point target_focus_;
+
+  Viewpoint current_viewpoint_;
+  Viewpoint target_viewpoint_;
+
+  //Ogre::Vector3 target_position_;
+  //Ogre::Vector3 current_focus_;
+  //Ogre::Vector3 target_focus_;
   Visualization* visualization_;
 
   // Canonical viewpoint locations, expressed as an offset from the current
   // focus point.
   void initializeStandardViewpoints();
-  std::vector<Vector3> standard_viewpoints_;
+  std::vector<Ogre::Vector3> standard_viewpoints_;
 
   // Sensing.
-  void getTransformOrigin(std::string frame, Point* origin);
+  void getTransformOrigin(std::string frame, Ogre::Vector3* origin);
   rviz::BoolProperty* show_fps_;
 
   // Landmarks container.
@@ -150,19 +149,19 @@ Q_OBJECT
   float crossing_weight_;
 
   // Grippers.
-  Point left_gripper_origin_;
-  Point right_gripper_origin_;
+  Ogre::Vector3 left_gripper_origin_;
+  Ogre::Vector3 right_gripper_origin_;
   rviz::FloatProperty* gripper_weight_;
 
   // Head focus.
   ros::Subscriber point_head_subscriber_;
-  Point head_focus_point_;
+  Ogre::Vector3 head_focus_point_;
   void pointHeadCallback(const pr2_controllers_msgs::PointHeadActionGoal& goal);
   rviz::FloatProperty* head_focus_weight_;
 
   // Head position.
   rviz::FloatProperty* head_weight_;
-  void getHeadPosition(Point* point);
+  void getHeadPosition(Ogre::Vector3* point);
 
   // Markers.
   ros::Subscriber full_marker_subscriber_;
@@ -180,7 +179,7 @@ Q_OBJECT
   // Segmented objects factor.
   ros::Subscriber object_segmentation_subscriber_;
   rviz::FloatProperty* segmented_object_weight_;
-  std::vector<Point> segmented_object_positions_;
+  std::vector<Ogre::Vector3> segmented_object_positions_;
   void objectSegmentationCallback(
       const manipulation_msgs::GraspableObjectList& list);
 
@@ -204,31 +203,35 @@ Q_OBJECT
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
-  Point getCameraPosition();
   void chooseCameraPlacement(float time_delta);
-  Vector3 computeControlProjection(const ClickedControl* control,
-                                   const Vector3& vector);
+  void computeControlProjection(const ClickedControl& control,
+                                const Ogre::Vector3& vector,
+                                Ogre::Vector3* projection);
 
   // Score functions.
-  float visibilityScore(const Point& candidate_position,
-                        const Point& candidate_focus);
-  float orthogonalityScore(const Point& candidate_position,
-                           const Point& control_location);
-  float zoomScore(const Point& candidate_position);
-  float travelingScore(const Viewpoint& viewpoint);
-  float crossingScore(const Point& candidate_position);
-  Score computeLocationScore(const Point& candidate_position,
-                             const Point& candidate_focus);
+  float visibilityScore(const Viewpoint& viewpoint);
+  float orthogonalityScore(const Viewpoint& viewpoint,
+                           const ClickedControl& control);
+  float zoomScore(const Viewpoint& viewpoint);
+  float travelingScore(const Viewpoint& current_viewpoint,
+                       const Viewpoint& candidate_viewpoint);
+  float crossingScore(const Viewpoint& viewpoint,
+                      const ClickedControl& control);
+  void computeViewpointScore(const Viewpoint& viewpoint, Score* score);
 
   // Camera placement logic.
-  void selectViewpoints(std::vector<Vector3>* viewpoints);
-  bool chooseCameraLocation(Point* location, float time_delta);
+  void selectViewpoints(std::vector<Viewpoint>* viewpoints);
+  void chooseCameraViewpoint(Viewpoint* target_viewpoint);
   static void setCameraPlacement(
-      const Point& location, const Point& focus,
+      const Viewpoint& viewpoint,
       const ros::Duration& time_from_start,
       view_controller_msgs::CameraPlacement* camera_placement);
-  Point interpolatePoint(const Point& start, const Point& end,
-                            float speed, float time_delta);
+
+  void interpolateViewpoint(const Viewpoint& start, const Viewpoint& end,
+                        float position_speed, float focus_speed,
+                        float time_delta, Viewpoint* result);
+  void interpolatePoint(const Ogre::Vector3& start, const Ogre::Vector3& end,
+                        float speed, float time_delta, Ogre::Vector3* result);
 };
 }  // namespace autocp
 
