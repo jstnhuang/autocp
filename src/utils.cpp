@@ -1,6 +1,44 @@
+#include "utils.h"
+
+#include <OGRE/OgreVector3.h>
+#include <ros/ros.h>
+
+#include "models/clicked_control.h"
+#include "models/control_6dof.h"
 #include "models/viewpoint.h"
 
 namespace autocp {
+/**
+ * Compute the projection of the vector onto the orthogonal plane or line
+ * defined by the current control.
+ */
+void ComputeControlProjection(
+    const ClickedControl& control,
+    const Ogre::Vector3& vector,
+    Ogre::Vector3* projection) {
+  projection->x = vector.x;
+  projection->y = vector.y;
+  projection->z = vector.z;
+  if (control.control == Control6Dof::X) {
+    projection->x = 0;
+  } else if (control.control == Control6Dof::Y) {
+    projection->y = 0;
+  } else if (control.control == Control6Dof::Z) {
+    projection->z = 0;
+  } else if (control.control == Control6Dof::PITCH) {
+    projection->x = 0;
+    projection->z = 0;
+  } else if (control.control == Control6Dof::ROLL) {
+    projection->y = 0;
+    projection->z = 0;
+  } else if (control.control == Control6Dof::YAW) {
+    projection->x = 0;
+    projection->y = 0;
+  } else {
+    ROS_ERROR("Tried to compute orthogonal projection of an unknown control.");
+  }
+}
+
 /**
  * Interpolates between the start and end positions, subject to the camera speed
  * and size of this time step.

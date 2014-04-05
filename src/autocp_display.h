@@ -37,7 +37,7 @@
 #include "models/score.h"
 #include "models/viewpoint.h"
 #include "autocp_sensing.h"
-#include "visibility.h"
+#include "optimization.h"
 #include "visualization.h"
 
 #include <math.h>
@@ -47,11 +47,6 @@
 #include <stdio.h>
 
 namespace autocp {
-
-static const float MIN_DISTANCE = 0.5;
-static const float MAX_DISTANCE = 5;
-
-static const float R2 = 0.70710678118;  // sqrt(2) / 2
 
 class AutoCPDisplay : public rviz::Display {
 Q_OBJECT
@@ -82,15 +77,9 @@ Q_OBJECT
 
   AutoCPSensing* sensing_;
   Visualization* visualization_;
-  VisibilityChecker* visibility_checker_;
-
-  // Canonical viewpoint locations, expressed as an offset from the current
-  // focus point.
-  void initializeStandardViewpoints();
-  std::vector<Ogre::Vector3> standard_viewpoints_;
+  Optimization* optimization_;
 
   rviz::BoolProperty* show_fps_;
-
 
   // Landmark weights.
   rviz::FloatProperty* gripper_weight_;
@@ -103,7 +92,7 @@ Q_OBJECT
   rviz::FloatProperty* be_orthogonal_weight_;
   rviz::FloatProperty* stay_visible_weight_;
   rviz::FloatProperty* zoom_weight_;
-  rviz::FloatProperty* crossing_weight_property_;
+  rviz::FloatProperty* crossing_weight_;
 
   // Smoothness controls.
   rviz::FloatProperty* camera_speed_;
@@ -115,24 +104,6 @@ Q_OBJECT
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
   void chooseCameraPlacement(float time_delta);
-  void computeControlProjection(const ClickedControl& control,
-                                const Ogre::Vector3& vector,
-                                Ogre::Vector3* projection);
-
-  // Score functions.
-  float visibilityScore(const Viewpoint& viewpoint);
-  float orthogonalityScore(const Viewpoint& viewpoint,
-                           const ClickedControl& control);
-  float zoomScore(const Viewpoint& viewpoint);
-  float travelingScore(const Viewpoint& current_viewpoint,
-                       const Viewpoint& candidate_viewpoint);
-  float crossingScore(const Viewpoint& viewpoint,
-                      const ClickedControl& control);
-  void computeViewpointScore(const Viewpoint& viewpoint, Score* score);
-
-  // Camera placement logic.
-  void selectViewpoints(std::vector<Viewpoint>* viewpoints);
-  void chooseCameraViewpoint(Viewpoint* target_viewpoint);
   static void setCameraPlacement(
       const Viewpoint& viewpoint,
       const ros::Duration& time_from_start,

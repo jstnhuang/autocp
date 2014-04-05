@@ -5,9 +5,13 @@
 #include <geometry_msgs/Vector3.h>
 #include <OGRE/OgreVector3.h>
 #include <math.h>
+#include "models/clicked_control.h"
 #include "models/viewpoint.h"
 
 namespace autocp {
+void ComputeControlProjection(const ClickedControl& control,
+                              const Ogre::Vector3& vector,
+                              Ogre::Vector3* projection);
 void interpolateViewpoint(const Viewpoint& start, const Viewpoint& end,
                           float position_speed, float focus_speed,
                           float time_delta, Viewpoint* result);

@@ -29,17 +29,19 @@ set(SOURCE_FILES
   src/models/control_6dof.h
   src/models/score.h
   src/models/viewpoint.h
-  src/utils.h
-  src/utils.cpp
-  src/visualization.h
-  src/visualization.cpp
-  src/landmarks.h
-  src/landmarks.cpp
-  src/visibility.h
-  src/visibility.cpp
   src/autocp_display.cpp
   src/autocp_sensing.h
   src/autocp_sensing.cpp
+  src/landmarks.h
+  src/landmarks.cpp
+  src/optimization.h
+  src/optimization.cpp
+  src/utils.h
+  src/utils.cpp
+  src/visibility.h
+  src/visibility.cpp
+  src/visualization.h
+  src/visualization.cpp
   ${MOC_FILES}
 )
 
