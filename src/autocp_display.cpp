@@ -189,7 +189,6 @@ void AutoCPDisplay::updateSmoothnessOption() {
  * Main loop that alternates between sensing and placing the camera.
  */
 void AutoCPDisplay::update(float wall_dt, float ros_dt) {
-  sensing_->Update();
   if (sensing_->landmarks()->NumLandmarks() == 0) {
     return;
   }
@@ -199,6 +198,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
+  sensing_->Update();
 }
 
 /**
