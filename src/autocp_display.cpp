@@ -105,7 +105,6 @@ AutoCPDisplay::AutoCPDisplay()
   focus_speed_->setMin(0);
   focus_speed_->setMax(10);
 
-
   min_zoom_ = new rviz::FloatProperty(
       "Minimum zoom", 0.5, "Minimum distance to zoom into landmarks.",
       this, SLOT(updateWeights()));
@@ -132,7 +131,7 @@ AutoCPDisplay::AutoCPDisplay()
   occlusion_check_limit_ = new rviz::IntProperty(
       "Occlusion check limit", 1000,
       "The number of occlusions to check each frame.", this,
-      SLOT(updateCameraOptions()));
+      SLOT(updateWeights()));
   occlusion_check_limit_->setMin(0);
   occlusion_check_limit_->setMax(100000);
 
@@ -240,8 +239,8 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
   }
   Viewpoint next_viewpoint;
   interpolateViewpoint(current_viewpoint_, target_viewpoint_,
-                       camera_speed_->getFloat(), 0.5, time_delta,
-                       &next_viewpoint);
+                       camera_speed_->getFloat(), focus_speed_->getFloat(),
+                       time_delta, &next_viewpoint);
   visualization_->ShowFocus(next_viewpoint.focus);
 
   view_controller_msgs::CameraPlacement camera_placement;
