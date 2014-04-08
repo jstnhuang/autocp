@@ -203,6 +203,7 @@ void AutoCPDisplay::updateWeights() {
   optimization_->set_travel_weight(stay_in_place_weight_->getFloat());
   optimization_->set_crossing_weight(crossing_weight_->getFloat());
   optimization_->set_score_threshold(score_threshold_->getFloat());
+  optimization_->set_max_visibility_checks(occlusion_check_limit_->getInt());
   optimization_->set_min_zoom(min_zoom_->getFloat());
   optimization_->set_max_zoom(max_zoom_->getFloat());
   optimization_->set_max_travel(max_travel_->getFloat());

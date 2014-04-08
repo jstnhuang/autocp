@@ -50,14 +50,14 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   // The current viewpoint doesn't need to overcome the score threshold.
   *target_viewpoint = current_viewpoint;
 
-  //Score target_score;
-  //computeViewpointScore(*target_viewpoint, &target_score);
-  //test_viewpoints.push_back(*target_viewpoint);
-  //scores.push_back(target_score);
-  //if (target_score.score > best_score.score) {
-  //  best_score = target_score;
-  //  best_viewpoint = *target_viewpoint;
-  //}
+  Score target_score;
+  ComputeViewpointScore(*target_viewpoint, current_viewpoint, &target_score);
+  test_viewpoints.push_back(*target_viewpoint);
+  scores.push_back(target_score);
+  if (target_score.score > best_score.score) {
+    best_score = target_score;
+    best_viewpoint = *target_viewpoint;
+  }
 
   std::vector<Viewpoint> viewpoints;
   SelectViewpoints(&viewpoints);
@@ -77,9 +77,11 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   if (best_score.score > score_threshold_ * current_score.score) {
     visualization_->ShowViewpoints(test_viewpoints, scores);
     auto best_position = best_viewpoint.position;
-    ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=%.2f",
+    ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=(%.2f, %.2f, %.2f)=%.2f",
              best_position.x, best_position.y, best_position.z,
-             best_score.toString().c_str(), current_score.score);
+             best_score.toString().c_str(), current_viewpoint.position.x,
+             current_viewpoint.position.y, current_viewpoint.position.z,
+             current_score.score);
     *target_viewpoint = best_viewpoint;
   }
 }
