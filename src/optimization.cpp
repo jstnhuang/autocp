@@ -24,8 +24,7 @@ Optimization::Optimization(AutoCPSensing* sensing,
       score_threshold_(1.05),
       min_zoom_(0.5),
       max_zoom_(5),
-      max_travel_(1),
-      time_delta_(1) {
+      max_travel_(1) {
   sensing_ = sensing;
   camera_ = camera;
   visualization_ = visualization;
