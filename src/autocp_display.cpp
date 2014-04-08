@@ -118,7 +118,8 @@ AutoCPDisplay::AutoCPDisplay()
   max_zoom_->setMax(10);
 
   max_travel_ = new rviz::FloatProperty(
-      "Maximum travel distance", 2, "Maximum distance to travel.",
+      "Maximum travel distance", 1,
+      "Traveling distance per frame for the maximum traveling penalty.",
       this, SLOT(updateWeights()));
   max_travel_->setMin(0);
   max_travel_->setMax(10);

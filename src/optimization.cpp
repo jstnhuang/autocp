@@ -21,7 +21,11 @@ Optimization::Optimization(AutoCPSensing* sensing,
       crossing_weight_(0),
       max_visibility_checks_(1000),
       only_move_on_idle_(false),
-      score_threshold_(1.05) {
+      score_threshold_(1.05),
+      min_zoom_(0.5),
+      max_zoom_(5),
+      max_travel_(1),
+      time_delta_(1) {
   sensing_ = sensing;
   camera_ = camera;
   visualization_ = visualization;
@@ -38,24 +42,26 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   std::vector<Score> scores;
 
   // Assume that the current position is the best, to start with.
-  Score current_score;
-  ComputeViewpointScore(current_viewpoint, current_viewpoint, &current_score);
-  Viewpoint best_viewpoint = current_viewpoint;
-  Score best_score = current_score;
-  test_viewpoints.push_back(current_viewpoint);
-  scores.push_back(current_score);
+  //Score current_score;
+  //ComputeViewpointScore(current_viewpoint, current_viewpoint, &current_score);
+  //Viewpoint best_viewpoint = current_viewpoint;
+  //Score best_score = current_score;
+  //test_viewpoints.push_back(current_viewpoint);
+  //scores.push_back(current_score);
 
   // The current viewpoint doesn't need to overcome the score threshold.
-  *target_viewpoint = current_viewpoint;
+  //*target_viewpoint = current_viewpoint;
 
   Score target_score;
   ComputeViewpointScore(*target_viewpoint, current_viewpoint, &target_score);
+  Score best_score = target_score;
+  Viewpoint best_viewpoint;
   test_viewpoints.push_back(*target_viewpoint);
   scores.push_back(target_score);
-  if (target_score.score > best_score.score) {
+//  if (target_score.score > best_score.score) {
     best_score = target_score;
     best_viewpoint = *target_viewpoint;
-  }
+ // }
 
   std::vector<Viewpoint> viewpoints;
   SelectViewpoints(&viewpoints);
@@ -72,15 +78,21 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
     }
   }
 
-  if (best_score.score > score_threshold_ * current_score.score) {
+//  if (best_score.score > score_threshold_ * current_score.score) {
+  if (best_score.score > score_threshold_ * target_score.score) {
     visualization_->ShowViewpoints(test_viewpoints, scores);
     auto best_position = best_viewpoint.position;
     ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=(%.2f, %.2f, %.2f)=%.2f",
              best_position.x, best_position.y, best_position.z,
-             best_score.toString().c_str(), current_viewpoint.position.x,
-             current_viewpoint.position.y, current_viewpoint.position.z,
-             current_score.score);
+             best_score.toString().c_str(), target_viewpoint->position.x,
+             target_viewpoint->position.y, target_viewpoint->position.z,
+             target_score.score);
     *target_viewpoint = best_viewpoint;
+  } else {
+    auto target_position = target_viewpoint->position;
+    ROS_INFO("Continuing to (%.2f, %.2f, %.2f), score=%s",
+             target_position.x, target_position.y, target_position.z,
+             target_score.toString().c_str());
   }
 }
 
@@ -150,11 +162,13 @@ void Optimization::InitializeStandardOffsets() {
 
   // Add scaled versions of the standard viewpoints.
   int num_standard = standard_offsets_.size();
-  std::vector<float> scales = { 0.5, 1.5, 2, 2.5, 3 };
   for (int i = 0; i < num_standard; i++) {
     auto viewpoint = standard_offsets_[i];
-    for (int j = 0; j < scales.size(); j++) {
-      standard_offsets_.push_back(viewpoint * scales[j]);
+    for (float scale = 0.5; scale < 2; scale += 0.1) {
+      if (scale == 1) {
+        continue;
+      }
+      standard_offsets_.push_back(viewpoint * scale);
     }
   }
 
@@ -179,7 +193,7 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
           / num_landmarks);
   if (num_viewpoints < 1) {
     num_viewpoints = 1;
-  } else if (num_viewpoints > standard_offsets_.size()) {
+  } else if (num_viewpoints > num_landmarks * standard_offsets_.size()) {
     num_viewpoints = standard_offsets_.size();
   }
 
@@ -289,10 +303,10 @@ float Optimization::TravelingScore(const Viewpoint& current_viewpoint,
                                    const Viewpoint& candidate_viewpoint) {
   auto position_distance = current_viewpoint.position.distance(
       candidate_viewpoint.position);
-  auto focus_distance = current_viewpoint.focus.distance(
-      candidate_viewpoint.focus);
-  auto average_distance = (position_distance + focus_distance) / 2;
-  return linearInterpolation(0, 1, max_travel_, 0, average_distance);
+  //auto focus_distance = current_viewpoint.focus.distance(
+  //    candidate_viewpoint.focus);
+  //auto average_distance = (position_distance + focus_distance) / 2;
+  return linearInterpolation(0, 1, max_travel_, 0, position_distance);
 }
 
 float Optimization::CrossingScore(const Viewpoint& viewpoint,
