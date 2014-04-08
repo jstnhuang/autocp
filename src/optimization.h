@@ -12,8 +12,6 @@
 
 namespace autocp {
 
-static const float kMinDistance = 0.5;
-static const float kMaxDistance = 5;
 static const float kR2 = 0.70710678118; // sqrt(2) / 2
 
 class Optimization {
@@ -31,6 +29,9 @@ class Optimization {
   void set_max_visibility_checks(int max_visibility_checks);
   void set_only_move_on_idle(bool only_move_on_idle);
   void set_score_threshold(float threshold);
+  void set_min_zoom(float min_zoom);
+  void set_max_zoom(float max_zoom);
+  void set_max_travel(float max_travel);
 
  private:
   AutoCPSensing* sensing_;
@@ -45,6 +46,9 @@ class Optimization {
   float zoom_weight_;
   float travel_weight_;
   float crossing_weight_;
+  float min_zoom_;
+  float max_zoom_;
+  float max_travel_;
 
   int max_visibility_checks_;
   bool only_move_on_idle_;

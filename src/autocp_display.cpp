@@ -79,7 +79,7 @@ AutoCPDisplay::AutoCPDisplay()
   zoom_weight_->setMax(1);
 
   crossing_weight_ = new rviz::FloatProperty(
-      "Line crossing weight", 0.1,
+      "Line crossing weight", 0.0,
       "Weight for not flipping the user interface when using a control.", this,
       SLOT(updateWeights()));
   crossing_weight_->setMin(0);
@@ -94,10 +94,35 @@ AutoCPDisplay::AutoCPDisplay()
   score_threshold_->setMax(30);
 
   camera_speed_ = new rviz::FloatProperty(
-      "Camera speed", 3, "How many meters per second the camera can move.",
+      "Camera speed", 3, "How many m/s the camera can move.",
       this, SLOT(updateCameraOptions()));
   camera_speed_->setMin(0);
   camera_speed_->setMax(10);
+
+  focus_speed_ = new rviz::FloatProperty(
+      "Focus speed", 0.5, "How many m/s the camera's focus point can move.",
+      this, SLOT(updateCameraOptions()));
+  focus_speed_->setMin(0);
+  focus_speed_->setMax(10);
+
+
+  min_zoom_ = new rviz::FloatProperty(
+      "Minimum zoom", 0.5, "Minimum distance to zoom into landmarks.",
+      this, SLOT(updateWeights()));
+  min_zoom_->setMin(0);
+  min_zoom_->setMax(10);
+
+  max_zoom_ = new rviz::FloatProperty(
+      "Maximum zoom", 5, "Maximum distance to zoom from landmarks.",
+      this, SLOT(updateWeights()));
+  max_zoom_->setMin(0);
+  max_zoom_->setMax(10);
+
+  max_travel_ = new rviz::FloatProperty(
+      "Maximum travel distance", 2, "Maximum distance to travel.",
+      this, SLOT(updateWeights()));
+  max_travel_->setMin(0);
+  max_travel_->setMax(10);
 
   only_move_on_idle_ = new rviz::BoolProperty(
       "Don't move when using a marker", false,
@@ -109,7 +134,7 @@ AutoCPDisplay::AutoCPDisplay()
       "The number of occlusions to check each frame.", this,
       SLOT(updateCameraOptions()));
   occlusion_check_limit_->setMin(0);
-  occlusion_check_limit_->setMax(10000);
+  occlusion_check_limit_->setMax(100000);
 
   show_fps_ = new rviz::BoolProperty(
       "Show FPS", false, "Whether or not to show the frames per second.", this,
@@ -178,6 +203,9 @@ void AutoCPDisplay::updateWeights() {
   optimization_->set_travel_weight(stay_in_place_weight_->getFloat());
   optimization_->set_crossing_weight(crossing_weight_->getFloat());
   optimization_->set_score_threshold(score_threshold_->getFloat());
+  optimization_->set_min_zoom(min_zoom_->getFloat());
+  optimization_->set_max_zoom(max_zoom_->getFloat());
+  optimization_->set_max_travel(max_travel_->getFloat());
 }
 
 void AutoCPDisplay::updateSmoothnessOption() {

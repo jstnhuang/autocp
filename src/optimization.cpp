@@ -116,6 +116,18 @@ void Optimization::set_score_threshold(float threshold) {
   score_threshold_ = threshold;
 }
 
+void Optimization::set_min_zoom(float min_zoom) {
+  min_zoom_ = min_zoom;
+}
+
+void Optimization::set_max_zoom(float max_zoom) {
+  max_zoom_ = max_zoom;
+}
+
+void Optimization::set_max_travel(float max_travel) {
+  max_travel_ = max_travel;
+}
+
 void Optimization::InitializeStandardOffsets() {
   // Lower plane.
   standard_offsets_.push_back(Ogre::Vector3(1, 0, 0));
@@ -265,10 +277,10 @@ float Optimization::ViewAngleScore(const Viewpoint& viewpoint,
 float Optimization::ZoomScore(const Viewpoint& viewpoint) {
   auto zoom_metric = [&] (const Ogre::Vector3& point) -> float {
     auto distance = point.distance(viewpoint.position);
-    if (distance < kMinDistance) {
+    if (distance < min_zoom_) {
       return 0;
     }
-    return linearInterpolation(kMinDistance, 1, kMaxDistance, 0, distance);
+    return linearInterpolation(min_zoom_, 1, max_zoom_, 0, distance);
   };
   return sensing_->landmarks()->ComputeMetric(zoom_metric);
 }
@@ -280,7 +292,7 @@ float Optimization::TravelingScore(const Viewpoint& current_viewpoint,
   auto focus_distance = current_viewpoint.focus.distance(
       candidate_viewpoint.focus);
   auto average_distance = (position_distance + focus_distance) / 2;
-  return linearInterpolation(0, 1, 2, 0, average_distance);
+  return linearInterpolation(0, 1, max_travel_, 0, average_distance);
 }
 
 float Optimization::CrossingScore(const Viewpoint& viewpoint,

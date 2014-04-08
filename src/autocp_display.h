@@ -93,7 +93,13 @@ Q_OBJECT
 
   // Smoothness controls.
   rviz::FloatProperty* camera_speed_;
+  rviz::FloatProperty* focus_speed_;
   rviz::FloatProperty* score_threshold_;
+
+  rviz::FloatProperty* min_zoom_;
+  rviz::FloatProperty* max_zoom_;
+  rviz::FloatProperty* max_travel_;
+
   rviz::BoolProperty* only_move_on_idle_;
   rviz::IntProperty* occlusion_check_limit_;
 
