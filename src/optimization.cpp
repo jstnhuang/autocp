@@ -193,7 +193,7 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
   if (num_viewpoints < 1) {
     num_viewpoints = 1;
   } else if (num_viewpoints > num_landmarks * standard_offsets_.size()) {
-    num_viewpoints = standard_offsets_.size();
+    num_viewpoints = num_landmarks * standard_offsets_.size();
   }
 
   // Select a random subset of viewpoints.
