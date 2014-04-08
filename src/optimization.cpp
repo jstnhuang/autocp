@@ -22,13 +22,11 @@ Optimization::Optimization(AutoCPSensing* sensing,
       max_visibility_checks_(1000),
       only_move_on_idle_(false),
       score_threshold_(1.05) {
-  ROS_ERROR("started constructor");
   sensing_ = sensing;
   camera_ = camera;
   visualization_ = visualization;
   visibility_checker_ = new VisibilityChecker(scene_manager, camera);
   InitializeStandardOffsets();
-  ROS_ERROR("finished constructor");
 }
 
 Optimization::~Optimization() {
