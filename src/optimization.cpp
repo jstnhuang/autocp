@@ -154,6 +154,11 @@ void Optimization::InitializeStandardOffsets() {
   standard_offsets_.push_back(Ogre::Vector3(-0.5, -0.5, kR2));
   standard_offsets_.push_back(Ogre::Vector3(0, -kR2, kR2));
   standard_offsets_.push_back(Ogre::Vector3(0.5, -0.5, kR2));
+  // 70 degrees up.
+  standard_offsets_.push_back(Ogre::Vector3(0.34, 0, 0.93));
+  standard_offsets_.push_back(Ogre::Vector3(-0.34, 0, 0.93));
+  standard_offsets_.push_back(Ogre::Vector3(0, 0.34, 0.93));
+  standard_offsets_.push_back(Ogre::Vector3(0, -0.34, 0.93));
 
   // Add scaled versions of the standard viewpoints.
   int num_standard = standard_offsets_.size();
