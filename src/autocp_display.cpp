@@ -35,21 +35,21 @@ AutoCPDisplay::AutoCPDisplay()
   r_gripper_weight_->setMax(1);
 
   head_weight_ = new rviz::FloatProperty(
-      "Head weight", 0.25,
+      "Head weight", 0.20,
       "How much weight to the location of the robot's head.", this,
       SLOT(updateWeights()));
   head_weight_->setMin(0);
   head_weight_->setMax(1);
 
   head_focus_weight_ = new rviz::FloatProperty(
-      "Head focus point weight", 0.25,
+      "Head focus point weight", 0.20,
       "How much weight to assign to the location the robot is looking.", this,
       SLOT(updateWeights()));
   head_focus_weight_->setMin(0);
   head_focus_weight_->setMax(1);
 
   segmented_object_weight_ = new rviz::FloatProperty(
-      "Segmented object weight", 0.25,
+      "Segmented object weight", 0.20,
       "How much weight to assign to the locations of segmented objects", this,
       SLOT(updateWeights()));
   segmented_object_weight_->setMin(0);
