@@ -127,7 +127,7 @@ void AutoCPSensing::UpdateLeftGripperPosition() {
 }
 
 void AutoCPSensing::UpdateRightGripperPosition() {
-  GetTransformOrigin("/r_wrist_roll_link", &left_gripper_position_);
+  GetTransformOrigin("/r_wrist_roll_link", &right_gripper_position_);
 }
 
 void AutoCPSensing::HeadFocusCallback(

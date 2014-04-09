@@ -47,8 +47,6 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   //Score best_score = current_score;
   //test_viewpoints.push_back(current_viewpoint);
   //scores.push_back(current_score);
-
-  // The current viewpoint doesn't need to overcome the score threshold.
   //*target_viewpoint = current_viewpoint;
 
   Score target_score;
@@ -57,10 +55,8 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   Viewpoint best_viewpoint;
   test_viewpoints.push_back(*target_viewpoint);
   scores.push_back(target_score);
-//  if (target_score.score > best_score.score) {
-    best_score = target_score;
-    best_viewpoint = *target_viewpoint;
- // }
+  best_score = target_score;
+  best_viewpoint = *target_viewpoint;
 
   std::vector<Viewpoint> viewpoints;
   SelectViewpoints(&viewpoints);
@@ -77,7 +73,6 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
     }
   }
 
-//  if (best_score.score > score_threshold_ * current_score.score) {
   if (best_score.score > score_threshold_ * target_score.score) {
     visualization_->ShowViewpoints(test_viewpoints, scores);
     auto best_position = best_viewpoint.position;
@@ -197,6 +192,7 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
   }
 
   // Select a random subset of viewpoints.
+  // TODO: this may sample the same points over again.
   for (int i = 0; i < num_viewpoints; i++) {
     int rand_num = rand();
     int viewpoint_index = rand_num % standard_offsets_.size();
