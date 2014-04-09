@@ -71,7 +71,7 @@ AutoCPDisplay::AutoCPDisplay()
   be_orthogonal_weight_->setMax(1);
 
   stay_visible_weight_ = new rviz::FloatProperty(
-      "Marker visibility weight", 0.2,
+      "Marker visibility weight", 0.25,
       "How much weight to assign to points where the current marker is "
       "visible.",
       this, SLOT(updateWeights()));
@@ -86,7 +86,7 @@ AutoCPDisplay::AutoCPDisplay()
   zoom_weight_->setMax(1);
 
   crossing_weight_ = new rviz::FloatProperty(
-      "Line crossing weight", 0.0,
+      "Line crossing weight", 0.05,
       "Weight for not flipping the user interface when using a control.", this,
       SLOT(updateWeights()));
   crossing_weight_->setMin(0);
