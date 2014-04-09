@@ -79,7 +79,8 @@ Q_OBJECT
   rviz::BoolProperty* show_fps_;
 
   // Landmark weights.
-  rviz::FloatProperty* gripper_weight_;
+  rviz::FloatProperty* l_gripper_weight_;
+  rviz::FloatProperty* r_gripper_weight_;
   rviz::FloatProperty* head_weight_;
   rviz::FloatProperty* head_focus_weight_;
   rviz::FloatProperty* segmented_object_weight_;

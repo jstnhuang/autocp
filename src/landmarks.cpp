@@ -10,7 +10,6 @@ Landmarks::Landmarks()
       head_(),
       head_focus_(),
       segmented_objects_(),
-      gripper_weight_(0),
       segmented_object_weight_(0),
       num_landmarks_(0) {
 }
@@ -75,7 +74,6 @@ void Landmarks::UpdateLeftGripper(const Ogre::Vector3* point) {
     }
     l_gripper_.exists = false;
   }
-  UpdateGripperWeight(gripper_weight_);
 }
 
 /*
@@ -95,7 +93,6 @@ void Landmarks::UpdateRightGripper(const Ogre::Vector3* point) {
     }
     r_gripper_.exists = false;
   }
-  UpdateGripperWeight(gripper_weight_);
 }
 
 void Landmarks::UpdateHead(const Ogre::Vector3* point) {
@@ -148,20 +145,17 @@ void Landmarks::UpdateSegmentedObjects(
 }
 
 /*
- * Updates the weights of the grippers. The provided weight is for both
- * grippers. Each gripper actually gets half the weight.
+ * Updates the weights of the left gripper.
  */
-void Landmarks::UpdateGripperWeight(float weight) {
-  gripper_weight_ = weight;
-  // If one gripper doesn't exist, then the other gets all the weight.
-  // Otherwise, they share the weight equally.
-  if (!l_gripper_.exists || !r_gripper_.exists) {
-    l_gripper_.weight = gripper_weight_;
-    r_gripper_.weight = gripper_weight_;
-  } else {
-    l_gripper_.weight = gripper_weight_ / 2;
-    r_gripper_.weight = gripper_weight_ / 2;
-  }
+void Landmarks::UpdateLeftGripperWeight(float weight) {
+  l_gripper_.weight = weight;
+}
+
+/*
+ * Updates the weights of the left gripper.
+ */
+void Landmarks::UpdateRightGripperWeight(float weight) {
+  r_gripper_.weight = weight;
 }
 
 /*
@@ -191,8 +185,12 @@ void Landmarks::UpdateSegmentedObjectWeight(float weight) {
   }
 }
 
-float Landmarks::GripperWeight() {
-  return gripper_weight_;
+float Landmarks::LeftGripperWeight() {
+  return l_gripper_.weight;
+}
+
+float Landmarks::RightGripperWeight() {
+  return r_gripper_.weight;
 }
 
 float Landmarks::HeadWeight() {

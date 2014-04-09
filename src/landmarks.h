@@ -42,11 +42,13 @@ class Landmarks {
   void UpdateHead(const Ogre::Vector3* point);
   void UpdateHeadFocus(const Ogre::Vector3* point);
   void UpdateSegmentedObjects(const std::vector<Ogre::Vector3>& objects);
-  void UpdateGripperWeight(float weight);
+  void UpdateLeftGripperWeight(float weight);
+  void UpdateRightGripperWeight(float weight);
   void UpdateHeadWeight(float weight);
   void UpdateHeadFocusWeight(float weight);
   void UpdateSegmentedObjectWeight(float weight);
-  float GripperWeight();
+  float LeftGripperWeight();
+  float RightGripperWeight();
   float HeadWeight();
   float HeadFocusWeight();
   float SegmentedObjectWeight();
@@ -59,7 +61,6 @@ class Landmarks {
   std::vector<Landmark> segmented_objects_;
   // We save weights that are distributed between multiple objects. Weights
   // for single objects are just stored in the Landmark data structure.
-  float gripper_weight_;
   float segmented_object_weight_;
   int num_landmarks_; // Number of existing landmarks.
 };

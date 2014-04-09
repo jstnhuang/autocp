@@ -20,12 +20,19 @@ AutoCPDisplay::AutoCPDisplay()
           SLOT(updateTopic()));
 
   // Landmark weights.
-  gripper_weight_ = new rviz::FloatProperty(
-      "Gripper focus weight", 0.25,
-      "How much weight to assign to the grippers' locations.", this,
+  l_gripper_weight_ = new rviz::FloatProperty(
+      "Left gripper focus weight", 0.20,
+      "How much weight to assign to the left gripper's location.", this,
       SLOT(updateWeights()));
-  gripper_weight_->setMin(0);
-  gripper_weight_->setMax(1);
+  l_gripper_weight_->setMin(0);
+  l_gripper_weight_->setMax(1);
+
+  r_gripper_weight_ = new rviz::FloatProperty(
+      "Right gripper focus weight", 0.20,
+      "How much weight to assign to the right gripper's location.", this,
+      SLOT(updateWeights()));
+  r_gripper_weight_->setMin(0);
+  r_gripper_weight_->setMax(1);
 
   head_weight_ = new rviz::FloatProperty(
       "Head weight", 0.25,
@@ -193,7 +200,8 @@ void AutoCPDisplay::updateCameraOptions() {
  */
 void AutoCPDisplay::updateWeights() {
   auto landmarks = sensing_->landmarks();
-  landmarks->UpdateGripperWeight(gripper_weight_->getFloat());
+  landmarks->UpdateLeftGripperWeight(l_gripper_weight_->getFloat());
+  landmarks->UpdateRightGripperWeight(r_gripper_weight_->getFloat());
   landmarks->UpdateHeadWeight(head_weight_->getFloat());
   landmarks->UpdateHeadFocusWeight(head_focus_weight_->getFloat());
   landmarks->UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
