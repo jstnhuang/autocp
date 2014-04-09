@@ -194,9 +194,8 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
   // Select a random subset of viewpoints.
   // TODO: this may sample the same points over again.
   for (int i = 0; i < num_viewpoints; i++) {
-    int rand_num = rand();
-    int viewpoint_index = rand_num % standard_offsets_.size();
-    int landmark_index = rand_num % num_landmarks;
+    int viewpoint_index = rand() % standard_offsets_.size();
+    int landmark_index = rand() % num_landmarks;
 
     auto offset = standard_offsets_[viewpoint_index];
     auto landmark_position = landmark_positions[landmark_index];
