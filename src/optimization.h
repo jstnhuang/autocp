@@ -39,6 +39,7 @@ class Optimization {
   Visualization* visualization_;
   VisibilityChecker* visibility_checker_;
   std::vector<Ogre::Vector3> standard_offsets_;
+  int offset_index_;
 
   // Property weights.
   float visibility_weight_;

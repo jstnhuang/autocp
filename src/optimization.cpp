@@ -14,6 +14,7 @@ Optimization::Optimization(AutoCPSensing* sensing,
                            Ogre::Camera* camera,
                            Visualization* visualization)
     : standard_offsets_(),
+      offset_index_(0),
       visibility_weight_(0),
       view_angle_weight_(0),
       zoom_weight_(0),
@@ -191,17 +192,20 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
     num_viewpoints = num_landmarks * standard_offsets_.size();
   }
 
-  // Select a random subset of viewpoints.
-  // TODO: this may sample the same points over again.
-  for (int i = 0; i < num_viewpoints; i++) {
-    int viewpoint_index = rand() % standard_offsets_.size();
-    int landmark_index = rand() % num_landmarks;
-
-    auto offset = standard_offsets_[viewpoint_index];
-    auto landmark_position = landmark_positions[landmark_index];
-
-    Viewpoint viewpoint(landmark_position + offset, landmark_position);
-    viewpoints->push_back(viewpoint);
+  // Select a random subset of viewpoints. Each landmark gets an equal number of
+  // offsets. The standard offsets are already randomly shuffled, so we just
+  // iterate through them, starting at offset_index_.
+  int num_offsets = num_viewpoints / num_landmarks;
+  for (const auto& landmark_position : landmark_positions) {
+    for (int num_added = 0; num_added < num_offsets; num_added++) {
+      auto offset = standard_offsets_[offset_index_];
+      Viewpoint viewpoint(landmark_position + offset, landmark_position);
+      viewpoints->push_back(viewpoint);
+      offset_index_++;
+      if (offset_index_ >= standard_offsets_.size()) {
+        offset_index_ = 0;
+      }
+    }
   }
 }
 
