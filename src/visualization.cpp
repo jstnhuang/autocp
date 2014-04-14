@@ -21,6 +21,7 @@ Visualization::Visualization(const ros::NodeHandle& root_node_handle,
   marker_pub_ = root_nh_.advertise<Marker>("autocp_markers", 1);
   num_foci_ = 0;
   num_candidate_viewpoints_ = 0;
+  current_viewpoint_id_ = 0;
 }
 
 /*
@@ -61,6 +62,14 @@ void Visualization::ShowFocus(const Ogre::Vector3& focus) {
   num_foci_++;
 }
 
+void Visualization::ShowViewpoint(const Viewpoint& viewpoint) {
+  FlushViewpoint();
+  Marker marker;
+  MakeCurrentViewpointMarker(viewpoint, &marker);
+  marker_pub_.publish(marker);
+  current_viewpoint_id_++;
+}
+
 /*
  * Deletes the previously visualized candidate viewpoints.
  */
@@ -68,7 +77,6 @@ void Visualization::FlushCandidateViewpoints() {
   FlushMarkers(kCandidateViewpointNamespace, num_candidate_viewpoints_);
   FlushMarkers(kCandidateTextNamespace, num_candidate_viewpoints_);
   num_candidate_viewpoints_ = 0;
-
 }
 
 /*
@@ -77,6 +85,11 @@ void Visualization::FlushCandidateViewpoints() {
 void Visualization::FlushFoci() {
   FlushMarkers(kFociNamespace, num_foci_);
   num_foci_ = 0;
+}
+
+void Visualization::FlushViewpoint() {
+  FlushMarkers(kCurrentViewpointNamespace, current_viewpoint_id_);
+  current_viewpoint_id_ = 0;
 }
 
 /**
@@ -138,6 +151,42 @@ void Visualization::MakeCameraMarker(const Viewpoint& viewpoint,
     marker->color.g = score.score;
     marker->color.b = 0.0f;
   }
+  marker->color.a = 1.0;
+  marker->lifetime = ros::Duration();
+}
+
+/**
+ * Creates an arrow marker representing the viewpoint. It is colored purple.
+ *
+ * Input:
+ *   viewpoint: The viewpoint to visualize.
+ *
+ * Output:
+ *   marker: The resulting marker.
+ */
+void Visualization::MakeCurrentViewpointMarker(const Viewpoint& viewpoint,
+                                               Marker* marker) {
+  Ogre::Quaternion orientation;
+  ViewpointToOrientation(viewpoint, &orientation);
+  marker->header.frame_id = fixed_frame_;
+  marker->header.stamp = ros::Time::now();
+  marker->ns = kCurrentViewpointNamespace;
+  marker->id = current_viewpoint_id_;
+  marker->type = Marker::ARROW;
+  marker->action = Marker::ADD;
+  marker->pose.position.x = viewpoint.position.x;
+  marker->pose.position.y = viewpoint.position.y;
+  marker->pose.position.z = viewpoint.position.z;
+  marker->pose.orientation.x = orientation.x;
+  marker->pose.orientation.y = orientation.y;
+  marker->pose.orientation.z = orientation.z;
+  marker->pose.orientation.w = orientation.w;
+  marker->scale.x = 0.05;
+  marker->scale.y = 0.05;
+  marker->scale.z = 0.05;
+  marker->color.r = 0.86;
+  marker->color.g = 0.34;
+  marker->color.b = 0.72;
   marker->color.a = 1.0;
   marker->lifetime = ros::Duration();
 }
