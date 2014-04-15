@@ -15,6 +15,9 @@ struct Viewpoint {
     this->position = position;
     this->focus = focus;
   }
+  bool Equals(const Viewpoint& other) {
+    return other.position == position && other.focus == focus;
+  }
 };
 }
 
