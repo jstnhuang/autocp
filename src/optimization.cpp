@@ -78,11 +78,11 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   if (best_score.score > score_threshold_ * target_score.score) {
     visualization_->ShowViewpoints(test_viewpoints, scores);
     auto best_position = best_viewpoint.position;
-    ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=(%.2f, %.2f, %.2f)=%.2f",
+    ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=(%.2f, %.2f, %.2f)=%s",
              best_position.x, best_position.y, best_position.z,
              best_score.toString().c_str(), target_viewpoint->position.x,
              target_viewpoint->position.y, target_viewpoint->position.z,
-             target_score.score);
+             target_score.toString().c_str());
     *target_viewpoint = best_viewpoint;
   }
 }
@@ -228,13 +228,13 @@ void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
   float visibility_score = VisibilityScore(viewpoint);
   score_numerator += visibility_weight_ * visibility_score;
   score_denominator += visibility_weight_;
-  score->visibility = visibility_score;
+  score->visibility = visibility_weight_ * visibility_score;
 
   // Centering score.
   float centering_score = CenteringScore(viewpoint);
   score_numerator += centering_weight_ * centering_score;
   score_denominator += centering_weight_;
-  score->centering = centering_score;
+  score->centering = centering_weight_ * centering_score;
 
   // Orthogonality score.
   auto current_control = sensing_->current_control(only_move_on_idle_);
@@ -242,31 +242,31 @@ void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
     float ortho_score = ViewAngleScore(viewpoint, *current_control);
     score_numerator += view_angle_weight_ * ortho_score;
     score_denominator += view_angle_weight_;
-    score->orthogonality = ortho_score;
+    score->orthogonality = view_angle_weight_ * ortho_score;
   } else {
-    score->orthogonality = -1;
+    score->orthogonality = 0;
   }
 
   // Zoom score.
   float zoom_score = ZoomScore(viewpoint);
   score_numerator += zoom_weight_ * zoom_score;
   score_denominator += zoom_weight_;
-  score->zoom = zoom_score;
+  score->zoom = zoom_weight_ * zoom_score;
 
   // Travel score.
   float travel_score = TravelingScore(current_viewpoint, viewpoint);
   score_numerator += travel_weight_ * travel_score;
   score_denominator += travel_weight_;
-  score->travel = travel_score;
+  score->travel = travel_weight_ * travel_score;
 
   // Crossing score.
   if (current_control != NULL) {
     float crossing_score = CrossingScore(viewpoint, *current_control);
     score_numerator += crossing_weight_ * crossing_score;
     score_denominator += crossing_weight_;
-    score->crossing = crossing_score;
+    score->crossing = crossing_weight_ * crossing_score;
   } else {
-    score->crossing = -1;
+    score->crossing = 0;
   }
 
   if (score_denominator != 0) {
