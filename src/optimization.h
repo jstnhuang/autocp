@@ -22,6 +22,7 @@ class Optimization {
   void ChooseViewpoint(const Viewpoint& current_viewpoint,
                        Viewpoint* target_viewpoint);
   void set_visibility_weight(float weight);
+  void set_centering_weight(float weight);
   void set_view_angle_weight(float weight);
   void set_zoom_weight(float weight);
   void set_travel_weight(float weight);
@@ -43,6 +44,7 @@ class Optimization {
 
   // Property weights.
   float visibility_weight_;
+  float centering_weight_;
   float view_angle_weight_;
   float zoom_weight_;
   float travel_weight_;
@@ -62,6 +64,7 @@ class Optimization {
 
   // Score functions.
   float VisibilityScore(const Viewpoint& viewpoint);
+  float CenteringScore(const Viewpoint& viewpoint);
   float ViewAngleScore(const Viewpoint& viewpoint,
                        const ClickedControl& control);
   float ZoomScore(const Viewpoint& viewpoint);

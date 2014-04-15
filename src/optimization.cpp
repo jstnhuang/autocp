@@ -16,6 +16,7 @@ Optimization::Optimization(AutoCPSensing* sensing,
     : standard_offsets_(),
       offset_index_(0),
       visibility_weight_(0),
+      centering_weight_(0),
       view_angle_weight_(0),
       zoom_weight_(0),
       travel_weight_(0),
@@ -88,6 +89,10 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
 
 void Optimization::set_visibility_weight(float weight) {
   visibility_weight_ = weight;
+}
+
+void Optimization::set_centering_weight(float weight) {
+  centering_weight_ = weight;
 }
 
 void Optimization::set_view_angle_weight(float weight) {
@@ -225,6 +230,12 @@ void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
   score_denominator += visibility_weight_;
   score->visibility = visibility_score;
 
+  // Centering score.
+  float centering_score = CenteringScore(viewpoint);
+  score_numerator += centering_weight_ * centering_score;
+  score_denominator += centering_weight_;
+  score->centering = centering_score;
+
   // Orthogonality score.
   auto current_control = sensing_->current_control(only_move_on_idle_);
   if (current_control != NULL) {
@@ -276,6 +287,19 @@ float Optimization::VisibilityScore(const Viewpoint& viewpoint) {
     }
   };
   return sensing_->landmarks()->ComputeMetric(occlusion_metric);
+}
+
+float Optimization::CenteringScore(const Viewpoint& viewpoint) {
+  auto centering_metric = [&] (const Ogre::Vector3& point) -> float {
+    float screen_x;
+    float screen_y;
+    visibility_checker_->GetScreenPosition(point, &screen_x, &screen_y);
+    float x_dist = screen_x - 0.5;
+    float y_dist = screen_y - 0.5;
+    float squared_dist = x_dist * x_dist + y_dist * y_dist;
+    return linearInterpolation(0, 1, 0.5, 0, squared_dist);
+  };
+  return sensing_->landmarks()->ComputeMetric(centering_metric);
 }
 
 float Optimization::ViewAngleScore(const Viewpoint& viewpoint,

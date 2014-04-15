@@ -64,7 +64,7 @@ AutoCPDisplay::AutoCPDisplay()
   stay_in_place_weight_->setMax(1);
 
   be_orthogonal_weight_ = new rviz::FloatProperty(
-      "Marker orthogonality weight", 0.5,
+      "Marker orthogonality weight", 0.4,
       "How much weight to assign to points orthogonal to the current marker.",
       this, SLOT(updateWeights()));
   be_orthogonal_weight_->setMin(0);
@@ -78,6 +78,13 @@ AutoCPDisplay::AutoCPDisplay()
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
 
+  centering_weight_ = new rviz::FloatProperty(
+      "Centering weight", 0.15,
+      "How much weight to assign to having landmarks centered on screen.",
+      this, SLOT(updateWeights()));
+  centering_weight_->setMin(0);
+  centering_weight_->setMax(1);
+
   zoom_weight_ = new rviz::FloatProperty(
       "Zoom weight", 0.1,
       "How much weight to assign to being close to landmarks.", this,
@@ -86,7 +93,7 @@ AutoCPDisplay::AutoCPDisplay()
   zoom_weight_->setMax(1);
 
   crossing_weight_ = new rviz::FloatProperty(
-      "Line crossing weight", 0.05,
+      "Line crossing weight", 0,
       "Weight for not flipping the user interface when using a control.", this,
       SLOT(updateWeights()));
   crossing_weight_->setMin(0);
@@ -206,6 +213,7 @@ void AutoCPDisplay::updateWeights() {
   landmarks->UpdateHeadFocusWeight(head_focus_weight_->getFloat());
   landmarks->UpdateSegmentedObjectWeight(segmented_object_weight_->getFloat());
   optimization_->set_visibility_weight(stay_visible_weight_->getFloat());
+  optimization_->set_centering_weight(centering_weight_->getFloat());
   optimization_->set_view_angle_weight(be_orthogonal_weight_->getFloat());
   optimization_->set_zoom_weight(zoom_weight_->getFloat());
   optimization_->set_travel_weight(stay_in_place_weight_->getFloat());

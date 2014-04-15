@@ -89,6 +89,7 @@ Q_OBJECT
   rviz::FloatProperty* stay_in_place_weight_;
   rviz::FloatProperty* be_orthogonal_weight_;
   rviz::FloatProperty* stay_visible_weight_;
+  rviz::FloatProperty* centering_weight_;
   rviz::FloatProperty* zoom_weight_;
   rviz::FloatProperty* crossing_weight_;
 

@@ -9,6 +9,7 @@
 namespace autocp {
 struct Score {
   float visibility;
+  float centering;
   float orthogonality;
   float zoom;
   float travel;
@@ -16,9 +17,9 @@ struct Score {
   float score;
  public:
   std::string toString() const {
-    char buffer[64];
-    snprintf(buffer, 64, "v: %.2f, o: %.2f, z: %.2f, t: %.2f, c: %.2f = %.2f",
-             visibility, orthogonality, zoom, travel, crossing, score);
+    char buffer[80];
+    snprintf(buffer, 80, "v: %.2f, c: %.2f, o: %.2f, z: %.2f, t: %.2f, c: %.2f = %.2f",
+             visibility, centering, orthogonality, zoom, travel, crossing, score);
     return std::string(buffer);
   }
 };
