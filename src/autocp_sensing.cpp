@@ -103,7 +103,7 @@ Landmarks* AutoCPSensing::landmarks() {
  * Returns: Whether the user is manipulating a control right now or not.
  */
 bool AutoCPSensing::IsControlActive() {
-  return active_control_ == NULL;
+  return active_control_ != NULL;
 }
 
 void AutoCPSensing::GetTransformOrigin(std::string frame,

@@ -243,7 +243,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  if (!only_move_on_idle_->getBool() || sensing_->IsControlActive()) {
+  if (!only_move_on_idle_->getBool() || !sensing_->IsControlActive()) {
     optimization_->ChooseViewpoint(current_viewpoint_, &target_viewpoint_);
   }
   Viewpoint next_viewpoint;
