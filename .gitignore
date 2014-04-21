@@ -19,3 +19,5 @@ scripts/cpplint.py
 .cproject
 .project
 .pydevproject
+CMakeCache.txt
+CMakeFiles/
