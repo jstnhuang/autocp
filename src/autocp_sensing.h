@@ -6,7 +6,7 @@
 #define AUTOCP_SENSING_H
 
 #include <manipulation_msgs/GraspableObjectList.h>
-#include <pr2_controllers_msgs/PointHeadActionGoal.h>
+#include <control_msgs/PointHeadActionGoal.h>
 #include <ros/node_handle.h>
 #include <ros/ros.h>
 #include <ros/subscriber.h>
@@ -85,7 +85,7 @@ class AutoCPSensing {
   void UpdateRightGripperPosition();
 
   // Callbacks.
-  void HeadFocusCallback(const pr2_controllers_msgs::PointHeadActionGoal& goal);
+  void HeadFocusCallback(const control_msgs::PointHeadActionGoal& goal);
   void ObjectSegmentationCallback(
       const manipulation_msgs::GraspableObjectList& list);
   void MarkerFeedbackCallback(

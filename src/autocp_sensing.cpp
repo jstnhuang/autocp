@@ -131,7 +131,7 @@ void AutoCPSensing::UpdateRightGripperPosition() {
 }
 
 void AutoCPSensing::HeadFocusCallback(
-    const pr2_controllers_msgs::PointHeadActionGoal& goal) {
+    const control_msgs::PointHeadActionGoal& goal) {
   auto ros_point = goal.goal.target.point;
   head_focus_ = Ogre::Vector3(ros_point.x, ros_point.y, ros_point.z);
   landmarks_.UpdateHeadFocus(&head_focus_);

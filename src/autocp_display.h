@@ -13,7 +13,7 @@
 
 #include <OGRE/OgreCamera.h>
 #include <OGRE/OgreManualObject.h>
-#include <pr2_controllers_msgs/PointHeadAction.h>
+#include <control_msgs/PointHeadAction.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
 #include <rviz/display_context.h>
