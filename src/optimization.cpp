@@ -18,10 +18,7 @@ Optimization::Optimization(AutoCPSensing* sensing,
       centering_weight_(0),
       view_angle_weight_(0),
       zoom_weight_(0),
-      travel_weight_(0),
-      crossing_weight_(0),
       max_visibility_checks_(1000),
-      only_move_on_idle_(false),
       score_threshold_(1.05),
       min_zoom_(0.5),
       max_zoom_(5),
@@ -64,7 +61,7 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
 
   for (const auto& viewpoint : viewpoints) {
     Score score;
-    ComputeViewpointScore(viewpoint, current_viewpoint, &score);
+    ComputeViewpointScore(viewpoint, &score);
     test_viewpoints.push_back(viewpoint);
     scores.push_back(score);
 
@@ -102,20 +99,8 @@ void Optimization::set_zoom_weight(float weight) {
   zoom_weight_ = weight;
 }
 
-void Optimization::set_travel_weight(float weight) {
-  travel_weight_ = weight;
-}
-
-void Optimization::set_crossing_weight(float weight) {
-  crossing_weight_ = weight;
-}
-
 void Optimization::set_max_visibility_checks(int max_visibility_checks) {
   max_visibility_checks_ = max_visibility_checks;
-}
-
-void Optimization::set_only_move_on_idle(bool only_move_on_idle) {
-  only_move_on_idle_ = only_move_on_idle;
 }
 
 void Optimization::set_score_threshold(float threshold) {
@@ -218,7 +203,6 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
 }
 
 void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
-                                         const Viewpoint& current_viewpoint,
                                          Score* score) {
   float score_numerator = 0;
   float score_denominator = 0;
@@ -236,9 +220,9 @@ void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
   score->centering = centering_weight_ * centering_score;
 
   // Orthogonality score.
-  auto current_control = sensing_->current_control(only_move_on_idle_);
-  if (current_control != NULL) {
-    float ortho_score = ViewAngleScore(viewpoint, *current_control);
+  auto previous_control = sensing_->previous_control();
+  if (previous_control != NULL) {
+    float ortho_score = ViewAngleScore(viewpoint, *previous_control);
     score_numerator += view_angle_weight_ * ortho_score;
     score_denominator += view_angle_weight_;
     score->orthogonality = view_angle_weight_ * ortho_score;
@@ -251,22 +235,6 @@ void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
   score_numerator += zoom_weight_ * zoom_score;
   score_denominator += zoom_weight_;
   score->zoom = zoom_weight_ * zoom_score;
-
-  // Travel score.
-  float travel_score = TravelingScore(current_viewpoint, viewpoint);
-  score_numerator += travel_weight_ * travel_score;
-  score_denominator += travel_weight_;
-  score->travel = travel_weight_ * travel_score;
-
-  // Crossing score.
-  if (current_control != NULL) {
-    float crossing_score = CrossingScore(viewpoint, *current_control);
-    score_numerator += crossing_weight_ * crossing_score;
-    score_denominator += crossing_weight_;
-    score->crossing = crossing_weight_ * crossing_score;
-  } else {
-    score->crossing = 0;
-  }
 
   if (score_denominator != 0) {
     score->score = score_numerator / score_denominator;
@@ -322,47 +290,6 @@ float Optimization::ZoomScore(const Viewpoint& viewpoint) {
     return linearInterpolation(min_zoom_, 1, max_zoom_, 0, distance);
   };
   return sensing_->landmarks()->ComputeMetric(zoom_metric);
-}
-
-float Optimization::TravelingScore(const Viewpoint& current_viewpoint,
-                                   const Viewpoint& candidate_viewpoint) {
-  auto position_distance = current_viewpoint.position.distance(
-      candidate_viewpoint.position);
-  //auto focus_distance = current_viewpoint.focus.distance(
-  //    candidate_viewpoint.focus);
-  //auto average_distance = (position_distance + focus_distance) / 2;
-  return linearInterpolation(0, 1, max_travel_, 0, position_distance);
-}
-
-float Optimization::CrossingScore(const Viewpoint& viewpoint,
-                                  const ClickedControl& control) {
-  auto camera_position = camera_->getPosition();
-  auto control_position = control.world_position;
-  int current_x_sign = sign(camera_position.x - control_position.x);
-  int current_y_sign = sign(camera_position.y - control_position.y);
-  int current_z_sign = sign(camera_position.z - control_position.z);
-  int candidate_x_sign = sign(viewpoint.position.x - control_position.x);
-  int candidate_y_sign = sign(viewpoint.position.y - control_position.y);
-  int candidate_z_sign = sign(viewpoint.position.z - control_position.z);
-
-  // If you're using an x control, don't cross the y=0 plane
-  // If you're using a y control, don't cross the x=0 plane
-  if (control.control == Control6Dof::X
-      || control.control == Control6Dof::PITCH) {
-    if (candidate_y_sign != current_y_sign) {
-      return 0;
-    }
-  } else if (control.control == Control6Dof::Y
-      || control.control == Control6Dof::ROLL) {
-    if (candidate_x_sign != current_x_sign) {
-      return 0;
-    }
-  } else if (control.control == Control6Dof::YAW){
-    if (candidate_z_sign != current_z_sign) {
-      return 0;
-    }
-  }
-  return 1;
 }
 
 }

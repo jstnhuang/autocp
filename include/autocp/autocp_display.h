@@ -60,7 +60,6 @@ Q_OBJECT
   void updateTopic();
   void updateWeights();
   void updateCameraOptions();
-  void updateSmoothnessOption();
 
  private:
   ros::NodeHandle root_nh_;
@@ -86,23 +85,17 @@ Q_OBJECT
   rviz::FloatProperty* segmented_object_weight_;
 
   // Property weights.
-  rviz::FloatProperty* stay_in_place_weight_;
   rviz::FloatProperty* be_orthogonal_weight_;
   rviz::FloatProperty* stay_visible_weight_;
   rviz::FloatProperty* centering_weight_;
   rviz::FloatProperty* zoom_weight_;
-  rviz::FloatProperty* crossing_weight_;
 
   // Smoothness controls.
-  rviz::FloatProperty* camera_speed_;
-  rviz::FloatProperty* focus_speed_;
   rviz::FloatProperty* score_threshold_;
 
   rviz::FloatProperty* min_zoom_;
   rviz::FloatProperty* max_zoom_;
-  rviz::FloatProperty* max_travel_;
 
-  rviz::BoolProperty* only_move_on_idle_;
   rviz::IntProperty* occlusion_check_limit_;
 
   // Camera placement.
