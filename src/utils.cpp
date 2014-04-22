@@ -86,6 +86,18 @@ float linearInterpolation(float x1, float y1, float x2, float y2, float x) {
   }
 }
 
+void QuaternionToFocus(
+    const geometry_msgs::Quaternion& quaternion,
+    const geometry_msgs::Point& position, geometry_msgs::Point* point) {
+  Ogre::Vector3 ogre_position(position.x, position.y, position.z);
+  Ogre::Quaternion ogre_quaternion(quaternion.w, quaternion.x, quaternion.y,
+                                   quaternion.z);
+  Ogre::Vector3 result = ogre_quaternion * -Ogre::Vector3::UNIT_Z;
+  point->x = position.x + result.x;
+  point->y = position.y + result.y;
+  point->z = position.z + result.z;
+}
+
 /**
  * Returns the sign of x.
  */
