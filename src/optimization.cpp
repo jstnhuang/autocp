@@ -49,10 +49,11 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
   //scores.push_back(current_score);
   //*target_viewpoint = current_viewpoint;
 
-  Score target_score;
-  ComputeViewpointScore(*target_viewpoint, current_viewpoint, &target_score);
-  Score best_score = target_score;
+  Score best_score;
   Viewpoint best_viewpoint;
+
+  Score target_score;
+  ComputeViewpointScore(*target_viewpoint, &target_score);
   test_viewpoints.push_back(*target_viewpoint);
   scores.push_back(target_score);
   best_score = target_score;
