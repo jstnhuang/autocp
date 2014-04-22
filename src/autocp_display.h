@@ -14,6 +14,8 @@
 #include <OGRE/OgreCamera.h>
 #include <OGRE/OgreManualObject.h>
 #include <control_msgs/PointHeadAction.h>
+#include <geometry_msgs/Pose.h>
+#include <interactive_markers/interactive_marker_server.h>
 #include <ros/ros.h>
 #include <rviz/display.h>
 #include <rviz/display_context.h>
@@ -25,11 +27,14 @@
 #include <rviz/render_panel.h>
 #include <rviz/selection/selection_manager.h>
 #include <rviz/visualization_manager.h>
+#include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <view_controller_msgs/CameraPlacement.h>
 #include <visualization_msgs/InteractiveMarker.h>
+#include <visualization_msgs/InteractiveMarkerControl.h>
 #include <visualization_msgs/InteractiveMarkerInit.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
+#include <visualization_msgs/Marker.h>
 #include <manipulation_msgs/GraspableObjectList.h>
 
 #include "models/viewpoint.h"
@@ -68,6 +73,11 @@ Q_OBJECT
   rviz::VisualizationManager* vm_;
   Ogre::SceneManager* sm_;
   Ogre::Camera* camera_;
+  interactive_markers::InteractiveMarkerServer im_server_;
+  void MakeButtonMarker(const Ogre::Vector3& position);
+  Marker MakeBox(visualization_msgs::InteractiveMarker &msg);
+  void HandleOfferClick(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
+  void OfferViewpoint(const Viewpoint& viewpoint);
 
   Viewpoint current_viewpoint_;
   Viewpoint target_viewpoint_;
@@ -108,6 +118,7 @@ Q_OBJECT
   // Camera placement.
   rviz::RosTopicProperty* topic_prop_;
   ros::Publisher camera_placement_publisher_;
+  ros::Publisher camera_pose_publisher_;
   void chooseCameraPlacement(float time_delta);
   static void setCameraPlacement(
       const Viewpoint& viewpoint,
