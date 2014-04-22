@@ -8,7 +8,7 @@ namespace autocp {
  */
 AutoCPDisplay::AutoCPDisplay()
     : root_nh_(""), current_viewpoint_(), target_viewpoint_(), sensing_(NULL),
-      visualization_(NULL) {
+      visualization_(NULL), im_server_("autocp_suggestions") {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -180,9 +180,53 @@ void AutoCPDisplay::onInitialize() {
   current_viewpoint_ = Viewpoint(camera_->getPosition(),
                                  *(sensing_->head_position()));
   target_viewpoint_ = current_viewpoint_;
+  camera_pose_publisher_ = root_nh_.advertise<geometry_msgs::Pose>(
+      "autocp/camera_pose", 5);
 
   updateTopic();
   updateWeights();
+}
+
+void AutoCPDisplay::OfferViewpoint(const Viewpoint& viewpoint) {
+  visualization_msgs::Marker arrow_marker;
+  visualization_->MakeCameraMarker(viewpoint, 1, &arrow_marker);
+
+  visualization_msgs::InteractiveMarkerControl control;
+  control.interaction_mode =
+      visualization_msgs::InteractiveMarkerControl::BUTTON;
+  control.name = "button_control";
+  control.markers.push_back(arrow_marker);
+  control.always_visible = true;
+
+  visualization_msgs::InteractiveMarker int_marker;
+  int_marker.header.frame_id = fixed_frame_.toStdString();
+  int_marker.scale = 1;
+  int_marker.name = "suggestion";
+  int_marker.pose.position = ToGeometryMsgsPoint(viewpoint.position);
+  // TODO: this is an abuse of the marker's fields.
+  int_marker.pose.orientation.x = viewpoint.focus.x;
+  int_marker.pose.orientation.y = viewpoint.focus.y;
+  int_marker.pose.orientation.z = viewpoint.focus.z;
+  int_marker.controls.push_back(control);
+
+  im_server_.insert(int_marker);
+  im_server_.setCallback(int_marker.name, boost::bind(
+      &AutoCPDisplay::HandleOfferClick, this, _1));
+  im_server_.applyChanges();
+}
+
+void AutoCPDisplay::HandleOfferClick(
+    const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback) {
+  if (feedback.get() != NULL) {
+    auto pose = feedback.get()->pose;
+    Ogre::Vector3 focus(pose.orientation.x, pose.orientation.y,
+                        pose.orientation.z);
+    Viewpoint viewpoint(ToOgreVector3(pose.position), focus);
+
+    view_controller_msgs::CameraPlacement camera_placement;
+    setCameraPlacement(viewpoint, ros::Duration(0.5), &camera_placement);
+    camera_placement_publisher_.publish(camera_placement);
+  }
 }
 
 // Parameter update handlers ---------------------------------------------------
@@ -255,16 +299,18 @@ void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
     optimization_->ChooseViewpoint(current_viewpoint_, &target_viewpoint_);
   }
   Viewpoint next_viewpoint;
-  interpolateViewpoint(current_viewpoint_, target_viewpoint_,
-                       camera_speed_->getFloat(), focus_speed_->getFloat(),
-                       time_delta, &next_viewpoint);
+  //interpolateViewpoint(current_viewpoint_, target_viewpoint_,
+  //                     camera_speed_->getFloat(), focus_speed_->getFloat(),
+  //                     time_delta, &next_viewpoint);
   visualization_->ShowFocus(next_viewpoint.focus);
 
-  view_controller_msgs::CameraPlacement camera_placement;
-  setCameraPlacement(next_viewpoint, ros::Duration(time_delta),
-                     &camera_placement);
-  camera_placement_publisher_.publish(camera_placement);
-  current_viewpoint_ = next_viewpoint;
+  //view_controller_msgs::CameraPlacement camera_placement;
+  //setCameraPlacement(next_viewpoint, ros::Duration(time_delta),
+  //                   &camera_placement);
+  //camera_placement_publisher_.publish(camera_placement);
+  //MakeButtonMarker(target_viewpoint_.position);
+  OfferViewpoint(target_viewpoint_);
+  current_viewpoint_ = target_viewpoint_;
 }
 
 // Utilities -------------------------------------------------------------------
