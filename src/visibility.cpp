@@ -115,8 +115,10 @@ bool VisibilityChecker::IsOnScreen(float screen_x, float screen_y) {
 /*
  * Heuristic method for raycasting using axis-aligned bounding boxes.
  *
- * The output of this method is the location the ray hit the median bounding
- * box, when the bounding boxes are sorted in order of the distance to the ray.
+ * The output of this method is the location the ray hit the first bounding box
+ * belonging to the robot model, where the bounding boxes are sorted in order of
+ * the distance to the ray.
+ *
  * This is not very accurate, and is designed to determine if the ray hits a
  * point that is "close enough" to some target point. For polygon-level
  * raytracing, see the * OGRE Wiki at goo.gl/YLKQEo.
@@ -143,20 +145,13 @@ bool VisibilityChecker::RaycastAABB(const Ogre::Ray& ray, Ogre::Vector3* hit) {
   // The query results are ordered by distance along the ray. However, for some
   // reason, some of the results have zero distance. We ignore these when
   // finding the median.
-  int first_nonzero = -1;
-  for (int i = 0; i < query_results.size(); i++) {
-    auto result = query_results[i];
-    if (result.distance > 0 && first_nonzero == -1) {
-      first_nonzero = i;
-      break;
+  for (const auto& result : query_results) {
+    auto name = result.movable->getName();
+    if (result.distance && name.find("Robot Link") != -1) {
+      *hit = ray.getPoint(result.distance);
+      return true;
     }
   }
-  if (first_nonzero < 0) {
-    return false;
-  }
-  int median_index = first_nonzero + (query_results.size() - first_nonzero) / 2;
-  auto median_result = query_results[median_index];
-  *hit = ray.getPoint(median_result.distance);
-  return true;
+  return false;
 }
 }
