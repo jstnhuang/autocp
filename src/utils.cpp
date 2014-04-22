@@ -111,6 +111,34 @@ int sign(float x) {
   }
 }
 
+geometry_msgs::Point ToGeometryMsgsPoint(const Ogre::Vector3& vector3) {
+  geometry_msgs::Point point;
+  point.x = vector3.x;
+  point.y = vector3.y;
+  point.z = vector3.z;
+  return point;
+}
+
+geometry_msgs::Quaternion ToGeometryMsgsQuaternion(
+    const Ogre::Quaternion& ogre_quaternion) {
+  geometry_msgs::Quaternion quaternion;
+  quaternion.w = ogre_quaternion.w;
+  quaternion.x = ogre_quaternion.x;
+  quaternion.y = ogre_quaternion.y;
+  quaternion.z = ogre_quaternion.z;
+  return quaternion;
+}
+
+Ogre::Quaternion ToOgreQuaternion(const geometry_msgs::Quaternion& quaternion) {
+  return Ogre::Quaternion(quaternion.w, quaternion.x, quaternion.y,
+                          quaternion.z);
+}
+
+Ogre::Vector3 ToOgreVector3(const geometry_msgs::Point& point) {
+  return Ogre::Vector3(point.x, point.y, point.z);
+}
+
+
 /**
  * Converts a position/focus point into an orientation from the position.
  */

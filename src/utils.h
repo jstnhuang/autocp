@@ -3,8 +3,8 @@
 
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Quaternion.h>
-#include <geometry_msgs/Vector3.h>
 #include <OGRE/OgreVector3.h>
+#include <OGRE/OgreQuaternion.h>
 #include <math.h>
 #include "models/clicked_control.h"
 #include "models/viewpoint.h"
@@ -23,6 +23,11 @@ void QuaternionToFocus(
     const geometry_msgs::Quaternion& quaternion,
     const geometry_msgs::Point& position, geometry_msgs::Point* point);
 int sign(float x);
+geometry_msgs::Point ToGeometryMsgsPoint(const Ogre::Vector3& vector3);
+geometry_msgs::Quaternion ToGeometryMsgsQuaternion(
+    const Ogre::Quaternion& quaternion);
+Ogre::Quaternion ToOgreQuaternion(const geometry_msgs::Quaternion& quaternion);
+Ogre::Vector3 ToOgreVector3(const geometry_msgs::Point& point);
 void ViewpointToOrientation(const Viewpoint& viewpoint,
                             Ogre::Quaternion* orientation);
 }
