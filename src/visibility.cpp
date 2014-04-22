@@ -116,8 +116,8 @@ bool VisibilityChecker::IsOnScreen(float screen_x, float screen_y) {
  * Heuristic method for raycasting using axis-aligned bounding boxes.
  *
  * The output of this method is the location the ray hit the first bounding box
- * belonging to the robot model, where the bounding boxes are sorted in order of
- * the distance to the ray.
+ * belonging to the robot model or an interactive marker, where the bounding
+ * boxes are sorted in order of the distance to the ray.
  *
  * This is not very accurate, and is designed to determine if the ray hits a
  * point that is "close enough" to some target point. For polygon-level
@@ -147,7 +147,10 @@ bool VisibilityChecker::RaycastAABB(const Ogre::Ray& ray, Ogre::Vector3* hit) {
   // finding the median.
   for (const auto& result : query_results) {
     auto name = result.movable->getName();
-    if (result.distance && name.find("Robot Link") != -1) {
+    // TODO: have the visibility checker pass in what we're looking for,
+    // exactly.
+    if (result.distance &&
+        (name.find("Robot Link") != -1 || name.find("Shape") != -1)) {
       *hit = ray.getPoint(result.distance);
       return true;
     }
