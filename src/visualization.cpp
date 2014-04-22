@@ -41,7 +41,7 @@ void Visualization::ShowViewpoints(const std::vector<Viewpoint>& viewpoints,
     auto score = scores[i];
     Marker viewpoint_marker;
     Marker text_marker;
-    MakeCameraMarker(viewpoint, score, &viewpoint_marker);
+    MakeCameraMarker(viewpoint, score.score, &viewpoint_marker);
     MakeTextMarker(viewpoint, score, &text_marker);
     marker_pub_.publish(viewpoint_marker);
     marker_pub_.publish(text_marker);
@@ -123,7 +123,7 @@ void Visualization::FlushMarkers(std::string ns, int max_id) {
  *   marker: The resulting marker.
  */
 void Visualization::MakeCameraMarker(const Viewpoint& viewpoint,
-                                     const Score& score, Marker* marker) {
+                                     float score, Marker* marker) {
   Ogre::Quaternion orientation;
   ViewpointToOrientation(viewpoint, &orientation);
   marker->header.frame_id = fixed_frame_;
@@ -142,13 +142,13 @@ void Visualization::MakeCameraMarker(const Viewpoint& viewpoint,
   marker->scale.x = 0.05;
   marker->scale.y = 0.05;
   marker->scale.z = 0.05;
-  if (score.score < 0) {
+  if (score < 0) {
     marker->color.r = 0;
     marker->color.g = 0;
     marker->color.b = 0;
   } else {
-    marker->color.r = 1.0 - score.score;
-    marker->color.g = score.score;
+    marker->color.r = 1.0 - score;
+    marker->color.g = score;
     marker->color.b = 0.0f;
   }
   marker->color.a = 1.0;

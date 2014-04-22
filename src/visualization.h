@@ -28,6 +28,8 @@ class Visualization {
                  const std::vector<Score>& scores);
   void ShowFocus(const Ogre::Vector3& focus);
   void ShowViewpoint(const Viewpoint& viewpoint);
+  void MakeCameraMarker(const Viewpoint& viewpoint, float score,
+                        Marker* marker);
  private:
   ros::NodeHandle root_nh_;
   ros::Publisher marker_pub_;
@@ -42,8 +44,6 @@ class Visualization {
   void FlushMarkers(std::string ns, int max_id);
 
   void MakeFocusMarker(const Ogre::Vector3& focus, Marker* marker);
-  void MakeCameraMarker(const Viewpoint& viewpoint, const Score& score,
-                        Marker* marker);
   void MakeTextMarker(const Viewpoint& viewpoint, const Score& score,
                       Marker* marker);
   void MakeCurrentViewpointMarker(const Viewpoint& viewpoint, Marker* marker);
