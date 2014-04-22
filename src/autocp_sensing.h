@@ -53,7 +53,7 @@ class AutoCPSensing {
   Ogre::Vector3* left_gripper_position();
   Ogre::Vector3* right_gripper_position();
   std::vector<Ogre::Vector3>* segmented_object_positions();
-  ClickedControl* current_control(bool only_move_on_idle);
+  ClickedControl* previous_control();
   Landmarks* landmarks();
   bool IsControlActive();
 

@@ -81,18 +81,8 @@ std::vector<Ogre::Vector3>* AutoCPSensing::segmented_object_positions() {
   return &segmented_object_positions_;
 }
 
-/*
- * Gets the current control according to some definition of "current." If we
- * only want to move the camera when it's idle, then the "current" control is
- * the last used control. Otherwise, the current control is whatever control the
- * user is currently manipulating.
- */
-ClickedControl* AutoCPSensing::current_control(bool only_move_on_idle) {
-  if (only_move_on_idle) {
-    return previous_control_;
-  } else {
-    return active_control_;
-  }
+ClickedControl* AutoCPSensing::previous_control() {
+  return previous_control_;
 }
 
 Landmarks* AutoCPSensing::landmarks() {
