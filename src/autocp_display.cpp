@@ -56,15 +56,8 @@ AutoCPDisplay::AutoCPDisplay()
   segmented_object_weight_->setMax(1);
 
   // Weights on location.
-  stay_in_place_weight_ = new rviz::FloatProperty(
-      "Movement moderation weight", 0.1,
-      "How much weight to points close to the current location.", this,
-      SLOT(updateWeights()));
-  stay_in_place_weight_->setMin(0);
-  stay_in_place_weight_->setMax(1);
-
   be_orthogonal_weight_ = new rviz::FloatProperty(
-      "Marker orthogonality weight", 0.4,
+      "Marker orthogonality weight", 0.25,
       "How much weight to assign to points orthogonal to the current marker.",
       this, SLOT(updateWeights()));
   be_orthogonal_weight_->setMin(0);
@@ -79,25 +72,18 @@ AutoCPDisplay::AutoCPDisplay()
   stay_visible_weight_->setMax(1);
 
   centering_weight_ = new rviz::FloatProperty(
-      "Centering weight", 0.15,
+      "Centering weight", 0.25,
       "How much weight to assign to having landmarks centered on screen.",
       this, SLOT(updateWeights()));
   centering_weight_->setMin(0);
   centering_weight_->setMax(1);
 
   zoom_weight_ = new rviz::FloatProperty(
-      "Zoom weight", 0.1,
+      "Zoom weight", 0.25,
       "How much weight to assign to being close to landmarks.", this,
       SLOT(updateWeights()));
   zoom_weight_->setMin(0);
   zoom_weight_->setMax(1);
-
-  crossing_weight_ = new rviz::FloatProperty(
-      "Line crossing weight", 0,
-      "Weight for not flipping the user interface when using a control.", this,
-      SLOT(updateWeights()));
-  crossing_weight_->setMin(0);
-  crossing_weight_->setMax(1);
 
   // Other properties.
   score_threshold_ = new rviz::FloatProperty(
@@ -106,18 +92,6 @@ AutoCPDisplay::AutoCPDisplay()
       this, SLOT(updateWeights()));
   score_threshold_->setMin(0);
   score_threshold_->setMax(30);
-
-  camera_speed_ = new rviz::FloatProperty(
-      "Camera speed", 3, "How many m/s the camera can move.",
-      this, SLOT(updateCameraOptions()));
-  camera_speed_->setMin(0);
-  camera_speed_->setMax(10);
-
-  focus_speed_ = new rviz::FloatProperty(
-      "Focus speed", 0.5, "How many m/s the camera's focus point can move.",
-      this, SLOT(updateCameraOptions()));
-  focus_speed_->setMin(0);
-  focus_speed_->setMax(10);
 
   min_zoom_ = new rviz::FloatProperty(
       "Minimum zoom", 0.5, "Minimum distance to zoom into landmarks.",
@@ -130,18 +104,6 @@ AutoCPDisplay::AutoCPDisplay()
       this, SLOT(updateWeights()));
   max_zoom_->setMin(0);
   max_zoom_->setMax(10);
-
-  max_travel_ = new rviz::FloatProperty(
-      "Maximum travel distance", 1,
-      "Traveling distance per frame for the maximum traveling penalty.",
-      this, SLOT(updateWeights()));
-  max_travel_->setMin(0);
-  max_travel_->setMax(10);
-
-  only_move_on_idle_ = new rviz::BoolProperty(
-      "Don't move when using a marker", false,
-      "Restricts camera repositioning to when no marker is being used.", this,
-      SLOT(updateSmoothnessOption()));
 
   occlusion_check_limit_ = new rviz::IntProperty(
       "Occlusion check limit", 1000,
@@ -260,17 +222,10 @@ void AutoCPDisplay::updateWeights() {
   optimization_->set_centering_weight(centering_weight_->getFloat());
   optimization_->set_view_angle_weight(be_orthogonal_weight_->getFloat());
   optimization_->set_zoom_weight(zoom_weight_->getFloat());
-  optimization_->set_travel_weight(stay_in_place_weight_->getFloat());
-  optimization_->set_crossing_weight(crossing_weight_->getFloat());
   optimization_->set_score_threshold(score_threshold_->getFloat());
   optimization_->set_max_visibility_checks(occlusion_check_limit_->getInt());
   optimization_->set_min_zoom(min_zoom_->getFloat());
   optimization_->set_max_zoom(max_zoom_->getFloat());
-  optimization_->set_max_travel(max_travel_->getFloat());
-}
-
-void AutoCPDisplay::updateSmoothnessOption() {
-  optimization_->set_only_move_on_idle(only_move_on_idle_->getBool());
 }
 
 // Camera placement logic ------------------------------------------------------
@@ -281,7 +236,6 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (sensing_->landmarks()->NumLandmarks() == 0) {
     return;
   }
-  current_viewpoint_.position = camera_->getPosition();
   chooseCameraPlacement(wall_dt);
 
   if (show_fps_->getBool()) {
@@ -295,22 +249,13 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  if (!only_move_on_idle_->getBool() || !sensing_->IsControlActive()) {
-    optimization_->ChooseViewpoint(current_viewpoint_, &target_viewpoint_);
-  }
-  Viewpoint next_viewpoint;
-  //interpolateViewpoint(current_viewpoint_, target_viewpoint_,
-  //                     camera_speed_->getFloat(), focus_speed_->getFloat(),
-  //                     time_delta, &next_viewpoint);
-  visualization_->ShowFocus(next_viewpoint.focus);
-
-  //view_controller_msgs::CameraPlacement camera_placement;
-  //setCameraPlacement(next_viewpoint, ros::Duration(time_delta),
-  //                   &camera_placement);
-  //camera_placement_publisher_.publish(camera_placement);
-  //MakeButtonMarker(target_viewpoint_.position);
+  current_viewpoint_.position = camera_->getPosition();
+  geometry_msgs::Point focus;
+  QuaternionToFocus(ToGeometryMsgsQuaternion(camera_->getOrientation()),
+                    ToGeometryMsgsPoint(current_viewpoint_.position), &focus);
+  current_viewpoint_.focus = ToOgreVector3(focus);
+  optimization_->ChooseViewpoint(current_viewpoint_, &target_viewpoint_);
   OfferViewpoint(target_viewpoint_);
-  current_viewpoint_ = target_viewpoint_;
 }
 
 // Utilities -------------------------------------------------------------------
