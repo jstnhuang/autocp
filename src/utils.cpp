@@ -1,11 +1,11 @@
-#include "utils.h"
 
 #include <OGRE/OgreVector3.h>
 #include <ros/ros.h>
 
-#include "models/clicked_control.h"
-#include "models/control_6dof.h"
-#include "models/viewpoint.h"
+#include "autocp/utils.h"
+#include "autocp/models/clicked_control.h"
+#include "autocp/models/control_6dof.h"
+#include "autocp/models/viewpoint.h"
 
 namespace autocp {
 /**

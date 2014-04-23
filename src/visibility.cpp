@@ -2,7 +2,7 @@
  * Module for doing visibility checks.
  */
 
-#include "visibility.h"
+#include "autocp/visibility.h"
 
 namespace autocp {
 /*

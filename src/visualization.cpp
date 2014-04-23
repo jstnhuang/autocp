@@ -2,7 +2,7 @@
  * Visualization module.
  */
 
-#include "visualization.h"
+#include "autocp/visualization.h"
 
 namespace autocp {
 using visualization_msgs::Marker;

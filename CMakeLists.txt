@@ -80,8 +80,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES autocp
+  INCLUDE_DIRS include
+  #  LIBRARIES autocp
   CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
@@ -93,6 +93,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -103,28 +104,18 @@ include (${QT_USE_FILE})
 add_definitions(-DQT_NO_KEYWORDS)
 
 qt4_wrap_cpp(MOC_FILES
-  src/autocp_display.h
+  include/${PROJECT_NAME}/autocp_display.h
 )
 
 set(CMAKE_CXX_FLAGS "-std=c++0x")
 
 set(SOURCE_FILES
-  src/models/clicked_control.h
-  src/models/control_6dof.h
-  src/models/score.h
-  src/models/viewpoint.h
   src/autocp_display.cpp
-  src/autocp_sensing.h
   src/autocp_sensing.cpp
-  src/landmarks.h
   src/landmarks.cpp
-  src/optimization.h
   src/optimization.cpp
-  src/utils.h
   src/utils.cpp
-  src/visibility.h
   src/visibility.cpp
-  src/visualization.h
   src/visualization.cpp
   ${MOC_FILES}
 )
