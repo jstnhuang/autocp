@@ -39,6 +39,11 @@ Landmarks::~Landmarks() {
  * Returns all the existing landmarks as a vector.
  */
 void Landmarks::LandmarksVector(std::vector<Landmark>* landmarks) {
+  if (landmarks == NULL) {
+    return;
+  }
+  landmarks->clear();
+
   if (l_gripper_.exists && l_gripper_.weight > 0) {
     landmarks->push_back(l_gripper_);
   }
