@@ -19,8 +19,8 @@ Landmarks::~Landmarks() {
 /*
  * Returns the weighted center of all the landmarks.
  */
- Ogre::Vector3 Landmarks::Center() {
-  Ogre::Vector3 center;
+Ogre::Vector3 Landmarks::Center() {
+  Ogre::Vector3 center(0, 0, 0);
   std::vector<Landmark> landmarks;
   LandmarksVector(&landmarks);
   float normalizer = 0;
@@ -30,6 +30,7 @@ Landmarks::~Landmarks() {
       center += landmark.weight * landmark.position;
     }
   }
+
   center /= normalizer;
   return center;
 }
