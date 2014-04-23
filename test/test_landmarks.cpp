@@ -97,9 +97,7 @@ TEST(LandmarksTest, SegmentedObjectsSplitWeight) {
   landmarks.UpdateHeadWeight(0.5);
 
   auto center = landmarks.Center();
-  EXPECT_FLOAT_EQ(0, center.z);
-  EXPECT_FLOAT_EQ(0, center.z);
-  EXPECT_FLOAT_EQ(-0.25, center.z);
+  EXPECT_EQ(Ogre::Vector3(0, 0, -0.25), center);
 }
 
 TEST(LandmarksTest, CenterComputedByWeight) {
@@ -112,9 +110,7 @@ TEST(LandmarksTest, CenterComputedByWeight) {
   landmarks.UpdateHeadFocusWeight(0.75);
 
   auto center = landmarks.Center();
-  EXPECT_FLOAT_EQ(0, center.z);
-  EXPECT_FLOAT_EQ(0, center.z);
-  EXPECT_FLOAT_EQ(1.75, center.z);
+  EXPECT_EQ(Ogre::Vector3(0, 0, 1.75), center);
 }
 
 TEST(LandmarksTest, ZeroWeightNotInCenter) {
@@ -127,9 +123,7 @@ TEST(LandmarksTest, ZeroWeightNotInCenter) {
   landmarks.UpdateHeadFocusWeight(0);
 
   auto center = landmarks.Center();
-  EXPECT_FLOAT_EQ(0, center.z);
-  EXPECT_FLOAT_EQ(0, center.z);
-  EXPECT_FLOAT_EQ(1, center.z);
+  EXPECT_EQ(Ogre::Vector3(0, 0, 1), center);
 }
 
 TEST(LandmarksTest, MetricComputedByWeight) {
@@ -144,7 +138,7 @@ TEST(LandmarksTest, MetricComputedByWeight) {
   auto z_metric = [&] (const Ogre::Vector3& point) -> float {
     return point.z;
   };
-  EXPECT_EQ(1.75, landmarks.ComputeMetric(z_metric));
+  EXPECT_FLOAT_EQ(1.75, landmarks.ComputeMetric(z_metric));
 }
 
 TEST(LandmarksTest, ZeroWeightNotInMetric) {
@@ -159,7 +153,7 @@ TEST(LandmarksTest, ZeroWeightNotInMetric) {
   auto z_metric = [&] (const Ogre::Vector3& point) -> float {
     return point.z;
   };
-  EXPECT_EQ(1, landmarks.ComputeMetric(z_metric));
+  EXPECT_FLOAT_EQ(1, landmarks.ComputeMetric(z_metric));
 }
 
 }
