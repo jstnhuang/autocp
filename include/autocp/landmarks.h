@@ -62,7 +62,6 @@ class Landmarks {
   // We save weights that are distributed between multiple objects. Weights
   // for single objects are just stored in the Landmark data structure.
   float segmented_object_weight_;
-  int num_landmarks_; // Number of existing landmarks.
 };
 
 template<typename MetricFunc>
