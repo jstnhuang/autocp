@@ -25,3 +25,4 @@ CTestTestfile.cmake
 catkin_generated/
 cmake_install.cmake
 src/*.cxx
+Testing/
