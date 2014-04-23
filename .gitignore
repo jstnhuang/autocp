@@ -19,10 +19,12 @@ scripts/cpplint.py
 .cproject
 .project
 .pydevproject
+Makefile
 CMakeCache.txt
 CMakeFiles/
 CTestTestfile.cmake
 catkin_generated/
 cmake_install.cmake
 src/*.cxx
+include/autocp/*.cxx
 Testing/
