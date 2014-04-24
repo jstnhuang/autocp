@@ -7,8 +7,12 @@ namespace autocp {
  * Constructor. Hooks up the display properties.
  */
 AutoCPDisplay::AutoCPDisplay()
-    : root_nh_(""), current_viewpoint_(), target_viewpoint_(), sensing_(NULL),
-      visualization_(NULL) {
+    : node_handle_(""),
+      tf_listener_(),
+      camera_placement_publisher_(),
+      sensing_(NULL),
+      visualization_(NULL),
+      optimization_(NULL) {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -17,41 +21,41 @@ AutoCPDisplay::AutoCPDisplay()
               ros::message_traits::datatype<
                   view_controller_msgs::CameraPlacement>()),
           "Topic on which to send out camera placement messages.", this,
-          SLOT(updateTopic()));
+          SLOT(UpdateTopic()));
 
   // Landmark weights.
   l_gripper_weight_ = new rviz::FloatProperty(
       "Left gripper focus weight", 0.20,
       "How much weight to assign to the left gripper's location.", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   l_gripper_weight_->setMin(0);
   l_gripper_weight_->setMax(1);
 
   r_gripper_weight_ = new rviz::FloatProperty(
       "Right gripper focus weight", 0.20,
       "How much weight to assign to the right gripper's location.", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   r_gripper_weight_->setMin(0);
   r_gripper_weight_->setMax(1);
 
   head_weight_ = new rviz::FloatProperty(
       "Head weight", 0.20,
       "How much weight to the location of the robot's head.", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   head_weight_->setMin(0);
   head_weight_->setMax(1);
 
   head_focus_weight_ = new rviz::FloatProperty(
       "Head focus point weight", 0.20,
       "How much weight to assign to the location the robot is looking.", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   head_focus_weight_->setMin(0);
   head_focus_weight_->setMax(1);
 
   segmented_object_weight_ = new rviz::FloatProperty(
       "Segmented object weight", 0.20,
       "How much weight to assign to the locations of segmented objects", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   segmented_object_weight_->setMin(0);
   segmented_object_weight_->setMax(1);
 
@@ -59,7 +63,7 @@ AutoCPDisplay::AutoCPDisplay()
   be_orthogonal_weight_ = new rviz::FloatProperty(
       "Marker orthogonality weight", 0.25,
       "How much weight to assign to points orthogonal to the current marker.",
-      this, SLOT(updateWeights()));
+      this, SLOT(UpdateWeights()));
   be_orthogonal_weight_->setMin(0);
   be_orthogonal_weight_->setMax(1);
 
@@ -67,21 +71,21 @@ AutoCPDisplay::AutoCPDisplay()
       "Marker visibility weight", 0.25,
       "How much weight to assign to points where the current marker is "
       "visible.",
-      this, SLOT(updateWeights()));
+      this, SLOT(UpdateWeights()));
   stay_visible_weight_->setMin(0);
   stay_visible_weight_->setMax(1);
 
   centering_weight_ = new rviz::FloatProperty(
       "Centering weight", 0.25,
       "How much weight to assign to having landmarks centered on screen.",
-      this, SLOT(updateWeights()));
+      this, SLOT(UpdateWeights()));
   centering_weight_->setMin(0);
   centering_weight_->setMax(1);
 
   zoom_weight_ = new rviz::FloatProperty(
       "Zoom weight", 0.25,
       "How much weight to assign to being close to landmarks.", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   zoom_weight_->setMin(0);
   zoom_weight_->setMax(1);
 
@@ -89,38 +93,41 @@ AutoCPDisplay::AutoCPDisplay()
   score_threshold_ = new rviz::FloatProperty(
       "Score improvement threshold", 1.05,
       "Factor by which the score must improve before adjusting the position.",
-      this, SLOT(updateWeights()));
+      this, SLOT(UpdateWeights()));
   score_threshold_->setMin(0);
   score_threshold_->setMax(30);
 
   min_zoom_ = new rviz::FloatProperty(
       "Minimum zoom", 0.5, "Minimum distance to zoom into landmarks.",
-      this, SLOT(updateWeights()));
+      this, SLOT(UpdateWeights()));
   min_zoom_->setMin(0);
   min_zoom_->setMax(10);
 
   max_zoom_ = new rviz::FloatProperty(
       "Maximum zoom", 5, "Maximum distance to zoom from landmarks.",
-      this, SLOT(updateWeights()));
+      this, SLOT(UpdateWeights()));
   max_zoom_->setMin(0);
   max_zoom_->setMax(10);
 
   occlusion_check_limit_ = new rviz::IntProperty(
       "Occlusion check limit", 1000,
       "The number of occlusions to check each frame.", this,
-      SLOT(updateWeights()));
+      SLOT(UpdateWeights()));
   occlusion_check_limit_->setMin(0);
   occlusion_check_limit_->setMax(100000);
 
   show_fps_ = new rviz::BoolProperty(
       "Show FPS", false, "Whether or not to show the frames per second.", this,
-      SLOT(updateCameraOptions()));
+      SLOT(UpdateCameraOptions()));
 }
 
 /**
  * Destructor.
  */
 AutoCPDisplay::~AutoCPDisplay() {
+  delete sensing_;
+  delete visualization_;
+  delete optimization_;
 }
 
 /**
@@ -128,33 +135,30 @@ AutoCPDisplay::~AutoCPDisplay() {
  */
 void AutoCPDisplay::onInitialize() {
   Display::onInitialize();
-  sensing_ = new AutoCPSensing(root_nh_, &tf_listener_,
+  sensing_ = new AutoCPSensing(node_handle_, &tf_listener_,
                                fixed_frame_.toStdString());
   sensing_->Initialize();
-  visualization_ = new Visualization(root_nh_, fixed_frame_.toStdString());
 
-  vm_ = static_cast<rviz::VisualizationManager*>(context_);
-  sm_ = vm_->getSceneManager();
-  camera_ = vm_->getRenderPanel()->getCamera();
+  visualization_ = new Visualization(node_handle_, fixed_frame_.toStdString());
 
-  auto visibility_checker = new VisibilityChecker(sm_, camera_);
+  auto visualization_manager = static_cast<rviz::VisualizationManager*>(
+      context_);
+  auto scene_manager = visualization_manager->getSceneManager();
+  auto camera = visualization_manager->getRenderPanel()->getCamera();
+  auto visibility_checker = new VisibilityChecker(scene_manager, camera);
   optimization_ = new Optimization(sensing_, visibility_checker,
-                                   camera_);
+                                   camera);
 
-  current_viewpoint_ = Viewpoint(camera_->getPosition(),
-                                 *(sensing_->head_position()));
-  target_viewpoint_ = current_viewpoint_;
-
-  updateTopic();
-  updateWeights();
+  UpdateTopic();
+  UpdateWeights();
 }
 
 // Parameter update handlers ---------------------------------------------------
 /**
  * Set the topic to publish camera placement commands to.
  */
-void AutoCPDisplay::updateTopic() {
-  camera_placement_publisher_ = root_nh_
+void AutoCPDisplay::UpdateTopic() {
+  camera_placement_publisher_ = node_handle_
       .advertise<view_controller_msgs::CameraPlacement>(
       topic_prop_->getStdString(), 5);
 }
@@ -162,14 +166,14 @@ void AutoCPDisplay::updateTopic() {
 /**
  * No-op for camera options.
  */
-void AutoCPDisplay::updateCameraOptions() {
+void AutoCPDisplay::UpdateCameraOptions() {
   return;
 }
 
 /**
  * Updates the weights.
  */
-void AutoCPDisplay::updateWeights() {
+void AutoCPDisplay::UpdateWeights() {
   auto landmarks = sensing_->landmarks();
   landmarks->UpdateLeftGripperWeight(l_gripper_weight_->getFloat());
   landmarks->UpdateRightGripperWeight(r_gripper_weight_->getFloat());
@@ -194,7 +198,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (sensing_->landmarks()->NumLandmarks() == 0) {
     return;
   }
-  chooseCameraPlacement(wall_dt);
+  ChooseCameraPlacement(wall_dt);
 
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
@@ -206,21 +210,19 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * Get the final focus point and location for the camera, then push the camera
  * placement.
  */
-void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  current_viewpoint_.set_position(camera_->getPosition());
-  geometry_msgs::Point focus;
-  QuaternionToFocus(ToGeometryMsgsQuaternion(camera_->getOrientation()),
-                    ToGeometryMsgsPoint(current_viewpoint_.position()), &focus);
-  current_viewpoint_.set_focus(ToOgreVector3(focus));
-  optimization_->ChooseViewpoint(current_viewpoint_, &target_viewpoint_);
-//  OfferViewpoint(target_viewpoint_);
+void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
+  std::vector<Viewpoint> target_viewpoints;
+  optimization_->ChooseViewpoint(NULL, 1, &target_viewpoints);
+  if (target_viewpoints.size() > 0) {
+    visualization_->ShowViewpoint(target_viewpoints[0]);
+  }
 }
 
 // Utilities -------------------------------------------------------------------
 /**
  * Convenience method to set the camera placement.
  */
-void AutoCPDisplay::setCameraPlacement(
+void AutoCPDisplay::SetCameraPlacement(
     const Viewpoint& viewpoint,
     const ros::Duration& time_from_start,
     view_controller_msgs::CameraPlacement* camera_placement) {

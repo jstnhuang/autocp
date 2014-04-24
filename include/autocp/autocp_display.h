@@ -57,25 +57,20 @@ Q_OBJECT
   virtual void update(float wall_dt, float ros_dt);
 
  private Q_SLOTS:
-  void updateTopic();
-  void updateWeights();
-  void updateCameraOptions();
+  void UpdateTopic();
+  void UpdateWeights();
+  void UpdateCameraOptions();
 
  private:
-  ros::NodeHandle root_nh_;
+  ros::NodeHandle node_handle_;
   tf::TransformListener tf_listener_;
-  rviz::VisualizationManager* vm_;
-  Ogre::SceneManager* sm_;
-  Ogre::Camera* camera_;
-
-  Viewpoint current_viewpoint_;
-  Viewpoint target_viewpoint_;
+  ros::Publisher camera_placement_publisher_;
 
   AutoCPSensing* sensing_;
   Visualization* visualization_;
   Optimization* optimization_;
 
-  rviz::BoolProperty* show_fps_;
+  rviz::RosTopicProperty* topic_prop_;
 
   // Landmark weights.
   rviz::FloatProperty* l_gripper_weight_;
@@ -90,6 +85,8 @@ Q_OBJECT
   rviz::FloatProperty* centering_weight_;
   rviz::FloatProperty* zoom_weight_;
 
+  rviz::BoolProperty* show_fps_;
+
   // Smoothness controls.
   rviz::FloatProperty* score_threshold_;
 
@@ -99,10 +96,8 @@ Q_OBJECT
   rviz::IntProperty* occlusion_check_limit_;
 
   // Camera placement.
-  rviz::RosTopicProperty* topic_prop_;
-  ros::Publisher camera_placement_publisher_;
-  void chooseCameraPlacement(float time_delta);
-  static void setCameraPlacement(
+  void ChooseCameraPlacement(float time_delta);
+  static void SetCameraPlacement(
       const Viewpoint& viewpoint,
       const ros::Duration& time_from_start,
       view_controller_msgs::CameraPlacement* camera_placement);

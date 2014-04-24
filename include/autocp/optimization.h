@@ -19,8 +19,9 @@ class Optimization {
   Optimization(AutoCPSensing* sensing, VisibilityChecker* visibility_checker,
                Ogre::Camera* camera);
   ~Optimization();
-  void ChooseViewpoint(const Viewpoint& current_viewpoint,
-                       Viewpoint* target_viewpoint);
+  void ChooseViewpoint(const Ogre::Vector3* nearby_point,
+                       int num_results,
+                       std::vector<Viewpoint>* results);
   void set_visibility_weight(float weight);
   void set_centering_weight(float weight);
   void set_view_angle_weight(float weight);

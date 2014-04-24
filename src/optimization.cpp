@@ -1,5 +1,6 @@
 
 #include <algorithm>
+#include <queue>
 
 #include <OGRE/OgreVector3.h>
 #include <ros/ros.h>
@@ -32,54 +33,31 @@ Optimization::Optimization(AutoCPSensing* sensing,
 Optimization::~Optimization() {
 }
 
-void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
-                                   Viewpoint* target_viewpoint) {
-  std::vector<Viewpoint> test_viewpoints;
-  std::vector<Score> scores;
-
-  // Assume that the current position is the best, to start with.
-  //Score current_score;
-  //ComputeViewpointScore(current_viewpoint, current_viewpoint, &current_score);
-  //Viewpoint best_viewpoint = current_viewpoint;
-  //Score best_score = current_score;
-  //test_viewpoints.push_back(current_viewpoint);
-  //scores.push_back(current_score);
-  //*target_viewpoint = current_viewpoint;
-
-  Score best_score;
-  Viewpoint best_viewpoint;
-
-  Score target_score;
-  ComputeViewpointScore(*target_viewpoint, &target_score);
-  test_viewpoints.push_back(*target_viewpoint);
-  scores.push_back(target_score);
-  best_score = target_score;
-  best_viewpoint = *target_viewpoint;
+void Optimization::ChooseViewpoint(const Ogre::Vector3* nearby_point,
+                                   int num_results,
+                                   std::vector<Viewpoint>* results) {
+  std::priority_queue<Viewpoint, std::vector<Viewpoint>,
+                      Viewpoint::HasHigherScore> test_viewpoints;
 
   std::vector<Viewpoint> viewpoints;
-  SelectViewpoints(&viewpoints);
-
-  for (const auto& viewpoint : viewpoints) {
-    Score score;
-    ComputeViewpointScore(viewpoint, &score);
-    test_viewpoints.push_back(viewpoint);
-    scores.push_back(score);
-
-    if (score.score > best_score.score) {
-      best_viewpoint = viewpoint;
-      best_score = score;
-    }
+  if (nearby_point == NULL) {
+    // TODO: Select viewpoints near the point.
+    SelectViewpoints(&viewpoints);
+  } else {
+    SelectViewpoints(&viewpoints);
   }
 
-  if (best_score.score > score_threshold_ * target_score.score) {
-    visualization_->ShowViewpoints(test_viewpoints, scores);
-    auto best_position = best_viewpoint.position();
-    ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=(%.2f, %.2f, %.2f)=%s",
-             best_position.x, best_position.y, best_position.z,
-             best_score.toString().c_str(), target_viewpoint->position().x,
-             target_viewpoint->position().y, target_viewpoint->position().z,
-             target_score.toString().c_str());
-    *target_viewpoint = best_viewpoint;
+  for (auto& viewpoint : viewpoints) {
+    Score score;
+    ComputeViewpointScore(viewpoint, &score);
+    viewpoint.set_score(score);
+    test_viewpoints.push(viewpoint);
+  }
+
+  for (int i = 0; i < num_results; i++) {
+    auto top = test_viewpoints.top();
+    results->push_back(top);
+    test_viewpoints.pop();
   }
 }
 
