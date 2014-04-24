@@ -10,9 +10,8 @@
 namespace autocp {
 
 Optimization::Optimization(AutoCPSensing* sensing,
-                           Ogre::SceneManager* scene_manager,
-                           Ogre::Camera* camera,
-                           Visualization* visualization)
+                           VisibilityChecker* visibility_checker,
+                           Ogre::Camera* camera)
     : standard_offsets_(),
       offset_index_(0),
       visibility_weight_(0),
@@ -28,9 +27,8 @@ Optimization::Optimization(AutoCPSensing* sensing,
       max_zoom_(5),
       max_travel_(1) {
   sensing_ = sensing;
+  visibility_checker_ = visibility_checker;
   camera_ = camera;
-  visualization_ = visualization;
-  visibility_checker_ = new VisibilityChecker(scene_manager, camera);
   InitializeStandardOffsets();
 }
 

@@ -16,8 +16,8 @@ static const float kR2 = 0.70710678118; // sqrt(2) / 2
 
 class Optimization {
  public:
-  Optimization(AutoCPSensing* sensing, Ogre::SceneManager* scene_manager,
-               Ogre::Camera* camera, Visualization* visualization);
+  Optimization(AutoCPSensing* sensing, VisibilityChecker* visibility_checker,
+               Ogre::Camera* camera);
   ~Optimization();
   void ChooseViewpoint(const Viewpoint& current_viewpoint,
                        Viewpoint* target_viewpoint);

@@ -175,7 +175,9 @@ void AutoCPDisplay::onInitialize() {
   sm_ = vm_->getSceneManager();
   camera_ = vm_->getRenderPanel()->getCamera();
 
-  optimization_ = new Optimization(sensing_, sm_, camera_, visualization_);
+  auto visibility_checker = new VisibilityChecker(sm_, camera_);
+  optimization_ = new Optimization(sensing_, visibility_checker,
+                                   camera_);
 
   current_viewpoint_ = Viewpoint(camera_->getPosition(),
                                  *(sensing_->head_position()));
