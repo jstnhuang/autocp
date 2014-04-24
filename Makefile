@@ -147,6 +147,48 @@ depend:
 .PHONY : depend
 
 # Convenience name for target.
+autocp/CMakeFiles/_run_tests_autocp.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/_run_tests_autocp.dir/rule
+.PHONY : autocp/CMakeFiles/_run_tests_autocp.dir/rule
+
+# Convenience name for target.
+_run_tests_autocp: autocp/CMakeFiles/_run_tests_autocp.dir/rule
+.PHONY : _run_tests_autocp
+
+# fast build rule for target.
+_run_tests_autocp/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/_run_tests_autocp.dir/build.make autocp/CMakeFiles/_run_tests_autocp.dir/build
+.PHONY : _run_tests_autocp/fast
+
+# Convenience name for target.
+autocp/CMakeFiles/_run_tests_autocp_gtest.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/_run_tests_autocp_gtest.dir/rule
+.PHONY : autocp/CMakeFiles/_run_tests_autocp_gtest.dir/rule
+
+# Convenience name for target.
+_run_tests_autocp_gtest: autocp/CMakeFiles/_run_tests_autocp_gtest.dir/rule
+.PHONY : _run_tests_autocp_gtest
+
+# fast build rule for target.
+_run_tests_autocp_gtest/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/_run_tests_autocp_gtest.dir/build.make autocp/CMakeFiles/_run_tests_autocp_gtest.dir/build
+.PHONY : _run_tests_autocp_gtest/fast
+
+# Convenience name for target.
+autocp/CMakeFiles/_run_tests_autocp_gtest_autocp-test.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/_run_tests_autocp_gtest_autocp-test.dir/rule
+.PHONY : autocp/CMakeFiles/_run_tests_autocp_gtest_autocp-test.dir/rule
+
+# Convenience name for target.
+_run_tests_autocp_gtest_autocp-test: autocp/CMakeFiles/_run_tests_autocp_gtest_autocp-test.dir/rule
+.PHONY : _run_tests_autocp_gtest_autocp-test
+
+# fast build rule for target.
+_run_tests_autocp_gtest_autocp-test/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/_run_tests_autocp_gtest_autocp-test.dir/build.make autocp/CMakeFiles/_run_tests_autocp_gtest_autocp-test.dir/build
+.PHONY : _run_tests_autocp_gtest_autocp-test/fast
+
+# Convenience name for target.
 autocp/CMakeFiles/actionlib_msgs_generate_messages_cpp.dir/rule:
 	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/actionlib_msgs_generate_messages_cpp.dir/rule
 .PHONY : autocp/CMakeFiles/actionlib_msgs_generate_messages_cpp.dir/rule
@@ -201,6 +243,20 @@ autocp: autocp/CMakeFiles/autocp.dir/rule
 autocp/fast:
 	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/build
 .PHONY : autocp/fast
+
+# Convenience name for target.
+autocp/CMakeFiles/autocp-test.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/autocp-test.dir/rule
+.PHONY : autocp/CMakeFiles/autocp-test.dir/rule
+
+# Convenience name for target.
+autocp-test: autocp/CMakeFiles/autocp-test.dir/rule
+.PHONY : autocp-test
+
+# fast build rule for target.
+autocp-test/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp-test.dir/build.make autocp/CMakeFiles/autocp-test.dir/build
+.PHONY : autocp-test/fast
 
 # Convenience name for target.
 autocp/CMakeFiles/control_msgs_generate_messages_cpp.dir/rule:
@@ -285,6 +341,48 @@ geometry_msgs_generate_messages_py: autocp/CMakeFiles/geometry_msgs_generate_mes
 geometry_msgs_generate_messages_py/fast:
 	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/geometry_msgs_generate_messages_py.dir/build.make autocp/CMakeFiles/geometry_msgs_generate_messages_py.dir/build
 .PHONY : geometry_msgs_generate_messages_py/fast
+
+# Convenience name for target.
+autocp/CMakeFiles/run_tests_autocp.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/run_tests_autocp.dir/rule
+.PHONY : autocp/CMakeFiles/run_tests_autocp.dir/rule
+
+# Convenience name for target.
+run_tests_autocp: autocp/CMakeFiles/run_tests_autocp.dir/rule
+.PHONY : run_tests_autocp
+
+# fast build rule for target.
+run_tests_autocp/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/run_tests_autocp.dir/build.make autocp/CMakeFiles/run_tests_autocp.dir/build
+.PHONY : run_tests_autocp/fast
+
+# Convenience name for target.
+autocp/CMakeFiles/run_tests_autocp_gtest.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/run_tests_autocp_gtest.dir/rule
+.PHONY : autocp/CMakeFiles/run_tests_autocp_gtest.dir/rule
+
+# Convenience name for target.
+run_tests_autocp_gtest: autocp/CMakeFiles/run_tests_autocp_gtest.dir/rule
+.PHONY : run_tests_autocp_gtest
+
+# fast build rule for target.
+run_tests_autocp_gtest/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/run_tests_autocp_gtest.dir/build.make autocp/CMakeFiles/run_tests_autocp_gtest.dir/build
+.PHONY : run_tests_autocp_gtest/fast
+
+# Convenience name for target.
+autocp/CMakeFiles/run_tests_autocp_gtest_autocp-test.dir/rule:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f CMakeFiles/Makefile2 autocp/CMakeFiles/run_tests_autocp_gtest_autocp-test.dir/rule
+.PHONY : autocp/CMakeFiles/run_tests_autocp_gtest_autocp-test.dir/rule
+
+# Convenience name for target.
+run_tests_autocp_gtest_autocp-test: autocp/CMakeFiles/run_tests_autocp_gtest_autocp-test.dir/rule
+.PHONY : run_tests_autocp_gtest_autocp-test
+
+# fast build rule for target.
+run_tests_autocp_gtest_autocp-test/fast:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/run_tests_autocp_gtest_autocp-test.dir/build.make autocp/CMakeFiles/run_tests_autocp_gtest_autocp-test.dir/build
+.PHONY : run_tests_autocp_gtest_autocp-test/fast
 
 # Convenience name for target.
 autocp/CMakeFiles/std_msgs_generate_messages_cpp.dir/rule:
@@ -412,6 +510,30 @@ view_controller_msgs_generate_messages_py/fast:
 	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/view_controller_msgs_generate_messages_py.dir/build.make autocp/CMakeFiles/view_controller_msgs_generate_messages_py.dir/build
 .PHONY : view_controller_msgs_generate_messages_py/fast
 
+include/autocp/moc_autocp_display.o: include/autocp/moc_autocp_display.cxx.o
+.PHONY : include/autocp/moc_autocp_display.o
+
+# target to build an object file
+include/autocp/moc_autocp_display.cxx.o:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/include/autocp/moc_autocp_display.cxx.o
+.PHONY : include/autocp/moc_autocp_display.cxx.o
+
+include/autocp/moc_autocp_display.i: include/autocp/moc_autocp_display.cxx.i
+.PHONY : include/autocp/moc_autocp_display.i
+
+# target to preprocess a source file
+include/autocp/moc_autocp_display.cxx.i:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/include/autocp/moc_autocp_display.cxx.i
+.PHONY : include/autocp/moc_autocp_display.cxx.i
+
+include/autocp/moc_autocp_display.s: include/autocp/moc_autocp_display.cxx.s
+.PHONY : include/autocp/moc_autocp_display.s
+
+# target to generate assembly for a file
+include/autocp/moc_autocp_display.cxx.s:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/include/autocp/moc_autocp_display.cxx.s
+.PHONY : include/autocp/moc_autocp_display.cxx.s
+
 src/autocp_display.o: src/autocp_display.cpp.o
 .PHONY : src/autocp_display.o
 
@@ -484,29 +606,29 @@ src/landmarks.cpp.s:
 	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/landmarks.cpp.s
 .PHONY : src/landmarks.cpp.s
 
-src/moc_autocp_display.o: src/moc_autocp_display.cxx.o
-.PHONY : src/moc_autocp_display.o
+src/models/viewpoint.o: src/models/viewpoint.cpp.o
+.PHONY : src/models/viewpoint.o
 
 # target to build an object file
-src/moc_autocp_display.cxx.o:
-	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/moc_autocp_display.cxx.o
-.PHONY : src/moc_autocp_display.cxx.o
+src/models/viewpoint.cpp.o:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/models/viewpoint.cpp.o
+.PHONY : src/models/viewpoint.cpp.o
 
-src/moc_autocp_display.i: src/moc_autocp_display.cxx.i
-.PHONY : src/moc_autocp_display.i
+src/models/viewpoint.i: src/models/viewpoint.cpp.i
+.PHONY : src/models/viewpoint.i
 
 # target to preprocess a source file
-src/moc_autocp_display.cxx.i:
-	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/moc_autocp_display.cxx.i
-.PHONY : src/moc_autocp_display.cxx.i
+src/models/viewpoint.cpp.i:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/models/viewpoint.cpp.i
+.PHONY : src/models/viewpoint.cpp.i
 
-src/moc_autocp_display.s: src/moc_autocp_display.cxx.s
-.PHONY : src/moc_autocp_display.s
+src/models/viewpoint.s: src/models/viewpoint.cpp.s
+.PHONY : src/models/viewpoint.s
 
 # target to generate assembly for a file
-src/moc_autocp_display.cxx.s:
-	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/moc_autocp_display.cxx.s
-.PHONY : src/moc_autocp_display.cxx.s
+src/models/viewpoint.cpp.s:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/models/viewpoint.cpp.s
+.PHONY : src/models/viewpoint.cpp.s
 
 src/optimization.o: src/optimization.cpp.o
 .PHONY : src/optimization.o
@@ -604,16 +726,44 @@ src/visualization.cpp.s:
 	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp.dir/build.make autocp/CMakeFiles/autocp.dir/src/visualization.cpp.s
 .PHONY : src/visualization.cpp.s
 
+test/test_landmarks.o: test/test_landmarks.cpp.o
+.PHONY : test/test_landmarks.o
+
+# target to build an object file
+test/test_landmarks.cpp.o:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp-test.dir/build.make autocp/CMakeFiles/autocp-test.dir/test/test_landmarks.cpp.o
+.PHONY : test/test_landmarks.cpp.o
+
+test/test_landmarks.i: test/test_landmarks.cpp.i
+.PHONY : test/test_landmarks.i
+
+# target to preprocess a source file
+test/test_landmarks.cpp.i:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp-test.dir/build.make autocp/CMakeFiles/autocp-test.dir/test/test_landmarks.cpp.i
+.PHONY : test/test_landmarks.cpp.i
+
+test/test_landmarks.s: test/test_landmarks.cpp.s
+.PHONY : test/test_landmarks.s
+
+# target to generate assembly for a file
+test/test_landmarks.cpp.s:
+	cd /home/jstn/catkin_ws/src && $(MAKE) -f autocp/CMakeFiles/autocp-test.dir/build.make autocp/CMakeFiles/autocp-test.dir/test/test_landmarks.cpp.s
+.PHONY : test/test_landmarks.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
+	@echo "... _run_tests_autocp"
+	@echo "... _run_tests_autocp_gtest"
+	@echo "... _run_tests_autocp_gtest_autocp-test"
 	@echo "... actionlib_msgs_generate_messages_cpp"
 	@echo "... actionlib_msgs_generate_messages_lisp"
 	@echo "... actionlib_msgs_generate_messages_py"
 	@echo "... autocp"
+	@echo "... autocp-test"
 	@echo "... control_msgs_generate_messages_cpp"
 	@echo "... control_msgs_generate_messages_lisp"
 	@echo "... control_msgs_generate_messages_py"
@@ -626,6 +776,9 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
+	@echo "... run_tests_autocp"
+	@echo "... run_tests_autocp_gtest"
+	@echo "... run_tests_autocp_gtest_autocp-test"
 	@echo "... std_msgs_generate_messages_cpp"
 	@echo "... std_msgs_generate_messages_lisp"
 	@echo "... std_msgs_generate_messages_py"
@@ -636,6 +789,9 @@ help:
 	@echo "... view_controller_msgs_generate_messages_cpp"
 	@echo "... view_controller_msgs_generate_messages_lisp"
 	@echo "... view_controller_msgs_generate_messages_py"
+	@echo "... include/autocp/moc_autocp_display.o"
+	@echo "... include/autocp/moc_autocp_display.i"
+	@echo "... include/autocp/moc_autocp_display.s"
 	@echo "... src/autocp_display.o"
 	@echo "... src/autocp_display.i"
 	@echo "... src/autocp_display.s"
@@ -645,9 +801,9 @@ help:
 	@echo "... src/landmarks.o"
 	@echo "... src/landmarks.i"
 	@echo "... src/landmarks.s"
-	@echo "... src/moc_autocp_display.o"
-	@echo "... src/moc_autocp_display.i"
-	@echo "... src/moc_autocp_display.s"
+	@echo "... src/models/viewpoint.o"
+	@echo "... src/models/viewpoint.i"
+	@echo "... src/models/viewpoint.s"
 	@echo "... src/optimization.o"
 	@echo "... src/optimization.i"
 	@echo "... src/optimization.s"
@@ -660,6 +816,9 @@ help:
 	@echo "... src/visualization.o"
 	@echo "... src/visualization.i"
 	@echo "... src/visualization.s"
+	@echo "... test/test_landmarks.o"
+	@echo "... test/test_landmarks.i"
+	@echo "... test/test_landmarks.s"
 .PHONY : help
 
 
