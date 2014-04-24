@@ -12,7 +12,8 @@ AutoCPDisplay::AutoCPDisplay()
       camera_placement_publisher_(),
       sensing_(NULL),
       visualization_(NULL),
-      optimization_(NULL) {
+      optimization_(NULL),
+      current_viewpoint_(NULL) {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -148,7 +149,6 @@ void AutoCPDisplay::onInitialize() {
   auto visibility_checker = new VisibilityChecker(scene_manager, camera);
   optimization_ = new Optimization(sensing_, visibility_checker,
                                    camera);
-
   UpdateTopic();
   UpdateWeights();
 }
@@ -214,7 +214,18 @@ void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
   std::vector<Viewpoint> target_viewpoints;
   optimization_->ChooseViewpoint(NULL, 1, &target_viewpoints);
   if (target_viewpoints.size() > 0) {
-    visualization_->ShowViewpoint(target_viewpoints[0]);
+    auto top_viewpoint = target_viewpoints[0];
+    auto top_score = top_viewpoint.score().score;
+    auto threshold = score_threshold_->getFloat();
+    if (current_viewpoint_ == NULL ||
+        top_score > threshold * current_viewpoint_->score().score) {
+      visualization_->ShowViewpoint(top_viewpoint);
+      ROS_INFO("top: %.2f, %.2f, %.2f, %s",
+               top_viewpoint.position().x,
+               top_viewpoint.position().y,
+               top_viewpoint.position().z,
+               top_viewpoint.score().toString().c_str());
+    }
   }
 }
 

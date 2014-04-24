@@ -70,6 +70,9 @@ Q_OBJECT
   Visualization* visualization_;
   Optimization* optimization_;
 
+  Viewpoint* current_viewpoint_;
+
+  // Display properties
   rviz::RosTopicProperty* topic_prop_;
 
   // Landmark weights.
