@@ -3,6 +3,7 @@
 #include "autocp/models/viewpoint.h"
 
 namespace autocp {
+
 Viewpoint::Viewpoint()
     : position_(Ogre::Vector3::ZERO),
       focus_(Ogre::Vector3::ZERO),
@@ -39,8 +40,4 @@ void Viewpoint::set_score(const Score& score) {
   score_ = score;
 }
 
-bool Viewpoint::HasHigherScore(const Viewpoint& lhs,
-                               const Viewpoint& rhs) const {
-  return lhs.score_.score > rhs.score_.score;
-}
 }

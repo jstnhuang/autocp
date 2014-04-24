@@ -113,6 +113,7 @@ set(SOURCE_FILES
   src/autocp_display.cpp
   src/autocp_sensing.cpp
   src/landmarks.cpp
+  src/models/viewpoint.cpp
   src/optimization.cpp
   src/utils.cpp
   src/visibility.cpp

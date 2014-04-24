@@ -2,6 +2,7 @@
 #define VIEWPOINT_H
 
 #include <OGRE/OgreVector3.h>
+#include <boost/function.hpp>
 #include "autocp/models/score.h"
 
 namespace autocp {
@@ -16,7 +17,11 @@ class Viewpoint {
   void set_position(const Ogre::Vector3& position);
   void set_focus(const Ogre::Vector3& focus);
   void set_score(const Score& score);
-  bool HasHigherScore(const Viewpoint& lhs, const Viewpoint& rhs) const;
+  struct HasHigherScore {
+    bool operator()(const Viewpoint& left, const Viewpoint& right) {
+      return left.score().score > right.score().score;
+    }
+  };
 
  private:
   Ogre::Vector3 position_;
