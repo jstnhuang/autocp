@@ -64,10 +64,15 @@ void interpolateViewpoint(const Viewpoint& start,
                           float focus_speed,
                           float time_delta,
                           Viewpoint* result) {
-  interpolatePoint(start.position, end.position, position_speed, time_delta,
-                   &(result->position));
-  interpolatePoint(start.focus, end.focus, focus_speed, time_delta,
-                   &(result->focus));
+  Ogre::Vector3 next_position;
+  interpolatePoint(start.position(), end.position(), position_speed, time_delta,
+                   &next_position);
+  result->set_position(next_position);
+
+  Ogre::Vector3 next_focus;
+  interpolatePoint(start.focus(), end.focus(), focus_speed, time_delta,
+                   &next_focus);
+  result->set_focus(next_position);
 }
 
 /**
@@ -144,7 +149,7 @@ Ogre::Vector3 ToOgreVector3(const geometry_msgs::Point& point) {
  */
 void ViewpointToOrientation(const Viewpoint& viewpoint,
                             Ogre::Quaternion* orientation) {
-  Ogre::Vector3 diff = viewpoint.focus - viewpoint.position;
+  Ogre::Vector3 diff = viewpoint.focus() - viewpoint.position();
   auto ogre_orientation = Ogre::Vector3::UNIT_X.getRotationTo(diff);
   *orientation = Ogre::Vector3::UNIT_X.getRotationTo(diff);
 }

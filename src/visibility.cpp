@@ -46,8 +46,8 @@ bool VisibilityChecker::IsVisible(const Ogre::Vector3& point,
   float screen_y;
   auto old_position = camera_->getPosition();
   auto old_direction = camera_->getDirection();
-  camera_->setPosition(viewpoint.position);
-  camera_->lookAt(viewpoint.focus);
+  camera_->setPosition(viewpoint.position());
+  camera_->lookAt(viewpoint.focus());
   GetScreenPosition(point, &screen_x, &screen_y);
   bool result = false;
   if (IsOnScreen(screen_x, screen_y)) {

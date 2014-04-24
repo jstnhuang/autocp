@@ -2,23 +2,28 @@
 #define VIEWPOINT_H
 
 #include <OGRE/OgreVector3.h>
+#include "autocp/models/score.h"
 
 namespace autocp {
-struct Viewpoint {
-  Ogre::Vector3 position;
-  Ogre::Vector3 focus;
-  Viewpoint() {
-    this->position = Ogre::Vector3(0, 0, 0);
-    this->focus = Ogre::Vector3(0, 0, 0);
-  }
-  Viewpoint(const Ogre::Vector3& position, const Ogre::Vector3& focus) {
-    this->position = position;
-    this->focus = focus;
-  }
-  bool Equals(const Viewpoint& other) {
-    return other.position == position && other.focus == focus;
-  }
+
+class Viewpoint {
+ public:
+  Viewpoint();
+  Viewpoint(const Ogre::Vector3& position, const Ogre::Vector3& focus);
+  Ogre::Vector3 position() const;
+  Ogre::Vector3 focus() const;
+  Score score() const;
+  void set_position(const Ogre::Vector3& position);
+  void set_focus(const Ogre::Vector3& focus);
+  void set_score(const Score& score);
+  bool HasHigherScore(const Viewpoint& lhs, const Viewpoint& rhs) const;
+
+ private:
+  Ogre::Vector3 position_;
+  Ogre::Vector3 focus_;
+  Score score_;
 };
+
 }
 
 #endif

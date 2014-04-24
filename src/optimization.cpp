@@ -73,11 +73,11 @@ void Optimization::ChooseViewpoint(const Viewpoint& current_viewpoint,
 
   if (best_score.score > score_threshold_ * target_score.score) {
     visualization_->ShowViewpoints(test_viewpoints, scores);
-    auto best_position = best_viewpoint.position;
+    auto best_position = best_viewpoint.position();
     ROS_INFO("Moving to (%.2f, %.2f, %.2f), score=%s, prev=(%.2f, %.2f, %.2f)=%s",
              best_position.x, best_position.y, best_position.z,
-             best_score.toString().c_str(), target_viewpoint->position.x,
-             target_viewpoint->position.y, target_viewpoint->position.z,
+             best_score.toString().c_str(), target_viewpoint->position().x,
+             target_viewpoint->position().y, target_viewpoint->position().z,
              target_score.toString().c_str());
     *target_viewpoint = best_viewpoint;
   }
@@ -272,7 +272,7 @@ float Optimization::CenteringScore(const Viewpoint& viewpoint) {
 float Optimization::ViewAngleScore(const Viewpoint& viewpoint,
                                    const ClickedControl& control) {
   auto candidate_position_vector =
-      viewpoint.position - control.world_position;
+      viewpoint.position() - control.world_position;
   Ogre::Vector3 projection;
   ComputeControlProjection(control, candidate_position_vector,
                            &projection);
@@ -283,7 +283,7 @@ float Optimization::ViewAngleScore(const Viewpoint& viewpoint,
 
 float Optimization::ZoomScore(const Viewpoint& viewpoint) {
   auto zoom_metric = [&] (const Ogre::Vector3& point) -> float {
-    auto distance = point.distance(viewpoint.position);
+    auto distance = point.distance(viewpoint.position());
     if (distance < min_zoom_) {
       return 0;
     }

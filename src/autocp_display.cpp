@@ -207,13 +207,13 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::chooseCameraPlacement(float time_delta) {
-  current_viewpoint_.position = camera_->getPosition();
+  current_viewpoint_.set_position(camera_->getPosition());
   geometry_msgs::Point focus;
   QuaternionToFocus(ToGeometryMsgsQuaternion(camera_->getOrientation()),
-                    ToGeometryMsgsPoint(current_viewpoint_.position), &focus);
-  current_viewpoint_.focus = ToOgreVector3(focus);
+                    ToGeometryMsgsPoint(current_viewpoint_.position()), &focus);
+  current_viewpoint_.set_focus(ToOgreVector3(focus));
   optimization_->ChooseViewpoint(current_viewpoint_, &target_viewpoint_);
-  OfferViewpoint(target_viewpoint_);
+//  OfferViewpoint(target_viewpoint_);
 }
 
 // Utilities -------------------------------------------------------------------
@@ -235,13 +235,13 @@ void AutoCPDisplay::setCameraPlacement(
   camera_placement->up.header.stamp = ros::Time::now();
   camera_placement->up.header.frame_id = "<Fixed Frame>";
 
-  camera_placement->eye.point.x = viewpoint.position.x;
-  camera_placement->eye.point.y = viewpoint.position.y;
-  camera_placement->eye.point.z = viewpoint.position.z;
+  camera_placement->eye.point.x = viewpoint.position().x;
+  camera_placement->eye.point.y = viewpoint.position().y;
+  camera_placement->eye.point.z = viewpoint.position().z;
 
-  camera_placement->focus.point.x = viewpoint.focus.x;
-  camera_placement->focus.point.y = viewpoint.focus.y;
-  camera_placement->focus.point.z = viewpoint.focus.z;
+  camera_placement->focus.point.x = viewpoint.focus().x;
+  camera_placement->focus.point.y = viewpoint.focus().y;
+  camera_placement->focus.point.z = viewpoint.focus().z;
 
   camera_placement->up.vector.x = 0.0;
   camera_placement->up.vector.y = 0.0;
