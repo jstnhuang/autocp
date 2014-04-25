@@ -7,9 +7,11 @@
 
 #include <manipulation_msgs/GraspableObjectList.h>
 #include <control_msgs/PointHeadActionGoal.h>
+#include <ros/duration.h>
 #include <ros/node_handle.h>
 #include <ros/ros.h>
 #include <ros/subscriber.h>
+#include <ros/time.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <visualization_msgs/InteractiveMarkerInit.h>
@@ -46,7 +48,8 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
 enum class MarkerClickState {
   kStart,
   kDown,
-  kDownThenUp
+  kClick,
+  kDrag
 };
 
 class AutoCPSensing {
@@ -66,7 +69,8 @@ class AutoCPSensing {
   ClickedControl* previous_control();
   Landmarks* landmarks();
   Viewpoint current_viewpoint();
-  bool IsMouseUp();
+  bool IsMouseClick();
+  bool IsMouseDrag();
   bool IsControlActive();
 
  private:
@@ -93,6 +97,8 @@ class AutoCPSensing {
   ros::Subscriber marker_feedback_subscriber_;
   ros::Subscriber marker_feedback_full_subscriber_;
 
+  ros::Time mouse_down_time_;
+
   void GetTransformOrigin(std::string frame, Ogre::Vector3* result);
   void UpdateHeadPosition();
   void UpdateLeftGripperPosition();
@@ -107,6 +113,9 @@ class AutoCPSensing {
   void MarkerFeedbackFullCallback(
       const visualization_msgs::InteractiveMarkerInit& im_init);
 
+  // Helpers.
+  void DetectMouseEvent(
+      const visualization_msgs::InteractiveMarkerFeedback& feedback);
 };
 
 }

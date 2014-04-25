@@ -55,7 +55,8 @@ void AutoCPSensing::Update() {
   UpdateHeadPosition();
   UpdateLeftGripperPosition();
   UpdateRightGripperPosition();
-  if (marker_click_state_ == MarkerClickState::kDownThenUp) {
+  if (marker_click_state_ == MarkerClickState::kClick ||
+      marker_click_state_ == MarkerClickState::kDrag) {
     marker_click_state_ = MarkerClickState::kStart;
   }
 
@@ -105,8 +106,12 @@ Viewpoint AutoCPSensing::current_viewpoint() {
   return Viewpoint(ToOgreVector3(position), ToOgreVector3(focus));
 }
 
-bool AutoCPSensing::IsMouseUp() {
-  return marker_click_state_ == MarkerClickState::kDownThenUp;
+bool AutoCPSensing::IsMouseClick() {
+  return marker_click_state_ == MarkerClickState::kClick;
+}
+
+bool AutoCPSensing::IsMouseDrag() {
+  return marker_click_state_ == MarkerClickState::kDrag;
 }
 
 /*
@@ -170,19 +175,7 @@ void AutoCPSensing::ObjectSegmentationCallback(
  */
 void AutoCPSensing::MarkerFeedbackCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback) {
-  if (marker_click_state_ == MarkerClickState::kStart) {
-    if (feedback.event_type ==
-        visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN) {
-      marker_click_state_ = MarkerClickState::kDown;
-    }
-  } else if (marker_click_state_ == MarkerClickState::kDown) {
-    if (feedback.event_type ==
-        visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
-      marker_click_state_ = MarkerClickState::kDownThenUp;
-    }
-  } else {
-    marker_click_state_ = MarkerClickState::kStart;
-  }
+  DetectMouseEvent(feedback);
 
   if (feedback.event_type
       != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
@@ -253,6 +246,29 @@ void AutoCPSensing::MarkerFeedbackFullCallback(
       Ogre::Vector3 position(ros_position.x, ros_position.y, ros_position.z);
       landmarks_.UpdateLeftGripper(&position);
     }
+  }
+}
+
+void AutoCPSensing::DetectMouseEvent(
+    const visualization_msgs::InteractiveMarkerFeedback& feedback) {
+  if (marker_click_state_ == MarkerClickState::kStart) {
+    if (feedback.event_type ==
+        visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN) {
+      marker_click_state_ = MarkerClickState::kDown;
+      mouse_down_time_ = ros::Time::now();
+    }
+  } else if (marker_click_state_ == MarkerClickState::kDown) {
+    if (feedback.event_type ==
+        visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
+      auto click_time = ros::Time::now() - mouse_down_time_;
+      if (click_time < ros::Duration(0, 100000000)) {
+        marker_click_state_ = MarkerClickState::kClick;
+      } else {
+        marker_click_state_ = MarkerClickState::kDrag;
+      }
+    }
+  } else {
+    marker_click_state_ = MarkerClickState::kStart;
   }
 }
 

@@ -211,7 +211,7 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   }
 
   if (state_ == State::WAITING) {
-    if (sensing_->IsMouseUp()) {
+    if (sensing_->IsMouseClick()) {
       ChooseCameraPlacement(wall_dt);
       ROS_INFO("Target: %.2f, %.2f, %.2f = %s", target_viewpoint_.position().x,
                target_viewpoint_.position().y, target_viewpoint_.position().z,
