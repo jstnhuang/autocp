@@ -10,6 +10,7 @@ AutoCPSensing::AutoCPSensing(const ros::NodeHandle& root_nh,
 
   active_control_ = NULL;
   previous_control_ = NULL;
+  mouse_up_ = false;
 
   head_focus_subscriber_ = root_nh_.subscribe(
       "head_traj_controller/point_head_action/goal", 5,
@@ -89,6 +90,10 @@ Landmarks* AutoCPSensing::landmarks() {
   return &landmarks_;
 }
 
+bool AutoCPSensing::IsMouseUp() {
+  return mouse_up_;
+}
+
 /*
  * Returns: Whether the user is manipulating a control right now or not.
  */
@@ -150,6 +155,12 @@ void AutoCPSensing::ObjectSegmentationCallback(
  */
 void AutoCPSensing::MarkerFeedbackCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback) {
+  if (feedback.event_type ==
+      visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
+    mouse_up_ = true;
+  } else {
+    mouse_up_ = false;
+  }
   if (feedback.event_type
       != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
     return;

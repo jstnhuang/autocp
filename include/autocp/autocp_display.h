@@ -73,6 +73,7 @@ Q_OBJECT
   VisibilityChecker* visibility_checker_;
   Optimization* optimization_;
   Viewpoint* current_viewpoint_;
+  bool frozen_;
 
   // Display properties
   rviz::RosTopicProperty* topic_prop_;

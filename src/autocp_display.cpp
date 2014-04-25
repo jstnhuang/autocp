@@ -14,7 +14,8 @@ AutoCPDisplay::AutoCPDisplay()
       sensing_(NULL),
       visualization_(NULL),
       visibility_checker_(NULL),
-      optimization_(NULL) {
+      optimization_(NULL),
+      frozen_(true) {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -200,13 +201,15 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
     return;
   }
 
-  ChooseCameraPlacement(wall_dt);
+  if (!frozen_) {
+    ChooseCameraPlacement(wall_dt);
+    frozen_ = true;
+  }
 
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
   sensing_->Update();
-
 }
 
 /**
@@ -238,6 +241,9 @@ void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
                top_viewpoint.position().z,
                top_viewpoint.score().toString().c_str(),
                current_score.score);
+      view_controller_msgs::CameraPlacement message;
+      SetCameraPlacement(top_viewpoint, ros::Duration(0.5), &message);
+      camera_placement_publisher_.publish(message);
     }
   }
 }

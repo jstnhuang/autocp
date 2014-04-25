@@ -55,6 +55,7 @@ class AutoCPSensing {
   std::vector<Ogre::Vector3>* segmented_object_positions();
   ClickedControl* previous_control();
   Landmarks* landmarks();
+  bool IsMouseUp();
   bool IsControlActive();
 
  private:
@@ -69,6 +70,7 @@ class AutoCPSensing {
   Ogre::Vector3 left_gripper_position_;
   Ogre::Vector3 right_gripper_position_;
   std::vector<Ogre::Vector3> segmented_object_positions_;
+  bool mouse_up_;
 
   ClickedControl* active_control_;
   ClickedControl* previous_control_;
