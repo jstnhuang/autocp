@@ -1,4 +1,3 @@
-
 #include <algorithm>
 #include <queue>
 
@@ -11,9 +10,10 @@
 namespace autocp {
 
 Optimization::Optimization(AutoCPSensing* sensing,
-                           VisibilityChecker* visibility_checker,
-                           Ogre::Camera* camera)
-    : standard_offsets_(),
+                           VisibilityChecker* visibility_checker)
+    : sensing_(sensing),
+      visibility_checker_(visibility_checker),
+      standard_offsets_(),
       offset_index_(0),
       visibility_weight_(0),
       centering_weight_(0),
@@ -24,20 +24,17 @@ Optimization::Optimization(AutoCPSensing* sensing,
       min_zoom_(0.5),
       max_zoom_(5),
       max_travel_(1) {
-  sensing_ = sensing;
-  visibility_checker_ = visibility_checker;
-  camera_ = camera;
   InitializeStandardOffsets();
 }
 
 Optimization::~Optimization() {
 }
 
-void Optimization::ChooseViewpoint(const Ogre::Vector3* nearby_point,
+void Optimization::ChooseViewpoint(const Viewpoint* nearby_point,
                                    int num_results,
                                    std::vector<Viewpoint>* results) {
   std::priority_queue<Viewpoint, std::vector<Viewpoint>,
-                      Viewpoint::HasHigherScore> test_viewpoints;
+                      Viewpoint::LessThan> test_viewpoints;
 
   std::vector<Viewpoint> viewpoints;
   if (nearby_point == NULL) {
@@ -58,6 +55,48 @@ void Optimization::ChooseViewpoint(const Ogre::Vector3* nearby_point,
     auto top = test_viewpoints.top();
     results->push_back(top);
     test_viewpoints.pop();
+  }
+}
+
+void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
+                                         Score* score) {
+  float score_numerator = 0;
+  float score_denominator = 0;
+
+  // Visibility score.
+  float visibility_score = VisibilityScore(viewpoint);
+  score_numerator += visibility_weight_ * visibility_score;
+  score_denominator += visibility_weight_;
+  score->visibility = visibility_weight_ * visibility_score;
+
+  // Centering score.
+  float centering_score = CenteringScore(viewpoint);
+  score_numerator += centering_weight_ * centering_score;
+  score_denominator += centering_weight_;
+  score->centering = centering_weight_ * centering_score;
+
+  // Orthogonality score.
+  auto previous_control = sensing_->previous_control();
+  if (previous_control != NULL) {
+    float ortho_score = ViewAngleScore(viewpoint, *previous_control);
+    score_numerator += view_angle_weight_ * ortho_score;
+    score_denominator += view_angle_weight_;
+    score->orthogonality = view_angle_weight_ * ortho_score;
+  } else {
+    score->orthogonality = 0;
+  }
+
+  // Zoom score.
+  float zoom_score = ZoomScore(viewpoint);
+  score_numerator += zoom_weight_ * zoom_score;
+  score_denominator += zoom_weight_;
+  score->zoom = zoom_weight_ * zoom_score;
+
+  if (score_denominator != 0) {
+    score->score = score_numerator / score_denominator;
+  } else {
+    ROS_INFO("Warning: score function took nothing into account.");
+    score->score = -1;
   }
 }
 
@@ -180,47 +219,6 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
   }
 }
 
-void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
-                                         Score* score) {
-  float score_numerator = 0;
-  float score_denominator = 0;
-
-  // Visibility score.
-  float visibility_score = VisibilityScore(viewpoint);
-  score_numerator += visibility_weight_ * visibility_score;
-  score_denominator += visibility_weight_;
-  score->visibility = visibility_weight_ * visibility_score;
-
-  // Centering score.
-  float centering_score = CenteringScore(viewpoint);
-  score_numerator += centering_weight_ * centering_score;
-  score_denominator += centering_weight_;
-  score->centering = centering_weight_ * centering_score;
-
-  // Orthogonality score.
-  auto previous_control = sensing_->previous_control();
-  if (previous_control != NULL) {
-    float ortho_score = ViewAngleScore(viewpoint, *previous_control);
-    score_numerator += view_angle_weight_ * ortho_score;
-    score_denominator += view_angle_weight_;
-    score->orthogonality = view_angle_weight_ * ortho_score;
-  } else {
-    score->orthogonality = 0;
-  }
-
-  // Zoom score.
-  float zoom_score = ZoomScore(viewpoint);
-  score_numerator += zoom_weight_ * zoom_score;
-  score_denominator += zoom_weight_;
-  score->zoom = zoom_weight_ * zoom_score;
-
-  if (score_denominator != 0) {
-    score->score = score_numerator / score_denominator;
-  } else {
-    ROS_INFO("Warning: score function took nothing into account.");
-    score->score = -1;
-  }
-}
 
 float Optimization::VisibilityScore(const Viewpoint& viewpoint) {
   auto occlusion_metric = [&] (const Ogre::Vector3& point) -> float {
@@ -249,11 +247,10 @@ float Optimization::CenteringScore(const Viewpoint& viewpoint) {
 
 float Optimization::ViewAngleScore(const Viewpoint& viewpoint,
                                    const ClickedControl& control) {
-  auto candidate_position_vector =
-      viewpoint.position() - control.world_position;
+  auto candidate_position_vector = viewpoint.position()
+      - control.world_position;
   Ogre::Vector3 projection;
-  ComputeControlProjection(control, candidate_position_vector,
-                           &projection);
+  ComputeControlProjection(control, candidate_position_vector, &projection);
   float cosineAngle = candidate_position_vector.dotProduct(projection);
   float magProd = candidate_position_vector.length() * projection.length();
   return fabs(cosineAngle / magProd);

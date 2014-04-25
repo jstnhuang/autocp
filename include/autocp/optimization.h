@@ -4,11 +4,11 @@
 #include <OGRE/OgreCamera.h>
 #include <OGRE/OgreSceneManager.h>
 
-#include "models/score.h"
-#include "models/viewpoint.h"
-#include "autocp_sensing.h"
-#include "visibility.h"
-#include "visualization.h"
+#include "autocp/models/score.h"
+#include "autocp/models/viewpoint.h"
+#include "autocp/autocp_sensing.h"
+#include "autocp/visibility.h"
+#include "autocp/visualization.h"
 
 namespace autocp {
 
@@ -16,12 +16,12 @@ static const float kR2 = 0.70710678118; // sqrt(2) / 2
 
 class Optimization {
  public:
-  Optimization(AutoCPSensing* sensing, VisibilityChecker* visibility_checker,
-               Ogre::Camera* camera);
+  Optimization(AutoCPSensing* sensing, VisibilityChecker* visibility_checker);
   ~Optimization();
-  void ChooseViewpoint(const Ogre::Vector3* nearby_point,
+  void ChooseViewpoint(const Viewpoint* nearby_point,
                        int num_results,
                        std::vector<Viewpoint>* results);
+  void ComputeViewpointScore(const Viewpoint& viewpoint, Score* score);
   void set_visibility_weight(float weight);
   void set_centering_weight(float weight);
   void set_view_angle_weight(float weight);
@@ -34,8 +34,6 @@ class Optimization {
 
  private:
   AutoCPSensing* sensing_;
-  Ogre::Camera* camera_;
-  Visualization* visualization_;
   VisibilityChecker* visibility_checker_;
   std::vector<Ogre::Vector3> standard_offsets_;
   int offset_index_;
@@ -54,7 +52,6 @@ class Optimization {
 
   void InitializeStandardOffsets();
   void SelectViewpoints(std::vector<Viewpoint>* viewpoints);
-  void ComputeViewpointScore(const Viewpoint& viewpoint, Score* score);
 
   // Score functions.
   float VisibilityScore(const Viewpoint& viewpoint);
