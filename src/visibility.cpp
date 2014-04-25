@@ -149,7 +149,7 @@ bool VisibilityChecker::RaycastAABB(const Ogre::Ray& ray, Ogre::Vector3* hit) {
     auto name = result.movable->getName();
     // TODO: have the visibility checker pass in what we're looking for,
     // exactly.
-    if (result.distance &&
+    if (result.distance > 0 &&
         (name.find("Robot Link") != -1 || name.find("Shape") != -1)) {
       *hit = ray.getPoint(result.distance);
       return true;
