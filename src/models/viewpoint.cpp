@@ -40,4 +40,9 @@ void Viewpoint::set_score(const Score& score) {
   score_ = score;
 }
 
+bool Viewpoint::SamePose(const Viewpoint& other) {
+  return position_.distance(other.position()) < 0.01
+      && focus_.distance(other.focus()) < 0.01;
+}
+
 }
