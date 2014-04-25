@@ -24,8 +24,7 @@ class Visualization {
  public:
   Visualization(const ros::NodeHandle& root_node_handle,
                 std::string fixed_frame);
-  void ShowViewpoints(const std::vector<Viewpoint>& viewpoints,
-                 const std::vector<Score>& scores);
+  void ShowViewpoints(const std::vector<Viewpoint>& viewpoints);
   void ShowFocus(const Ogre::Vector3& focus);
   void ShowViewpoint(const Viewpoint& viewpoint);
  private:

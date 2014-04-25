@@ -32,13 +32,12 @@ Visualization::Visualization(const ros::NodeHandle& root_node_handle,
  *   viewpoints: The vector of viewpoints to visualize.
  *   scores: The vector of scores associated with each viewpoint.
  */
-void Visualization::ShowViewpoints(const std::vector<Viewpoint>& viewpoints,
-                                   const std::vector<Score>& scores) {
+void Visualization::ShowViewpoints(const std::vector<Viewpoint>& viewpoints) {
   FlushCandidateViewpoints();
   for (int i = 0; i < viewpoints.size(); i++) {
     num_candidate_viewpoints_ = i;
     auto viewpoint = viewpoints[i];
-    auto score = scores[i];
+    auto score = viewpoint.score();
     Marker viewpoint_marker;
     Marker text_marker;
     MakeCameraMarker(viewpoint, score, &viewpoint_marker);
