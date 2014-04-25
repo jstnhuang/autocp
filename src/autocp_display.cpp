@@ -10,10 +10,11 @@ AutoCPDisplay::AutoCPDisplay()
     : node_handle_(""),
       tf_listener_(),
       camera_placement_publisher_(),
+      camera_(),
       sensing_(NULL),
       visualization_(NULL),
-      optimization_(NULL),
-      current_viewpoint_(NULL) {
+      visibility_checker_(NULL),
+      optimization_(NULL) {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -26,7 +27,7 @@ AutoCPDisplay::AutoCPDisplay()
 
   // Landmark weights.
   l_gripper_weight_ = new rviz::FloatProperty(
-      "Left gripper focus weight", 0.20,
+      "Left gripper focus weight", 0.00,
       "How much weight to assign to the left gripper's location.", this,
       SLOT(UpdateWeights()));
   l_gripper_weight_->setMin(0);
@@ -40,21 +41,21 @@ AutoCPDisplay::AutoCPDisplay()
   r_gripper_weight_->setMax(1);
 
   head_weight_ = new rviz::FloatProperty(
-      "Head weight", 0.20,
+      "Head weight", 0.00,
       "How much weight to the location of the robot's head.", this,
       SLOT(UpdateWeights()));
   head_weight_->setMin(0);
   head_weight_->setMax(1);
 
   head_focus_weight_ = new rviz::FloatProperty(
-      "Head focus point weight", 0.20,
+      "Head focus point weight", 0.00,
       "How much weight to assign to the location the robot is looking.", this,
       SLOT(UpdateWeights()));
   head_focus_weight_->setMin(0);
   head_focus_weight_->setMax(1);
 
   segmented_object_weight_ = new rviz::FloatProperty(
-      "Segmented object weight", 0.20,
+      "Segmented object weight", 0.00,
       "How much weight to assign to the locations of segmented objects", this,
       SLOT(UpdateWeights()));
   segmented_object_weight_->setMin(0);
@@ -145,10 +146,11 @@ void AutoCPDisplay::onInitialize() {
   auto visualization_manager = static_cast<rviz::VisualizationManager*>(
       context_);
   auto scene_manager = visualization_manager->getSceneManager();
-  auto camera = visualization_manager->getRenderPanel()->getCamera();
-  auto visibility_checker = new VisibilityChecker(scene_manager, camera);
-  optimization_ = new Optimization(sensing_, visibility_checker,
-                                   camera);
+  camera_ = visualization_manager->getRenderPanel()->getCamera();
+  visibility_checker_ = new VisibilityChecker(scene_manager, camera_);
+  optimization_ = new Optimization(sensing_, visibility_checker_,
+                                   visualization_);
+
   UpdateTopic();
   UpdateWeights();
 }
@@ -198,12 +200,14 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
   if (sensing_->landmarks()->NumLandmarks() == 0) {
     return;
   }
+
   ChooseCameraPlacement(wall_dt);
 
   if (show_fps_->getBool()) {
     ROS_INFO("FPS: %f", 1 / wall_dt);
   }
   sensing_->Update();
+
 }
 
 /**
@@ -211,20 +215,30 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
+  geometry_msgs::Quaternion orientation = ToGeometryMsgsQuaternion(
+      camera_->getOrientation());
+  geometry_msgs::Point position = ToGeometryMsgsPoint(camera_->getPosition());
+  geometry_msgs::Point focus;
+  QuaternionToFocus(orientation, position, &focus);
+  auto current_viewpoint = Viewpoint(ToOgreVector3(position),
+                                     ToOgreVector3(focus));
+  Score current_score;
+  optimization_->ComputeViewpointScore(current_viewpoint, &current_score);
+
   std::vector<Viewpoint> target_viewpoints;
   optimization_->ChooseViewpoint(NULL, 1, &target_viewpoints);
   if (target_viewpoints.size() > 0) {
     auto top_viewpoint = target_viewpoints[0];
     auto top_score = top_viewpoint.score().score;
     auto threshold = score_threshold_->getFloat();
-    if (current_viewpoint_ == NULL ||
-        top_score > threshold * current_viewpoint_->score().score) {
+    if (top_score > threshold * current_score.score) {
       visualization_->ShowViewpoint(top_viewpoint);
-      ROS_INFO("top: %.2f, %.2f, %.2f, %s",
+      ROS_INFO("top: %.2f, %.2f, %.2f, %s; prev=%.2f",
                top_viewpoint.position().x,
                top_viewpoint.position().y,
                top_viewpoint.position().z,
-               top_viewpoint.score().toString().c_str());
+               top_viewpoint.score().toString().c_str(),
+               current_score.score);
     }
   }
 }

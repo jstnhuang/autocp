@@ -32,10 +32,11 @@
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <manipulation_msgs/GraspableObjectList.h>
 
-#include "models/viewpoint.h"
-#include "autocp_sensing.h"
-#include "optimization.h"
-#include "visualization.h"
+#include "autocp/models/viewpoint.h"
+#include "autocp/autocp_sensing.h"
+#include "autocp/optimization.h"
+#include "autocp/visibility.h"
+#include "autocp/visualization.h"
 
 #include <math.h>
 #include <map>
@@ -65,11 +66,12 @@ Q_OBJECT
   ros::NodeHandle node_handle_;
   tf::TransformListener tf_listener_;
   ros::Publisher camera_placement_publisher_;
+  Ogre::Camera* camera_;
 
   AutoCPSensing* sensing_;
   Visualization* visualization_;
+  VisibilityChecker* visibility_checker_;
   Optimization* optimization_;
-
   Viewpoint* current_viewpoint_;
 
   // Display properties
