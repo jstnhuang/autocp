@@ -17,9 +17,9 @@ class Viewpoint {
   void set_position(const Ogre::Vector3& position);
   void set_focus(const Ogre::Vector3& focus);
   void set_score(const Score& score);
-  struct HasHigherScore {
+  struct LessThan {
     bool operator()(const Viewpoint& left, const Viewpoint& right) {
-      return left.score().score > right.score().score;
+      return left.score().score < right.score().score;
     }
   };
 
