@@ -13,11 +13,12 @@ struct Score {
   float orthogonality;
   float zoom;
   float score;
+  float crossing;
  public:
   std::string toString() const {
     char buffer[80];
-    snprintf(buffer, 80, "v: %.2f, c: %.2f, o: %.2f, z: %.2f = %.2f",
-             visibility, centering, orthogonality, zoom, score);
+    snprintf(buffer, 80, "v: %.2f, c: %.2f, o: %.2f, z: %.2f, c: %.2f = %.2f",
+             visibility, centering, orthogonality, zoom, crossing, score);
     return std::string(buffer);
   }
 };

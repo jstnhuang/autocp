@@ -26,6 +26,7 @@ class Optimization {
   void set_centering_weight(float weight);
   void set_view_angle_weight(float weight);
   void set_zoom_weight(float weight);
+  void set_crossing_weight(float weight);
   void set_max_visibility_checks(int max_visibility_checks);
   void set_score_threshold(float threshold);
   void set_min_zoom(float min_zoom);
@@ -43,6 +44,7 @@ class Optimization {
   float centering_weight_;
   float view_angle_weight_;
   float zoom_weight_;
+  float crossing_weight_;
   float min_zoom_;
   float max_zoom_;
   float max_travel_;
@@ -59,6 +61,8 @@ class Optimization {
   float ViewAngleScore(const Viewpoint& viewpoint,
                        const ClickedControl& control);
   float ZoomScore(const Viewpoint& viewpoint);
+  float CrossingScore(const Viewpoint& viewpoint,
+                      const ClickedControl& control);
 };
 
 }

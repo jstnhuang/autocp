@@ -64,14 +64,14 @@ AutoCPDisplay::AutoCPDisplay()
 
   // Weights on location.
   be_orthogonal_weight_ = new rviz::FloatProperty(
-      "Marker orthogonality weight", 0.25,
+      "Marker orthogonality weight", 0.20,
       "How much weight to assign to points orthogonal to the current marker.",
       this, SLOT(UpdateWeights()));
   be_orthogonal_weight_->setMin(0);
   be_orthogonal_weight_->setMax(1);
 
   stay_visible_weight_ = new rviz::FloatProperty(
-      "Marker visibility weight", 0.25,
+      "Marker visibility weight", 0.20,
       "How much weight to assign to points where the current marker is "
       "visible.",
       this, SLOT(UpdateWeights()));
@@ -79,18 +79,25 @@ AutoCPDisplay::AutoCPDisplay()
   stay_visible_weight_->setMax(1);
 
   centering_weight_ = new rviz::FloatProperty(
-      "Centering weight", 0.25,
+      "Centering weight", 0.20,
       "How much weight to assign to having landmarks centered on screen.",
       this, SLOT(UpdateWeights()));
   centering_weight_->setMin(0);
   centering_weight_->setMax(1);
 
   zoom_weight_ = new rviz::FloatProperty(
-      "Zoom weight", 0.25,
+      "Zoom weight", 0.20,
       "How much weight to assign to being close to landmarks.", this,
       SLOT(UpdateWeights()));
   zoom_weight_->setMin(0);
   zoom_weight_->setMax(1);
+
+  crossing_weight_ = new rviz::FloatProperty(
+      "Line crossing weight", 0.20,
+      "How much to penalize \"crossing the line.\"", this,
+      SLOT(UpdateWeights()));
+  crossing_weight_->setMin(0);
+  crossing_weight_->setMax(1);
 
   // Other properties.
   score_threshold_ = new rviz::FloatProperty(
@@ -187,6 +194,7 @@ void AutoCPDisplay::UpdateWeights() {
   optimization_->set_centering_weight(centering_weight_->getFloat());
   optimization_->set_view_angle_weight(be_orthogonal_weight_->getFloat());
   optimization_->set_zoom_weight(zoom_weight_->getFloat());
+  optimization_->set_crossing_weight(crossing_weight_->getFloat());
   optimization_->set_score_threshold(score_threshold_->getFloat());
   optimization_->set_max_visibility_checks(occlusion_check_limit_->getInt());
   optimization_->set_min_zoom(min_zoom_->getFloat());

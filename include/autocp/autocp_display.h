@@ -95,6 +95,7 @@ Q_OBJECT
   rviz::FloatProperty* stay_visible_weight_;
   rviz::FloatProperty* centering_weight_;
   rviz::FloatProperty* zoom_weight_;
+  rviz::FloatProperty* crossing_weight_;
 
   rviz::BoolProperty* show_fps_;
 
