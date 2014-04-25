@@ -13,10 +13,13 @@
 #include <tf/transform_listener.h>
 #include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <visualization_msgs/InteractiveMarkerInit.h>
+#include <OGRE/OgreCamera.h>
+#include <OGRE/OgreQuaternion.h>
 #include <OGRE/OgreVector3.h>
 
-#include "models/clicked_control.h"
-#include "landmarks.h"
+#include "autocp/models/clicked_control.h"
+#include "autocp/models/viewpoint.h"
+#include "autocp/landmarks.h"
 
 namespace autocp {
 
@@ -44,6 +47,7 @@ class AutoCPSensing {
  public:
   AutoCPSensing(const ros::NodeHandle& root_nh,
                 tf::TransformListener* tf_listener,
+                Ogre::Camera* camera,
                 const std::string& fixed_frame);
   ~AutoCPSensing();
   void Initialize();
@@ -55,12 +59,14 @@ class AutoCPSensing {
   std::vector<Ogre::Vector3>* segmented_object_positions();
   ClickedControl* previous_control();
   Landmarks* landmarks();
+  Viewpoint current_viewpoint();
   bool IsMouseUp();
   bool IsControlActive();
 
  private:
   ros::NodeHandle root_nh_;
   tf::TransformListener* tf_listener_;
+  Ogre::Camera* camera_;
   std::string fixed_frame_;
   Landmarks landmarks_;
 

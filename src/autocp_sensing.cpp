@@ -1,11 +1,14 @@
 #include "autocp/autocp_sensing.h"
+#include "autocp/utils.h"
 
 namespace autocp {
 AutoCPSensing::AutoCPSensing(const ros::NodeHandle& root_nh,
                              tf::TransformListener* tf_listener,
+                             Ogre::Camera* camera,
                              const std::string& fixed_frame) {
   root_nh_ = root_nh;
   tf_listener_ = tf_listener;
+  camera_ = camera;
   fixed_frame_ = fixed_frame;
 
   active_control_ = NULL;
@@ -52,6 +55,7 @@ void AutoCPSensing::Update() {
   UpdateHeadPosition();
   UpdateLeftGripperPosition();
   UpdateRightGripperPosition();
+  mouse_up_ = false;
 
   if (active_control_ != NULL) {
     if (previous_control_ != NULL) {
@@ -88,6 +92,15 @@ ClickedControl* AutoCPSensing::previous_control() {
 
 Landmarks* AutoCPSensing::landmarks() {
   return &landmarks_;
+}
+
+Viewpoint AutoCPSensing::current_viewpoint() {
+  geometry_msgs::Quaternion orientation = ToGeometryMsgsQuaternion(
+    camera_->getOrientation());
+  geometry_msgs::Point position = ToGeometryMsgsPoint(camera_->getPosition());
+  geometry_msgs::Point focus;
+  QuaternionToFocus(orientation, position, &focus);
+  return Viewpoint(ToOgreVector3(position), ToOgreVector3(focus));
 }
 
 bool AutoCPSensing::IsMouseUp() {
@@ -158,8 +171,6 @@ void AutoCPSensing::MarkerFeedbackCallback(
   if (feedback.event_type ==
       visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
     mouse_up_ = true;
-  } else {
-    mouse_up_ = false;
   }
   if (feedback.event_type
       != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
