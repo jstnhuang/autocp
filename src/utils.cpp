@@ -61,7 +61,6 @@ void interpolatePoint(const Ogre::Vector3& start,
 void interpolateViewpoint(const Viewpoint& start,
                           const Viewpoint& end,
                           float position_speed,
-                          float focus_speed,
                           float time_delta,
                           Viewpoint* result) {
   Ogre::Vector3 next_position;
@@ -69,10 +68,17 @@ void interpolateViewpoint(const Viewpoint& start,
                    &next_position);
   result->set_position(next_position);
 
+  // Estimate the focus speed so that it completes at around the same time as
+  // the position.
+  float pos_distance = start.position().distance(end.position());
+  float position_time = pos_distance / position_speed;
+  float focus_distance = start.focus().distance(end.focus());
+  float focus_speed = focus_distance / position_time;
+
   Ogre::Vector3 next_focus;
   interpolatePoint(start.focus(), end.focus(), focus_speed, time_delta,
                    &next_focus);
-  result->set_focus(next_position);
+  result->set_focus(next_focus);
 }
 
 /**

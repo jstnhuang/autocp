@@ -14,8 +14,8 @@ void ComputeControlProjection(const ClickedControl& control,
                               const Ogre::Vector3& vector,
                               Ogre::Vector3* projection);
 void interpolateViewpoint(const Viewpoint& start, const Viewpoint& end,
-                          float position_speed, float focus_speed,
-                          float time_delta, Viewpoint* result);
+                          float position_speed, float time_delta,
+                          Viewpoint* result);
 void interpolatePoint(const Ogre::Vector3& start, const Ogre::Vector3& end,
                       float speed, float time_delta, Ogre::Vector3* result);
 float linearInterpolation(float x1, float y1, float x2, float y2, float x);
