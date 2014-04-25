@@ -13,7 +13,7 @@ AutoCPSensing::AutoCPSensing(const ros::NodeHandle& root_nh,
 
   active_control_ = NULL;
   previous_control_ = NULL;
-  mouse_up_ = false;
+  marker_click_state_ = MarkerClickState::kStart;
 
   head_focus_subscriber_ = root_nh_.subscribe(
       "head_traj_controller/point_head_action/goal", 5,
@@ -55,7 +55,9 @@ void AutoCPSensing::Update() {
   UpdateHeadPosition();
   UpdateLeftGripperPosition();
   UpdateRightGripperPosition();
-  mouse_up_ = false;
+  if (marker_click_state_ == MarkerClickState::kDownThenUp) {
+    marker_click_state_ = MarkerClickState::kStart;
+  }
 
   if (active_control_ != NULL) {
     if (previous_control_ != NULL) {
@@ -104,7 +106,7 @@ Viewpoint AutoCPSensing::current_viewpoint() {
 }
 
 bool AutoCPSensing::IsMouseUp() {
-  return mouse_up_;
+  return marker_click_state_ == MarkerClickState::kDownThenUp;
 }
 
 /*
@@ -168,10 +170,20 @@ void AutoCPSensing::ObjectSegmentationCallback(
  */
 void AutoCPSensing::MarkerFeedbackCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback) {
-  if (feedback.event_type ==
-      visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
-    mouse_up_ = true;
+  if (marker_click_state_ == MarkerClickState::kStart) {
+    if (feedback.event_type ==
+        visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN) {
+      marker_click_state_ = MarkerClickState::kDown;
+    }
+  } else if (marker_click_state_ == MarkerClickState::kDown) {
+    if (feedback.event_type ==
+        visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
+      marker_click_state_ = MarkerClickState::kDownThenUp;
+    }
+  } else {
+    marker_click_state_ = MarkerClickState::kStart;
   }
+
   if (feedback.event_type
       != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
     return;

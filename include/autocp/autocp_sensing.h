@@ -43,6 +43,12 @@ static const std::map<std::string, Control6Dof> GRIPPER_CONTROLS = {
   { "_u1", Control6Dof::YAW }
 };
 
+enum class MarkerClickState {
+  kStart,
+  kDown,
+  kDownThenUp
+};
+
 class AutoCPSensing {
  public:
   AutoCPSensing(const ros::NodeHandle& root_nh,
@@ -76,7 +82,7 @@ class AutoCPSensing {
   Ogre::Vector3 left_gripper_position_;
   Ogre::Vector3 right_gripper_position_;
   std::vector<Ogre::Vector3> segmented_object_positions_;
-  bool mouse_up_;
+  MarkerClickState marker_click_state_;
 
   ClickedControl* active_control_;
   ClickedControl* previous_control_;
