@@ -45,6 +45,10 @@
 #include <stdio.h>
 
 namespace autocp {
+enum class State {
+  WAITING,
+  MOVING
+};
 
 class AutoCPDisplay : public rviz::Display {
 Q_OBJECT
@@ -72,8 +76,9 @@ Q_OBJECT
   Visualization* visualization_;
   VisibilityChecker* visibility_checker_;
   Optimization* optimization_;
-  Viewpoint* current_viewpoint_;
-  bool frozen_;
+  Viewpoint current_viewpoint_;
+  Viewpoint target_viewpoint_;
+  State state_;
 
   // Display properties
   rviz::RosTopicProperty* topic_prop_;

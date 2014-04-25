@@ -15,7 +15,7 @@ AutoCPDisplay::AutoCPDisplay()
       visualization_(NULL),
       visibility_checker_(NULL),
       optimization_(NULL),
-      frozen_(true) {
+      state_(State::WAITING) {
   topic_prop_ =
       new rviz::RosTopicProperty(
           "Command topic",
@@ -28,7 +28,7 @@ AutoCPDisplay::AutoCPDisplay()
 
   // Landmark weights.
   l_gripper_weight_ = new rviz::FloatProperty(
-      "Left gripper focus weight", 0.00,
+      "Left gripper focus weight", 0.20,
       "How much weight to assign to the left gripper's location.", this,
       SLOT(UpdateWeights()));
   l_gripper_weight_->setMin(0);
@@ -42,21 +42,21 @@ AutoCPDisplay::AutoCPDisplay()
   r_gripper_weight_->setMax(1);
 
   head_weight_ = new rviz::FloatProperty(
-      "Head weight", 0.00,
+      "Head weight", 0.20,
       "How much weight to the location of the robot's head.", this,
       SLOT(UpdateWeights()));
   head_weight_->setMin(0);
   head_weight_->setMax(1);
 
   head_focus_weight_ = new rviz::FloatProperty(
-      "Head focus point weight", 0.00,
+      "Head focus point weight", 0.20,
       "How much weight to assign to the location the robot is looking.", this,
       SLOT(UpdateWeights()));
   head_focus_weight_->setMin(0);
   head_focus_weight_->setMax(1);
 
   segmented_object_weight_ = new rviz::FloatProperty(
-      "Segmented object weight", 0.00,
+      "Segmented object weight", 0.20,
       "How much weight to assign to the locations of segmented objects", this,
       SLOT(UpdateWeights()));
   segmented_object_weight_->setMin(0);
@@ -138,18 +138,19 @@ AutoCPDisplay::~AutoCPDisplay() {
  */
 void AutoCPDisplay::onInitialize() {
   Display::onInitialize();
-  sensing_ = new AutoCPSensing(node_handle_, &tf_listener_,
+  auto visualization_manager = static_cast<rviz::VisualizationManager*>(
+      context_);
+  auto scene_manager = visualization_manager->getSceneManager();
+  camera_ = visualization_manager->getRenderPanel()->getCamera();
+  sensing_ = new AutoCPSensing(node_handle_, &tf_listener_, camera_,
                                fixed_frame_.toStdString());
   sensing_->Initialize();
 
   visualization_ = new Visualization(node_handle_, fixed_frame_.toStdString());
 
-  auto visualization_manager = static_cast<rviz::VisualizationManager*>(
-      context_);
-  auto scene_manager = visualization_manager->getSceneManager();
-  camera_ = visualization_manager->getRenderPanel()->getCamera();
   visibility_checker_ = new VisibilityChecker(scene_manager, camera_);
   optimization_ = new Optimization(sensing_, visibility_checker_);
+  target_viewpoint_ = sensing_->current_viewpoint();
 
   UpdateTopic();
   UpdateWeights();
@@ -201,9 +202,31 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
     return;
   }
 
-  if (!frozen_) {
-    ChooseCameraPlacement(wall_dt);
-    frozen_ = true;
+  if (state_ == State::WAITING) {
+    if (sensing_->IsMouseUp()) {
+      ChooseCameraPlacement(wall_dt);
+      ROS_INFO("Target: %.2f, %.2f, %.2f = %s", target_viewpoint_.position().x,
+               target_viewpoint_.position().y, target_viewpoint_.position().z,
+               target_viewpoint_.score().toString().c_str());
+      state_ = State::MOVING;
+    } else {
+      current_viewpoint_ = sensing_->current_viewpoint();
+    }
+  } else {
+    if (current_viewpoint_.SamePose(target_viewpoint_)) {
+      state_ = State::WAITING;
+    } else {
+      Viewpoint next_viewpoint;
+      interpolateViewpoint(current_viewpoint_, target_viewpoint_,
+                           4, wall_dt, &next_viewpoint);
+      view_controller_msgs::CameraPlacement message;
+      SetCameraPlacement(next_viewpoint, ros::Duration(wall_dt), &message);
+      camera_placement_publisher_.publish(message);
+      // Have to be careful not to assign current_viewpoint_ to the one returned
+      // by sensing_->current_viewpoint(). That viewpoint has a focus point
+      // that is always 1 meter out in front.
+      current_viewpoint_ = next_viewpoint;
+    }
   }
 
   if (show_fps_->getBool()) {
@@ -217,15 +240,9 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
-  geometry_msgs::Quaternion orientation = ToGeometryMsgsQuaternion(
-      camera_->getOrientation());
-  geometry_msgs::Point position = ToGeometryMsgsPoint(camera_->getPosition());
-  geometry_msgs::Point focus;
-  QuaternionToFocus(orientation, position, &focus);
-  auto current_viewpoint = Viewpoint(ToOgreVector3(position),
-                                     ToOgreVector3(focus));
   Score current_score;
-  optimization_->ComputeViewpointScore(current_viewpoint, &current_score);
+  optimization_->ComputeViewpointScore(sensing_->current_viewpoint(),
+                                       &current_score);
 
   std::vector<Viewpoint> target_viewpoints;
   optimization_->ChooseViewpoint(NULL, 1, &target_viewpoints);
@@ -235,15 +252,7 @@ void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
     auto threshold = score_threshold_->getFloat();
     if (top_score > threshold * current_score.score) {
       visualization_->ShowViewpoint(top_viewpoint);
-      ROS_INFO("top: %.2f, %.2f, %.2f, %s; prev=%.2f",
-               top_viewpoint.position().x,
-               top_viewpoint.position().y,
-               top_viewpoint.position().z,
-               top_viewpoint.score().toString().c_str(),
-               current_score.score);
-      view_controller_msgs::CameraPlacement message;
-      SetCameraPlacement(top_viewpoint, ros::Duration(0.5), &message);
-      camera_placement_publisher_.publish(message);
+      target_viewpoint_ = top_viewpoint;
     }
   }
 }
