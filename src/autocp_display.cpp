@@ -148,8 +148,7 @@ void AutoCPDisplay::onInitialize() {
   auto scene_manager = visualization_manager->getSceneManager();
   camera_ = visualization_manager->getRenderPanel()->getCamera();
   visibility_checker_ = new VisibilityChecker(scene_manager, camera_);
-  optimization_ = new Optimization(sensing_, visibility_checker_,
-                                   visualization_);
+  optimization_ = new Optimization(sensing_, visibility_checker_);
 
   UpdateTopic();
   UpdateWeights();
