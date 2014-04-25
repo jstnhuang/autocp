@@ -114,8 +114,7 @@ class AutoCPSensing {
       const visualization_msgs::InteractiveMarkerInit& im_init);
 
   // Helpers.
-  void DetectMouseEvent(
-      const visualization_msgs::InteractiveMarkerFeedback& feedback);
+  void DetectMouseEvent(int event_type, std::string marker_name);
 };
 
 }

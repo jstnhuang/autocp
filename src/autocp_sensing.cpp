@@ -55,8 +55,8 @@ void AutoCPSensing::Update() {
   UpdateHeadPosition();
   UpdateLeftGripperPosition();
   UpdateRightGripperPosition();
-  if (marker_click_state_ == MarkerClickState::kClick ||
-      marker_click_state_ == MarkerClickState::kDrag) {
+  if (marker_click_state_ == MarkerClickState::kClick
+      || marker_click_state_ == MarkerClickState::kDrag) {
     marker_click_state_ = MarkerClickState::kStart;
   }
 
@@ -99,7 +99,7 @@ Landmarks* AutoCPSensing::landmarks() {
 
 Viewpoint AutoCPSensing::current_viewpoint() {
   geometry_msgs::Quaternion orientation = ToGeometryMsgsQuaternion(
-    camera_->getOrientation());
+      camera_->getOrientation());
   geometry_msgs::Point position = ToGeometryMsgsPoint(camera_->getPosition());
   geometry_msgs::Point focus;
   QuaternionToFocus(orientation, position, &focus);
@@ -175,7 +175,7 @@ void AutoCPSensing::ObjectSegmentationCallback(
  */
 void AutoCPSensing::MarkerFeedbackCallback(
     const visualization_msgs::InteractiveMarkerFeedback& feedback) {
-  DetectMouseEvent(feedback);
+  DetectMouseEvent(feedback.event_type, feedback.marker_name);
 
   if (feedback.event_type
       != visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE) {
@@ -210,12 +210,8 @@ void AutoCPSensing::MarkerFeedbackCallback(
       return;
     }
 
-    active_control_ = new ClickedControl {
-      marker_name,
-      control,
-      feedback.pose,
-      world_position
-    };
+    active_control_ = new ClickedControl { marker_name, control, feedback.pose,
+        world_position };
   } catch (const std::out_of_range& e) {
     ROS_INFO("Unknown control %s for marker %s", control_name.c_str(),
              marker_name.c_str());
@@ -228,7 +224,7 @@ void AutoCPSensing::MarkerFeedbackCallback(
  * which gives us the exact control that's being used.
  */
 void AutoCPSensing::MarkerFeedbackFullCallback(
-  const visualization_msgs::InteractiveMarkerInit& im_init) {
+    const visualization_msgs::InteractiveMarkerInit& im_init) {
   landmarks_.UpdateHeadFocus(NULL);
   landmarks_.UpdateRightGripper(NULL);
   landmarks_.UpdateLeftGripper(NULL);
@@ -249,17 +245,22 @@ void AutoCPSensing::MarkerFeedbackFullCallback(
   }
 }
 
-void AutoCPSensing::DetectMouseEvent(
-    const visualization_msgs::InteractiveMarkerFeedback& feedback) {
+void AutoCPSensing::DetectMouseEvent(int event_type, std::string marker_name) {
+  if (marker_name != "head_point_goal" && marker_name != "l_gripper_control"
+      && marker_name != "r_gripper_control"
+      && marker_name != "l_posture_control"
+      && marker_name != "r_posture_control") {
+    return;
+  }
   if (marker_click_state_ == MarkerClickState::kStart) {
-    if (feedback.event_type ==
-        visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN) {
+    if (event_type
+        == visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN) {
       marker_click_state_ = MarkerClickState::kDown;
       mouse_down_time_ = ros::Time::now();
     }
   } else if (marker_click_state_ == MarkerClickState::kDown) {
-    if (feedback.event_type ==
-        visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
+    if (event_type
+        == visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP) {
       auto click_time = ros::Time::now() - mouse_down_time_;
       if (click_time < ros::Duration(0, 100000000)) {
         marker_click_state_ = MarkerClickState::kClick;
