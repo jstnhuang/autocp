@@ -108,7 +108,7 @@ AutoCPDisplay::AutoCPDisplay()
   score_threshold_->setMax(30);
 
   min_zoom_ = new rviz::FloatProperty(
-      "Minimum zoom", 0.5, "Minimum distance to zoom into landmarks.",
+      "Minimum zoom", 1, "Minimum distance to zoom into landmarks.",
       this, SLOT(UpdateWeights()));
   min_zoom_->setMin(0);
   min_zoom_->setMax(10);
@@ -120,7 +120,7 @@ AutoCPDisplay::AutoCPDisplay()
   max_zoom_->setMax(10);
 
   occlusion_check_limit_ = new rviz::IntProperty(
-      "Occlusion check limit", 1000,
+      "Occlusion check limit", 5000,
       "The number of occlusions to check each frame.", this,
       SLOT(UpdateWeights()));
   occlusion_check_limit_->setMin(0);
