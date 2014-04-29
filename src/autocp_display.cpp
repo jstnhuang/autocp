@@ -254,10 +254,14 @@ void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
     optimization_->ComputeOrthogonalViewpoint(sensing_->current_viewpoint(),
                                               *previous_control,
                                               &ideal_viewpoint);
-    Score ideal_score;
-    optimization_->ComputeViewpointScore(ideal_viewpoint, &ideal_score);
-    visualization_->ShowViewpoint(ideal_viewpoint);
-    target_viewpoint_ = ideal_viewpoint;
+    std::vector<Viewpoint> viewpoints;
+    optimization_->ChooseViewpoint(&ideal_viewpoint, 1, &viewpoints);
+
+    if (!viewpoints.empty()) {
+      auto top_viewpoint = viewpoints[0];
+      visualization_->ShowViewpoint(top_viewpoint);
+      target_viewpoint_ = top_viewpoint;
+    }
   }
 }
 
