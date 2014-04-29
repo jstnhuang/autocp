@@ -92,12 +92,12 @@ AutoCPDisplay::AutoCPDisplay()
   zoom_weight_->setMin(0);
   zoom_weight_->setMax(1);
 
-  crossing_weight_ = new rviz::FloatProperty(
-      "Line crossing weight", 0.20,
-      "How much to penalize \"crossing the line.\"", this,
+  travel_weight_ = new rviz::FloatProperty(
+      "Travel weight", 0.20,
+      "How much to penalize distance from the ideal viewpoint.", this,
       SLOT(UpdateWeights()));
-  crossing_weight_->setMin(0);
-  crossing_weight_->setMax(1);
+  travel_weight_->setMin(0);
+  travel_weight_->setMax(1);
 
   // Other properties.
   score_threshold_ = new rviz::FloatProperty(
@@ -194,7 +194,7 @@ void AutoCPDisplay::UpdateWeights() {
   optimization_->set_centering_weight(centering_weight_->getFloat());
   optimization_->set_view_angle_weight(be_orthogonal_weight_->getFloat());
   optimization_->set_zoom_weight(zoom_weight_->getFloat());
-  optimization_->set_crossing_weight(crossing_weight_->getFloat());
+  optimization_->set_travel_weight(travel_weight_->getFloat());
   optimization_->set_score_threshold(score_threshold_->getFloat());
   optimization_->set_max_visibility_checks(occlusion_check_limit_->getInt());
   optimization_->set_min_zoom(min_zoom_->getFloat());

@@ -58,7 +58,7 @@ void Optimization::ChooseViewpoint(const Viewpoint* nearby_point,
 
   for (auto& viewpoint : viewpoints) {
     Score score;
-    ComputeViewpointScore(viewpoint, &score);
+    ComputeViewpointScore(viewpoint, nearby_point, &score);
     viewpoint.set_score(score);
     test_viewpoints.push(viewpoint);
   }
@@ -71,6 +71,7 @@ void Optimization::ChooseViewpoint(const Viewpoint* nearby_point,
 }
 
 void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
+                                         const Viewpoint* ideal_viewpoint,
                                          Score* score) {
   float score_numerator = 0;
   float score_denominator = 0;
@@ -104,14 +105,14 @@ void Optimization::ComputeViewpointScore(const Viewpoint& viewpoint,
   score_denominator += zoom_weight_;
   score->zoom = zoom_weight_ * zoom_score;
 
-  // Crossing score.
-  if (previous_control != NULL) {
-    float crossing_score = CrossingScore(viewpoint, *previous_control);
-    score_numerator += crossing_weight_ * crossing_score;
-    score_denominator += crossing_weight_;
-    score->crossing = crossing_weight_ * crossing_score;
+  // Travel score.
+  if (ideal_viewpoint != NULL) {
+    float travel_score = TravelingScore(viewpoint, *ideal_viewpoint);
+    score_numerator += travel_weight_ * travel_score;
+    score_denominator += travel_weight_;
+    score->travel = travel_weight_ * travel_score;
   } else {
-    score->crossing = 0;
+    score->travel = 0;
   }
 
   if (score_denominator != 0) {
@@ -138,8 +139,8 @@ void Optimization::set_zoom_weight(float weight) {
   zoom_weight_ = weight;
 }
 
-void Optimization::set_crossing_weight(float weight) {
-  crossing_weight_ = weight;
+void Optimization::set_travel_weight(float weight) {
+  travel_weight_ = weight;
 }
 
 void Optimization::set_max_visibility_checks(int max_visibility_checks) {
@@ -304,35 +305,10 @@ float Optimization::ZoomScore(const Viewpoint& viewpoint) {
   return sensing_->landmarks()->ComputeMetric(zoom_metric);
 }
 
-float Optimization::CrossingScore(const Viewpoint& viewpoint,
-                                  const ClickedControl& control) {
-  auto camera_position = sensing_->current_viewpoint().position();
-  auto control_position = control.world_position;
-  int current_x_sign = sign(camera_position.x - control_position.x);
-  int current_y_sign = sign(camera_position.y - control_position.y);
-  int current_z_sign = sign(camera_position.z - control_position.z);
-  int candidate_x_sign = sign(viewpoint.position().x - control_position.x);
-  int candidate_y_sign = sign(viewpoint.position().y - control_position.y);
-  int candidate_z_sign = sign(viewpoint.position().z - control_position.z);
-
-  // If you're using an x control, don't cross the y=0 plane
-  // If you're using a y control, don't cross the x=0 plane
-  if (control.control == Control6Dof::X
-      || control.control == Control6Dof::PITCH) {
-    if (candidate_y_sign != current_y_sign) {
-      return 0;
-    }
-  } else if (control.control == Control6Dof::Y
-      || control.control == Control6Dof::ROLL) {
-    if (candidate_x_sign != current_x_sign) {
-      return 0;
-    }
-  } else if (control.control == Control6Dof::YAW){
-    if (candidate_z_sign != current_z_sign) {
-      return 0;
-    }
-  }
-  return 1;
+float Optimization::TravelingScore(const Viewpoint& viewpoint,
+                                  const Viewpoint& ideal_viewpoint) {
+  auto distance = viewpoint.position().distance(ideal_viewpoint.position());
+  return linearInterpolation(0, 1, max_travel_, 0, distance);
 }
 
 }
