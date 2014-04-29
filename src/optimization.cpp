@@ -223,6 +223,7 @@ void Optimization::SelectViewpoints(const Viewpoint* center_viewpoint,
     landmark_positions.push_back(center);
   } else {
     landmark_positions.push_back(center_viewpoint->position());
+    viewpoints->push_back(*center_viewpoint);
   }
 
   int num_landmarks = landmark_positions.size();
