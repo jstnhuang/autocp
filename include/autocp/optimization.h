@@ -4,6 +4,7 @@
 #include <OGRE/OgreCamera.h>
 #include <OGRE/OgreSceneManager.h>
 
+#include "autocp/models/clicked_control.h"
 #include "autocp/models/score.h"
 #include "autocp/models/viewpoint.h"
 #include "autocp/autocp_sensing.h"
@@ -18,6 +19,10 @@ class Optimization {
  public:
   Optimization(AutoCPSensing* sensing, VisibilityChecker* visibility_checker);
   ~Optimization();
+  void ComputeOrthogonalViewpoint(
+      const Viewpoint& current_viewpoint,
+      const ClickedControl& clicked_control,
+      Viewpoint* result);
   void ChooseViewpoint(const Viewpoint* nearby_point,
                        int num_results,
                        std::vector<Viewpoint>* results);

@@ -248,20 +248,16 @@ void AutoCPDisplay::update(float wall_dt, float ros_dt) {
  * placement.
  */
 void AutoCPDisplay::ChooseCameraPlacement(float time_delta) {
-  Score current_score;
-  optimization_->ComputeViewpointScore(sensing_->current_viewpoint(),
-                                       &current_score);
-
-  std::vector<Viewpoint> target_viewpoints;
-  optimization_->ChooseViewpoint(NULL, 1, &target_viewpoints);
-  if (target_viewpoints.size() > 0) {
-    auto top_viewpoint = target_viewpoints[0];
-    auto top_score = top_viewpoint.score().score;
-    auto threshold = score_threshold_->getFloat();
-    if (top_score > threshold * current_score.score) {
-      visualization_->ShowViewpoint(top_viewpoint);
-      target_viewpoint_ = top_viewpoint;
-    }
+  auto previous_control = sensing_->previous_control();
+  if (previous_control != NULL) {
+    Viewpoint ideal_viewpoint;
+    optimization_->ComputeOrthogonalViewpoint(sensing_->current_viewpoint(),
+                                              *previous_control,
+                                              &ideal_viewpoint);
+    Score ideal_score;
+    optimization_->ComputeViewpointScore(ideal_viewpoint, &ideal_score);
+    visualization_->ShowViewpoint(ideal_viewpoint);
+    target_viewpoint_ = ideal_viewpoint;
   }
 }
 

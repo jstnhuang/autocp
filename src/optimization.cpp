@@ -30,6 +30,23 @@ Optimization::Optimization(AutoCPSensing* sensing,
 Optimization::~Optimization() {
 }
 
+void Optimization::ComputeOrthogonalViewpoint(
+    const Viewpoint& current_viewpoint,
+    const ClickedControl& clicked_control,
+    Viewpoint* result) {
+  auto current_position = current_viewpoint.position();
+  auto control_position = clicked_control.world_position;
+  auto current_distance = current_viewpoint.position().distance(
+    control_position);
+  Ogre::Vector3 projection;
+  ComputeControlProjection(clicked_control, current_position - control_position,
+                           &projection);
+  projection.normalise();
+  projection *= current_distance;
+  result->set_position(control_position + projection);
+  result->set_focus(control_position);
+}
+
 void Optimization::ChooseViewpoint(const Viewpoint* nearby_point,
                                    int num_results,
                                    std::vector<Viewpoint>* results) {
