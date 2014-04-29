@@ -58,7 +58,8 @@ class Optimization {
   float score_threshold_;
 
   void InitializeStandardOffsets();
-  void SelectViewpoints(std::vector<Viewpoint>* viewpoints);
+  void SelectViewpoints(const Viewpoint* center_viewpoint,
+                        std::vector<Viewpoint>* viewpoints);
 
   // Score functions.
   float VisibilityScore(const Viewpoint& viewpoint);

@@ -54,12 +54,7 @@ void Optimization::ChooseViewpoint(const Viewpoint* nearby_point,
                       Viewpoint::LessThan> test_viewpoints;
 
   std::vector<Viewpoint> viewpoints;
-  if (nearby_point == NULL) {
-    // TODO: Select viewpoints near the point.
-    SelectViewpoints(&viewpoints);
-  } else {
-    SelectViewpoints(&viewpoints);
-  }
+  SelectViewpoints(nearby_point, &viewpoints);
 
   for (auto& viewpoint : viewpoints) {
     Score score;
@@ -211,17 +206,24 @@ void Optimization::InitializeStandardOffsets() {
   std::random_shuffle(standard_offsets_.begin(), standard_offsets_.end());
 }
 
-void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
+void Optimization::SelectViewpoints(const Viewpoint* center_viewpoint,
+                                    std::vector<Viewpoint>* viewpoints) {
+
   // Get landmark positions, including the center.
   auto landmarks_object = sensing_->landmarks();
   std::vector<Landmark> landmarks;
   landmarks_object->LandmarksVector(&landmarks);
   std::vector<Ogre::Vector3> landmark_positions;
-  for (const auto& landmark : landmarks) {
-    landmark_positions.push_back(landmark.position);
+
+  if (center_viewpoint == NULL) {
+    for (const auto& landmark : landmarks) {
+      landmark_positions.push_back(landmark.position);
+    }
+    Ogre::Vector3 center = landmarks_object->Center();
+    landmark_positions.push_back(center);
+  } else {
+    landmark_positions.push_back(center_viewpoint->position());
   }
-  Ogre::Vector3 center = landmarks_object->Center();
-  landmark_positions.push_back(center);
 
   int num_landmarks = landmark_positions.size();
   int num_viewpoints =
@@ -240,7 +242,11 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
   for (const auto& landmark_position : landmark_positions) {
     for (int num_added = 0; num_added < num_offsets; num_added++) {
       auto offset = standard_offsets_[offset_index_];
-      Viewpoint viewpoint(landmark_position + offset, landmark_position);
+      Ogre::Vector3 focus = landmark_position;
+      if (center_viewpoint != NULL) {
+        focus = center_viewpoint->focus();
+      }
+      Viewpoint viewpoint(landmark_position + offset, focus);
       viewpoints->push_back(viewpoint);
       offset_index_++;
       if (offset_index_ >= standard_offsets_.size()) {
@@ -249,7 +255,6 @@ void Optimization::SelectViewpoints(std::vector<Viewpoint>* viewpoints) {
     }
   }
 }
-
 
 float Optimization::VisibilityScore(const Viewpoint& viewpoint) {
   auto occlusion_metric = [&] (const Ogre::Vector3& point) -> float {
